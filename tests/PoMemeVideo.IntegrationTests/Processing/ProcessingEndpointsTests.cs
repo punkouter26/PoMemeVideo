@@ -19,6 +19,7 @@ namespace PoMemeVideo.IntegrationTests.Processing;
 /// Uses MockAiVisionService and MockDirectorService injected via WebApplicationFactory.
 /// Asserts session transitions Ingesting → Processing → Complete.
 /// </summary>
+[Collection("Integration")]
 public sealed class ProcessingEndpointsTests : IAsyncLifetime
 {
     private readonly IVideoSessionRepository _sessions = Substitute.For<IVideoSessionRepository>();

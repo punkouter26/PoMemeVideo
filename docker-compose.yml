@@ -12,7 +12,7 @@ services:
       - azurite-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "10000"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:10000/devstoreaccount1?comp=list"]
       interval: 10s
       timeout: 5s
       retries: 3

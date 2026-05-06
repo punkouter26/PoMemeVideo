@@ -124,6 +124,11 @@
     color: #7dd3fc;
 }
 
+.ai-option.ai-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .ai-dot {
     font-size: 0.85rem;
     width: 1rem;
@@ -172,5 +177,44 @@
 
 .ai-error {
     color: #fca5a5;
+}
+
+.ai-disabled {
+    opacity: 0.35;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+.ai-disabled:hover {
+    background: none !important;
+}
+
+/* ── Dev-only ANON login ───────────────────────────────────── */
+.anon-section {
+    border-top: 1px dashed rgba(255,255,0,0.25);
+    padding-top: 0.6rem;
+}
+
+.anon-btn {
+    width: 100%;
+    background: none;
+    border: 1px dashed rgba(255,255,0,0.5);
+    color: #fde047;
+    font-family: monospace;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.anon-btn:hover:not(:disabled) {
+    border-color: #fde047;
+    background: rgba(253,224,71,0.08);
+}
+
+.anon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 

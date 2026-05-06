@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
@@ -5,11 +6,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using PoMemeVideo.Api.Configuration;
 using PoMemeVideo.Api.Endpoints;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
 using PoMemeVideo.Api.Features.MemeLibrary;
+using PoMemeVideo.Api.Features.Output;
 using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Api.Hubs;
 using PoMemeVideo.Application.Ingestion;
@@ -19,7 +20,6 @@ using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
-using PoMemeVideo.Infrastructure.Mock;
 using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
@@ -39,10 +39,29 @@ try
     // ── Azure Key Vault configuration ───────────────────────────────────────
     var kvUri = builder.Configuration["KeyVault:Uri"]
                 ?? "https://kv-poshared.vault.azure.net/";
-    var credential = new DefaultAzureCredential();
+    // In dev, AzureCliCredential skips ~10 token sources and starts in ~1s.
+    // DefaultAzureCredential is retained for all other environments.
+    TokenCredential credential = builder.Environment.IsDevelopment()
+        ? new AzureCliCredential()
+        : new DefaultAzureCredential();
     builder.Configuration.AddAzureKeyVault(
         new SecretClient(new Uri(kvUri), credential),
         new PrefixKeyVaultSecretManager("PoMemeVideo"));
+
+    // Re-apply dev-only overrides after Key Vault by adding a new InMemoryCollection
+    // source that comes after KV in the provider chain (later = higher priority).
+    if (builder.Environment.IsDevelopment())
+    {
+        var devOverrides = new ConfigurationBuilder()
+            .SetBasePath(builder.Environment.ContentRootPath)
+            .AddJsonFile("appsettings.Development.json", optional: true)
+            .Build();
+        var overrideDict = devOverrides.AsEnumerable()
+            .Where(kv => kv.Value is not null)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+        if (overrideDict.Count > 0)
+            builder.Configuration.AddInMemoryCollection(overrideDict);
+    }
 
     // ── Serilog (T014) ──────────────────────────────────────────────────────
     builder.Host.UseSerilog((context, services, config) =>
@@ -87,10 +106,6 @@ try
             }
         });
 
-    // ── Feature Flags (T018) ────────────────────────────────────────────────
-    builder.Services.Configure<FeatureFlags>(
-        builder.Configuration.GetSection(FeatureFlags.SectionName));
-
     // ── Azure Storage (T016, T017, T017b) ──────────────────────────────────
     builder.Services.AddAzureTableClientFactory();
     builder.Services.AddBlobServiceClientFactory();
@@ -104,23 +119,14 @@ try
     builder.Services.AddSoundAssetTableRepository();
     builder.Services.AddDirectorScriptTableRepository();
 
-    // AI services: use mock or real based on FeatureFlags.UseMockAI
-    var useMockAi = builder.Configuration.GetValue<bool>("FeatureFlags:UseMockAI", defaultValue: true);
-    if (useMockAi)
-    {
-        builder.Services.AddSingleton<IAiVisionService, MockAiVisionService>();
-        builder.Services.AddSingleton<IDirectorService, MockDirectorService>();
-    }
-    else
-    {
-        // Runtime-switchable AI settings (default: AzureOpenAI)
-        builder.Services.AddHttpClient();  // registers IHttpClientFactory
-        builder.Services.AddSingleton<RuntimeAiSettings>();
-        builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
-        builder.Services.AddSingleton<AzureOpenAiDirectorService>();
-        builder.Services.AddSingleton<OllamaDirectorService>();
-        builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
-    }
+    // AI services — RuntimeAiSettings required by /api/config/ai-model endpoints
+    builder.Services.AddSingleton<RuntimeAiSettings>();
+    // Runtime-switchable AI settings (default: AzureOpenAI)
+    builder.Services.AddHttpClient();  // registers IHttpClientFactory
+    builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
+    builder.Services.AddSingleton<AzureOpenAiDirectorService>();
+    builder.Services.AddSingleton<OllamaDirectorService>();
+    builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 
     builder.Services.AddScoped<SemanticMatchingService>();
     builder.Services.AddScoped<RunEngineCommand>();
@@ -216,6 +222,10 @@ try
 
     // ── MemeLibrary endpoints (T047) ──────────────────────────────────────
     app.MapMemeLibraryEndpoints();
+
+    // ── Output endpoints (T062–T065) ──────────────────────────────────────
+    app.MapOutputEndpoints();
+
     // ── Auth stubs (T019) ────────────────────────────────────────────────────    // ANON login handled in AnonAuthHandler (Phase 7, T077) — stub returns 501 for now
     app.MapPost("/auth/anon", () => Results.StatusCode(501))
         .AllowAnonymous();

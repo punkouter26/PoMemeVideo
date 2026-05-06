@@ -19,6 +19,7 @@ namespace PoMemeVideo.IntegrationTests.Ingestion;
 /// Uses NSubstitute mocks to avoid real Azure dependency while still exercising
 /// the full ASP.NET Core middleware and routing pipeline.
 /// </summary>
+[Collection("Integration")]
 public sealed class IngestionEndpointsTests : IAsyncLifetime
 {
     private readonly IVideoSessionRepository _repository = Substitute.For<IVideoSessionRepository>();

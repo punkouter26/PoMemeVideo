@@ -63,7 +63,9 @@ obj/Debug/net10.0/
  PoMemeVideo.Client.GlobalUsings.g.cs
  ValidatableTypeAttribute.cs
 Program.cs
-Services/BlobUploadService.cs
+Services/
+ BlobUploadService.cs
+ EngineHubClient.cs
 
 [metadataReferences]
 ../../PoMemeVideo.Shared/obj/Debug/net10.0/ref/PoMemeVideo.Shared.dll
@@ -73,7 +75,14 @@ Services/BlobUploadService.cs
  microsoft.aspnetcore.components.web/10.0.7/lib/net10.0/Microsoft.AspNetCore.Components.Web.dll
  microsoft.aspnetcore.components.webassembly/10.0.7/lib/net10.0/Microsoft.AspNetCore.Components.WebAssembly.dll
  microsoft.aspnetcore.components/10.0.7/lib/net10.0/Microsoft.AspNetCore.Components.dll
+ microsoft.aspnetcore.connections.abstractions/10.0.7/lib/net10.0/Microsoft.AspNetCore.Connections.Abstractions.dll
+ microsoft.aspnetcore.http.connections.client/10.0.7/lib/net10.0/Microsoft.AspNetCore.Http.Connections.Client.dll
+ microsoft.aspnetcore.http.connections.common/10.0.7/lib/net10.0/Microsoft.AspNetCore.Http.Connections.Common.dll
  microsoft.aspnetcore.metadata/10.0.7/lib/net10.0/Microsoft.AspNetCore.Metadata.dll
+ microsoft.aspnetcore.signalr.client.core/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Client.Core.dll
+ microsoft.aspnetcore.signalr.client/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Client.dll
+ microsoft.aspnetcore.signalr.common/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Common.dll
+ microsoft.aspnetcore.signalr.protocols.json/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Protocols.Json.dll
  microsoft.dotnet.hotreload.webassembly.browser/10.0.203/lib/net10.0/Microsoft.DotNet.HotReload.WebAssembly.Browser.dll
  microsoft.extensions.configuration.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.Configuration.Abstractions.dll
  microsoft.extensions.configuration.binder/10.0.7/lib/net10.0/Microsoft.Extensions.Configuration.Binder.dll
@@ -84,6 +93,7 @@ Services/BlobUploadService.cs
  microsoft.extensions.dependencyinjection/10.0.7/lib/net10.0/Microsoft.Extensions.DependencyInjection.dll
  microsoft.extensions.diagnostics.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.Diagnostics.Abstractions.dll
  microsoft.extensions.diagnostics/10.0.7/lib/net10.0/Microsoft.Extensions.Diagnostics.dll
+ microsoft.extensions.features/10.0.7/lib/net10.0/Microsoft.Extensions.Features.dll
  microsoft.extensions.fileproviders.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.FileProviders.Abstractions.dll
  microsoft.extensions.fileproviders.physical/10.0.7/lib/net10.0/Microsoft.Extensions.FileProviders.Physical.dll
  microsoft.extensions.filesystemglobbing/10.0.7/lib/net10.0/Microsoft.Extensions.FileSystemGlobbing.dll
@@ -296,14 +306,21 @@ obj/Debug/net10.0/PoMemeVideo.Client.GeneratedMSBuildEditorConfig.editorconfig
 App.razor
 Components/
  AsciiDropZone.razor
+ DirectorLogFeed.razor
+ DirectorScriptFeed.razor
  DitheredKeyframeStrip.razor
+ HardwareMonitor.razor
+ SystemAuditBox.razor
 Layout/
  MainLayout.razor
  NavMenu.razor
 Pages/
  Counter.razor
+ Engine.razor
  Home.razor
+ MemeLibrary.razor
  NotFound.razor
+ Reveal.razor
  Source.razor
  Weather.razor
 _Imports.razor
@@ -312,14 +329,21 @@ _Imports.razor
 App.razor
 Components/
  AsciiDropZone.razor
+ DirectorLogFeed.razor
+ DirectorScriptFeed.razor
  DitheredKeyframeStrip.razor
+ HardwareMonitor.razor
+ SystemAuditBox.razor
 Layout/
  MainLayout.razor
  NavMenu.razor
 Pages/
  Counter.razor
+ Engine.razor
  Home.razor
+ MemeLibrary.razor
  NotFound.razor
+ Reveal.razor
  Source.razor
  Weather.razor
 _Imports.razor

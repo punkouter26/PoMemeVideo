@@ -38,7 +38,8 @@ public class DiagModel : PageModel
         // Blob Storage check
         try
         {
-            await _blobFactory.GetClient().GetPropertiesAsync();
+            var container = _blobFactory.GetClient().GetBlobContainerClient("sessions");
+            await container.ExistsAsync();
             ConnectionChecks.Add(new("Azure Blob Storage", "Connected", true));
         }
         catch (Exception ex)

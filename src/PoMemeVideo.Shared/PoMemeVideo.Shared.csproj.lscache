@@ -60,6 +60,7 @@ Enums/
  SessionStatus.cs
  VisualEffectType.cs
 Models/
+ DirectorScriptDto.cs
  ScriptEntryDto.cs
  SoundAssetDto.cs
  UserIdentityDto.cs

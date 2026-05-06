@@ -21,6 +21,20 @@
         </div>
     </nav>
 
+    @* ── Dev-only ANON login ─────────────────────────────────── *@
+    @if (_isDevelopment)
+    {
+        <div class="anon-section px-3 mt-2">
+            <button class="anon-btn" @onclick="LoginAnon" disabled="@_anonLoading">
+                @(_anonLoading ? "[ ... ]" : "[ ANON LOGIN ]")
+            </button>
+            @if (_anonError is not null)
+            {
+                <pre class="ai-status ai-error">@_anonError</pre>
+            }
+        </div>
+    }
+
     @* ── AI Model Selector ───────────────────────────────────── *@
     <div class="ai-panel px-3 mt-3">
         <pre class="ai-panel-title">[ DIRECTOR ENGINE ]</pre>
@@ -43,15 +57,20 @@
                     <span class="ai-label">Azure gpt-4o ☁</span>
                 </label>
 
-                @* Local models *@
+                @* Local models — greyed out when Ollama is unreachable *@
                 @foreach (var m in _localModels)
                 {
                     var model = m; // capture for closure
-                    <label class="ai-option @(_pendingProvider == "Ollama" && _pendingModel == model ? "selected" : "")"
-                           @onclick='() => SelectProvider("Ollama", model)'>
-                        <span class="ai-dot">@(_pendingProvider == "Ollama" && _pendingModel == model ? "●" : "○")</span>
-                        <span class="ai-label">@ModelLabel(model)</span>
+                    var isSelected = _pendingProvider == "Ollama" && _pendingModel == model;
+                    <label class="ai-option @(isSelected ? "selected" : "") @(_ollamaAvailable ? "" : "ai-disabled")"
+                           @onclick='() => { if (_ollamaAvailable) SelectProvider("Ollama", model); }'>
+                        <span class="ai-dot">@(isSelected ? "●" : "○")</span>
+                        <span class="ai-label">@ModelLabel(model)@(_ollamaAvailable ? "" : " [offline]")</span>
                     </label>
+                }
+                @if (!_ollamaAvailable)
+                {
+                    <pre class="ai-status">↳ ollama.com to enable local</pre>
                 }
             </div>
 
@@ -81,6 +100,8 @@
     private bool _loadingModel = true;
     private string? _loadError;
     private string[] _localModels = [];
+    private bool _ollamaAvailable;
+    private bool _isDevelopment;
 
     private string _activeProvider = "AzureOpenAI";
     private string _activeModel = "gemma3:1b";
@@ -107,6 +128,8 @@
                 _pendingProvider = result.Provider;
                 _pendingModel = result.OllamaModel;
                 _localModels = result.AvailableLocalModels;
+                _ollamaAvailable = result.OllamaAvailable;
+                _isDevelopment = result.IsDevelopment;
             }
         }
         catch (Exception ex)
@@ -161,6 +184,29 @@
         }
     }
 
+    private bool _anonLoading;
+    private string? _anonError;
+
+    private async Task LoginAnon()
+    {
+        _anonLoading = true;
+        _anonError = null;
+        try
+        {
+            var resp = await Http.PostAsync("/auth/anon", null);
+            if (!resp.IsSuccessStatusCode)
+                _anonError = $"ANON login not yet implemented (HTTP {(int)resp.StatusCode}).";
+        }
+        catch (Exception ex)
+        {
+            _anonError = ex.Message.Length > 40 ? ex.Message[..40] + "…" : ex.Message;
+        }
+        finally
+        {
+            _anonLoading = false;
+        }
+    }
+
     private static string ModelLabel(string model) => model switch
     {
         "gemma3:1b"    => "Gemma 3 1B ★",
@@ -173,6 +219,8 @@
     private sealed record AiModelResponse(
         string Provider,
         string OllamaModel,
-        string[] AvailableLocalModels);
+        string[] AvailableLocalModels,
+        bool OllamaAvailable,
+        bool IsDevelopment);
 }
 

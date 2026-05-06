@@ -54,16 +54,28 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 /warnaserror+:NU1605,SYSLIB0011
 
 [sourceFiles]
+AzureOpenAi/
+ AzureOpenAiDirectorService.cs
+ AzureOpenAiVisionService.cs
 AzureStorage/
  AzureTableClientFactory.cs
  BlobServiceClientFactory.cs
  BlobStorageService.cs
+ DirectorScriptTableRepository.cs
+ SoundAssetTableRepository.cs
  VideoSessionTableRepository.cs
 Class1.cs
+FFmpeg/FFmpegRenderService.cs
+Mock/
+ MockAiVisionService.cs
+ MockDirectorService.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  PoMemeVideo.Infrastructure.AssemblyInfo.cs
  PoMemeVideo.Infrastructure.GlobalUsings.g.cs
+Ollama/OllamaDirectorService.cs
+RuntimeAiSettings.cs
+SwitchingDirectorService.cs
 
 [metadataReferences]
 ../
@@ -248,12 +260,19 @@ obj/Debug/net10.0/
  microsoft.bcl.asyncinterfaces/10.0.3/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll
  microsoft.extensions.caching.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.Caching.Abstractions.dll
  microsoft.extensions.caching.memory/10.0.7/lib/net10.0/Microsoft.Extensions.Caching.Memory.dll
- microsoft.extensions.configuration.abstractions/10.0.3/lib/net10.0/Microsoft.Extensions.Configuration.Abstractions.dll
+ microsoft.extensions.configuration.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.Configuration.Abstractions.dll
+ microsoft.extensions.configuration.binder/10.0.7/lib/net10.0/Microsoft.Extensions.Configuration.Binder.dll
+ microsoft.extensions.configuration/10.0.7/lib/net10.0/Microsoft.Extensions.Configuration.dll
  microsoft.extensions.dependencyinjection.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll
- microsoft.extensions.diagnostics.abstractions/10.0.3/lib/net10.0/Microsoft.Extensions.Diagnostics.Abstractions.dll
+ microsoft.extensions.dependencyinjection/10.0.7/lib/net10.0/Microsoft.Extensions.DependencyInjection.dll
+ microsoft.extensions.diagnostics.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.Diagnostics.Abstractions.dll
+ microsoft.extensions.diagnostics/10.0.7/lib/net10.0/Microsoft.Extensions.Diagnostics.dll
  microsoft.extensions.fileproviders.abstractions/10.0.3/lib/net10.0/Microsoft.Extensions.FileProviders.Abstractions.dll
  microsoft.extensions.hosting.abstractions/10.0.3/lib/net10.0/Microsoft.Extensions.Hosting.Abstractions.dll
+ microsoft.extensions.http/10.0.7/lib/net10.0/Microsoft.Extensions.Http.dll
  microsoft.extensions.logging.abstractions/10.0.7/lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll
+ microsoft.extensions.logging/10.0.7/lib/net10.0/Microsoft.Extensions.Logging.dll
+ microsoft.extensions.options.configurationextensions/10.0.7/lib/net10.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll
  microsoft.extensions.options/10.0.7/lib/net10.0/Microsoft.Extensions.Options.dll
  microsoft.extensions.primitives/10.0.7/lib/net10.0/Microsoft.Extensions.Primitives.dll
  microsoft.identity.client.extensions.msal/4.83.1/lib/net8.0/Microsoft.Identity.Client.Extensions.Msal.dll
@@ -263,6 +282,7 @@ obj/Debug/net10.0/
  system.clientmodel/1.10.0/lib/net10.0/System.ClientModel.dll
  system.io.hashing/8.0.0/lib/net8.0/System.IO.Hashing.dll
  system.memory.data/10.0.3/lib/net10.0/System.Memory.Data.dll
+ system.numerics.tensors/10.0.0/lib/net10.0/System.Numerics.Tensors.dll
  system.security.cryptography.protecteddata/4.5.0/ref/netstandard2.0/System.Security.Cryptography.ProtectedData.dll
 
 [analyzerReferences]

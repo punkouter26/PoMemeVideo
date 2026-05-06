@@ -55,11 +55,13 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 /warnaserror+:NU1605,SYSLIB0011
 
 [sourceFiles]
-Configuration/FeatureFlags.cs
 Endpoints/HealthEndpoint.cs
 Features/
  Config/ConfigEndpoints.cs
  Ingestion/IngestionEndpoints.cs
+ MemeLibrary/MemeLibraryEndpoints.cs
+ Output/OutputEndpoints.cs
+ Processing/ProcessingEndpoints.cs
 Hubs/EngineHub.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
@@ -71,6 +73,7 @@ Program.cs
 
 [metadataReferences]
 ../
+ client/PoMemeVideo.Client/obj/Debug/net10.0/ref/PoMemeVideo.Client.dll
  PoMemeVideo.Application/obj/Debug/net10.0/ref/PoMemeVideo.Application.dll
  PoMemeVideo.Domain/obj/Debug/net10.0/ref/PoMemeVideo.Domain.dll
  PoMemeVideo.Infrastructure/obj/Debug/net10.0/ref/PoMemeVideo.Infrastructure.dll
@@ -388,6 +391,7 @@ Program.cs
  azure.ai.openai/2.1.0/lib/netstandard2.0/Azure.AI.OpenAI.dll
  azure.core/1.53.0/lib/net10.0/Azure.Core.dll
  azure.data.tables/12.10.0/lib/net8.0/Azure.Data.Tables.dll
+ azure.extensions.aspnetcore.configuration.secrets/1.3.2/lib/netstandard2.0/Azure.Extensions.AspNetCore.Configuration.Secrets.dll
  azure.identity/1.21.0/lib/net10.0/Azure.Identity.dll
  azure.security.keyvault.certificates/4.6.0/lib/netstandard2.0/Azure.Security.KeyVault.Certificates.dll
  azure.security.keyvault.secrets/4.6.0/lib/netstandard2.0/Azure.Security.KeyVault.Secrets.dll
@@ -402,8 +406,14 @@ Program.cs
  microsoft.applicationinsights/2.23.0/lib/netstandard2.0/Microsoft.ApplicationInsights.dll
  microsoft.aspnetcore.authentication.jwtbearer/10.0.0/lib/net10.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll
  microsoft.aspnetcore.authentication.openidconnect/10.0.0/lib/net10.0/Microsoft.AspNetCore.Authentication.OpenIdConnect.dll
+ microsoft.aspnetcore.components.webassembly.server/10.0.7/lib/net10.0/Microsoft.AspNetCore.Components.WebAssembly.Server.dll
+ microsoft.aspnetcore.components.webassembly/10.0.7/lib/net10.0/Microsoft.AspNetCore.Components.WebAssembly.dll
+ microsoft.aspnetcore.http.connections.client/10.0.7/lib/net10.0/Microsoft.AspNetCore.Http.Connections.Client.dll
  microsoft.aspnetcore.openapi/10.0.7/lib/net10.0/Microsoft.AspNetCore.OpenApi.dll
+ microsoft.aspnetcore.signalr.client.core/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Client.Core.dll
+ microsoft.aspnetcore.signalr.client/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Client.dll
  microsoft.bcl.asyncinterfaces/10.0.3/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll
+ microsoft.dotnet.hotreload.webassembly.browser/10.0.203/lib/net10.0/Microsoft.DotNet.HotReload.WebAssembly.Browser.dll
  microsoft.extensions.dependencymodel/9.0.0/lib/net9.0/Microsoft.Extensions.DependencyModel.dll
  microsoft.extensions.logging.applicationinsights/2.23.0/lib/netstandard2.0/Microsoft.Extensions.Logging.ApplicationInsights.dll
  microsoft.identity.abstractions/12.0.0/lib/net10.0/Microsoft.Identity.Abstractions.dll
@@ -424,6 +434,7 @@ Program.cs
  microsoft.identitymodel.protocols/8.15.0/lib/net10.0/Microsoft.IdentityModel.Protocols.dll
  microsoft.identitymodel.tokens/8.15.0/lib/net10.0/Microsoft.IdentityModel.Tokens.dll
  microsoft.identitymodel.validators/8.15.0/lib/net10.0/Microsoft.IdentityModel.Validators.dll
+ microsoft.jsinterop.webassembly/10.0.7/lib/net10.0/Microsoft.JSInterop.WebAssembly.dll
  microsoft.openapi/2.0.0/lib/net8.0/Microsoft.OpenApi.dll
  microsoft.win32.systemevents/6.0.0/lib/net6.0/Microsoft.Win32.SystemEvents.dll
  openai/2.1.0/lib/net6.0/OpenAI.dll
@@ -454,6 +465,7 @@ Program.cs
  system.identitymodel.tokens.jwt/8.15.0/lib/net10.0/System.IdentityModel.Tokens.Jwt.dll
  system.io.hashing/8.0.0/lib/net8.0/System.IO.Hashing.dll
  system.memory.data/10.0.3/lib/net10.0/System.Memory.Data.dll
+ system.numerics.tensors/10.0.0/lib/net10.0/System.Numerics.Tensors.dll
  system.security.cryptography.pkcs/10.0.7/lib/net10.0/System.Security.Cryptography.Pkcs.dll
  system.security.cryptography.protecteddata/6.0.0/lib/net6.0/System.Security.Cryptography.ProtectedData.dll
  system.security.permissions/6.0.0/lib/net6.0/System.Security.Permissions.dll

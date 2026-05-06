@@ -63,6 +63,8 @@ Entities/
  VideoSession.cs
 Interfaces/
  IAiVisionService.cs
+ IBlobStorageService.cs
+ IDirectorScriptRepository.cs
  IDirectorService.cs
  IEngineNotifier.cs
  ISoundAssetRepository.cs

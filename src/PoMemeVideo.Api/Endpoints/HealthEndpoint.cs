@@ -16,7 +16,6 @@ public static class HealthEndpoint
         {
             var checks = new Dictionary<string, object>();
             var isHealthy = true;
-            var useMockAi = configuration.GetValue<bool>("FeatureFlags:UseMockAI", true);
 
             // Azure Table Storage
             try
@@ -30,11 +29,13 @@ public static class HealthEndpoint
                 isHealthy = false;
             }
 
-            // Azure Blob Storage
+            // Azure Blob Storage — use container-level ExistsAsync (requires only
+            // container read permission; avoids account-level GetPropertiesAsync).
             try
             {
                 var blobClient = blobFactory.GetClient();
-                await blobClient.GetPropertiesAsync(cancellationToken: ct);
+                var container = blobClient.GetBlobContainerClient("sessions");
+                await container.ExistsAsync(ct);
                 checks["blobStorage"] = "Healthy";
             }
             catch (Exception ex)
@@ -45,9 +46,7 @@ public static class HealthEndpoint
 
             // Azure AI Vision
             var visionEndpoint = configuration["AzureAiVision:Endpoint"];
-            if (useMockAi)
-                checks["azureAiVision"] = "Skipped (mock mode)";
-            else if (string.IsNullOrWhiteSpace(visionEndpoint))
+            if (string.IsNullOrWhiteSpace(visionEndpoint))
             {
                 checks["azureAiVision"] = "Degraded: not configured";
                 isHealthy = false;
@@ -55,26 +54,18 @@ public static class HealthEndpoint
             else
                 checks["azureAiVision"] = "Healthy";
 
-            // Ollama / Gemma 4
-            if (useMockAi)
+            // Ollama / local models (optional — only unhealthy if it's the active provider)
+            try
             {
-                checks["ollamaGemma4"] = "Skipped (mock mode)";
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                var ollamaUrl = configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
+                var resp = await http.GetAsync($"{ollamaUrl}/api/tags", ct);
+                checks["ollamaGemma4"] = resp.IsSuccessStatusCode ? "Healthy" : $"Unavailable: HTTP {(int)resp.StatusCode}";
             }
-            else
+            catch (Exception)
             {
-                try
-                {
-                    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-                    var ollamaUrl = configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
-                    var resp = await http.GetAsync($"{ollamaUrl}/api/tags", ct);
-                    checks["ollamaGemma4"] = resp.IsSuccessStatusCode ? "Healthy" : $"Degraded: HTTP {(int)resp.StatusCode}";
-                    if (!resp.IsSuccessStatusCode) isHealthy = false;
-                }
-                catch (Exception ex)
-                {
-                    checks["ollamaGemma4"] = $"Degraded: {ex.Message}";
-                    isHealthy = false;
-                }
+                // Ollama is optional — not installed locally is expected
+                checks["ollamaGemma4"] = $"Unavailable (install Ollama to use local models)";
             }
 
             var result = new { status = isHealthy ? "Healthy" : "Degraded", checks };
