@@ -1,3 +1,6 @@
+using Azure.Extensions.AspNetCore.Configuration.Secrets;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using OpenTelemetry.Resources;
@@ -6,10 +9,18 @@ using PoMemeVideo.Api.Configuration;
 using PoMemeVideo.Api.Endpoints;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
+using PoMemeVideo.Api.Features.MemeLibrary;
+using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Api.Hubs;
 using PoMemeVideo.Application.Ingestion;
+using PoMemeVideo.Application.MemeLibrary;
+using PoMemeVideo.Application.Processing;
 using PoMemeVideo.Domain.Interfaces;
+using PoMemeVideo.Infrastructure;
+using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
+using PoMemeVideo.Infrastructure.Mock;
+using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -24,6 +35,14 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    // ── Azure Key Vault configuration ───────────────────────────────────────
+    var kvUri = builder.Configuration["KeyVault:Uri"]
+                ?? "https://kv-poshared.vault.azure.net/";
+    var credential = new DefaultAzureCredential();
+    builder.Configuration.AddAzureKeyVault(
+        new SecretClient(new Uri(kvUri), credential),
+        new PrefixKeyVaultSecretManager("PoMemeVideo"));
 
     // ── Serilog (T014) ──────────────────────────────────────────────────────
     builder.Host.UseSerilog((context, services, config) =>
@@ -81,6 +100,31 @@ try
     builder.Services.AddVideoSessionTableRepository();
     builder.Services.AddScoped<IngestVideoCommand>();
 
+    // ── Phase 4: Processing pipeline (T038–T048) ─────────────────────────
+    builder.Services.AddSoundAssetTableRepository();
+    builder.Services.AddDirectorScriptTableRepository();
+
+    // AI services: use mock or real based on FeatureFlags.UseMockAI
+    var useMockAi = builder.Configuration.GetValue<bool>("FeatureFlags:UseMockAI", defaultValue: true);
+    if (useMockAi)
+    {
+        builder.Services.AddSingleton<IAiVisionService, MockAiVisionService>();
+        builder.Services.AddSingleton<IDirectorService, MockDirectorService>();
+    }
+    else
+    {
+        // Runtime-switchable AI settings (default: AzureOpenAI)
+        builder.Services.AddHttpClient();  // registers IHttpClientFactory
+        builder.Services.AddSingleton<RuntimeAiSettings>();
+        builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
+        builder.Services.AddSingleton<AzureOpenAiDirectorService>();
+        builder.Services.AddSingleton<OllamaDirectorService>();
+        builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
+    }
+
+    builder.Services.AddScoped<SemanticMatchingService>();
+    builder.Services.AddScoped<RunEngineCommand>();
+
     // ── Authentication (T019) ───────────────────────────────────────────────
     builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
@@ -130,6 +174,10 @@ try
 
     app.UseCors();
 
+    // ── Blazor WASM client hosting ───────────────────────────────────────────
+    app.UseBlazorFrameworkFiles();
+    app.UseStaticFiles();
+
     // ── Scalar OpenAPI UI (T023) ─────────────────────────────────────────────
     app.MapOpenApi();
     app.MapScalarApiReference("/scalar");
@@ -163,9 +211,12 @@ try
 
     // ── Ingestion endpoints (T027–T029) ──────────────────────────────────────
     app.MapIngestionEndpoints();
+    // ── Processing endpoints (T046) ──────────────────────────────────────
+    app.MapProcessingEndpoints();
 
-    // ── Auth stubs (T019) ────────────────────────────────────────────────────
-    // ANON login handled in AnonAuthHandler (Phase 7, T077) — stub returns 501 for now
+    // ── MemeLibrary endpoints (T047) ──────────────────────────────────────
+    app.MapMemeLibraryEndpoints();
+    // ── Auth stubs (T019) ────────────────────────────────────────────────────    // ANON login handled in AnonAuthHandler (Phase 7, T077) — stub returns 501 for now
     app.MapPost("/auth/anon", () => Results.StatusCode(501))
         .AllowAnonymous();
 
@@ -180,6 +231,9 @@ try
         await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Results.Redirect("/");
     });
+
+    // ── Blazor WASM SPA fallback ─────────────────────────────────────────────
+    app.MapFallbackToFile("index.html");
 
     // ── Dev: configure Azurite CORS so browser direct-upload works ──────────
     if (app.Environment.IsDevelopment())
@@ -207,4 +261,21 @@ return 0;
 
 // Required for WebApplicationFactory<Program> in integration tests
 public partial class Program { }
+
+/// <summary>
+/// Loads only secrets prefixed with "PoMemeVideo--" and maps them to
+/// configuration keys with the prefix stripped (e.g. PoMemeVideo--AzureOpenAI--Key → AzureOpenAI:Key).
+/// </summary>
+internal sealed class PrefixKeyVaultSecretManager : KeyVaultSecretManager
+{
+    private readonly string _prefix;
+
+    public PrefixKeyVaultSecretManager(string prefix) => _prefix = prefix + "--";
+
+    public override bool Load(SecretProperties secret)
+        => secret.Name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase);
+
+    public override string GetKey(KeyVaultSecret secret)
+        => secret.Name[_prefix.Length..].Replace("--", ConfigurationPath.KeyDelimiter);
+}
 

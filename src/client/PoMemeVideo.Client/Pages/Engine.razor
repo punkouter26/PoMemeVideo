@@ -1,29 +1,135 @@
 @page "/engine/{SessionId:guid}"
 @inject NavigationManager Nav
+@inject HttpClient Http
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
 
 <PageTitle>PoMemeVideo — Engine</PageTitle>
 
-<div class="source-page">
+<MockDataBanner />
+
+<div class="engine-page">
     <pre class="page-header">
 ╔═══════════════════════════════════════════════════════╗
 ║  PoMemeVideo // PROCESSING ENGINE                     ║
-║  [ QUEUED → PROCESSING → COMPLETE ]                   ║
+║  SESSION: @SessionId                                  ║
 ╚═══════════════════════════════════════════════════════╝</pre>
 
-    <div class="upload-status">
-        <pre>
- SESSION : @SessionId
- STATUS  : QUEUED — ENGINE NOT YET IMPLEMENTED
- PHASE   : 4 (coming soon)</pre>
-    </div>
+    @if (_hubClient is not null)
+    {
+        <div class="engine-grid">
+            <!-- Top-right: Hardware Monitor -->
+            <div class="hw-panel">
+                <HardwareMonitor HubClient="_hubClient" />
+            </div>
 
-    <div style="margin-top:1rem">
-        <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>
-            [ ← BACK TO INGESTION ]
-        </button>
-    </div>
+            <!-- Left: Director's Script Feed -->
+            <div class="script-panel">
+                <DirectorScriptFeed HubClient="_hubClient" />
+            </div>
+
+            <!-- Right: Director's Log Feed -->
+            <div class="log-panel">
+                <DirectorLogFeed HubClient="_hubClient" />
+            </div>
+
+            <!-- Bottom: System Audit Box -->
+            <div class="audit-panel">
+                <SystemAuditBox HubClient="_hubClient" />
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <pre class="error-box">[ENGINE ERROR] @_errorMessage</pre>
+    }
 </div>
+
+<style>
+.engine-page {
+    background: #000;
+    color: #00FF41;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    padding: 0.5rem;
+}
+.engine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.hw-panel    { grid-column: 2; grid-row: 1; }
+.script-panel { grid-column: 1; grid-row: 1 / 3; }
+.log-panel   { grid-column: 2; grid-row: 2; }
+.audit-panel { grid-column: 1 / 3; grid-row: 3; }
+.ascii-panel { border: 1px solid #00FF41; }
+.panel-header { color: #00FF41; font-size: 0.75rem; margin: 0; padding: 0 0.25rem; }
+.error-box { color: #FF4141; border: 1px solid #FF4141; padding: 0.5rem; margin-top: 1rem; }
+</style>
 
 @code {
     [Parameter] public Guid SessionId { get; set; }
+
+    private EngineHubClient? _hubClient;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var apiBase = Configuration["ApiBaseUrl"] ?? Nav.BaseUri.TrimEnd('/');
+        var hubUrl = apiBase.TrimEnd('/') + "/hubs/engine";
+        _hubClient = new EngineHubClient(hubUrl);
+
+        _hubClient.ProcessingComplete += OnComplete;
+        _hubClient.ProcessingError += OnError;
+
+        await _hubClient.JoinSessionAsync(SessionId);
+
+        // Fire-and-forget: initiate engine pipeline
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var response = await Http.PostAsync(
+                    $"/api/processing/sessions/{SessionId}/initiate",
+                    null);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    _errorMessage = $"HTTP {(int)response.StatusCode}: {body}";
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = ex.Message;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private void OnComplete(string outputBlobPath)
+    {
+        InvokeAsync(() => Nav.NavigateTo($"/reveal/{SessionId}"));
+    }
+
+    private void OnError(string message)
+    {
+        _errorMessage = message;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubClient is not null)
+        {
+            _hubClient.ProcessingComplete -= OnComplete;
+            _hubClient.ProcessingError -= OnError;
+            await _hubClient.LeaveSessionAsync(SessionId);
+            await _hubClient.DisposeAsync();
+        }
+    }
 }

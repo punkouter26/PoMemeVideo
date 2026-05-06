@@ -1,0 +1,54 @@
+@implements IDisposable
+
+<div class="ascii-panel">
+    <pre class="panel-header">╔═══════════════════════════════════╗
+║  DIRECTOR'S LOG  ▓               ║
+╚═══════════════════════════════════╝</pre>
+    <pre class="director-log-feed" @ref="_feedRef">@foreach (var line in _lines)
+{<span class="log-line">@line
+</span>}</pre>
+</div>
+
+<style>
+.director-log-feed {
+    height: 300px;
+    overflow-y: auto;
+    background: #000;
+    color: #00FF41;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.log-line {
+    display: block;
+}
+</style>
+
+@code {
+    [Parameter, EditorRequired] public EngineHubClient HubClient { get; set; } = null!;
+
+    private readonly List<string> _lines = new();
+    private ElementReference _feedRef;
+
+    protected override void OnInitialized()
+    {
+        HubClient.DirectorLogEntry += OnLog;
+    }
+
+    private void OnLog(string message)
+    {
+        if (_lines.Count >= 500)
+            _lines.RemoveAt(0);
+
+        _lines.Add(message);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        HubClient.DirectorLogEntry -= OnLog;
+    }
+}

@@ -1,39 +1,178 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">PoMemeVideo.Client</a>
+        <a class="navbar-brand" href="/">PoMemeVideo</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<div class="@NavMenuCssClass nav-scrollable" @onclick:stopPropagation>
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All" @onclick="CollapseNav">
+                <span class="bi bi-upload" aria-hidden="true"></span> Source
             </NavLink>
         </div>
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="library" @onclick="CollapseNav">
+                <span class="bi bi-collection-play" aria-hidden="true"></span> Library
             </NavLink>
         </div>
     </nav>
+
+    @* ── AI Model Selector ───────────────────────────────────── *@
+    <div class="ai-panel px-3 mt-3">
+        <pre class="ai-panel-title">[ DIRECTOR ENGINE ]</pre>
+
+        @if (_loadingModel)
+        {
+            <pre class="ai-status">Loading...</pre>
+        }
+        else if (_loadError is not null)
+        {
+            <pre class="ai-status ai-error">⚠ @_loadError</pre>
+        }
+        else
+        {
+            <div class="ai-options">
+                @* Azure OpenAI *@
+                <label class="ai-option @(_pendingProvider == "AzureOpenAI" ? "selected" : "")"
+                       @onclick='() => SelectProvider("AzureOpenAI", null)'>
+                    <span class="ai-dot">@(_pendingProvider == "AzureOpenAI" ? "●" : "○")</span>
+                    <span class="ai-label">Azure gpt-4o ☁</span>
+                </label>
+
+                @* Local models *@
+                @foreach (var m in _localModels)
+                {
+                    var model = m; // capture for closure
+                    <label class="ai-option @(_pendingProvider == "Ollama" && _pendingModel == model ? "selected" : "")"
+                           @onclick='() => SelectProvider("Ollama", model)'>
+                        <span class="ai-dot">@(_pendingProvider == "Ollama" && _pendingModel == model ? "●" : "○")</span>
+                        <span class="ai-label">@ModelLabel(model)</span>
+                    </label>
+                }
+            </div>
+
+            @if (_isDirty)
+            {
+                <button class="ai-apply-btn" @onclick="ApplyModel" disabled="@_applying">
+                    @(_applying ? "[ APPLYING... ]" : "[ APPLY ]")
+                </button>
+            }
+
+            @if (_statusMessage is not null)
+            {
+                <pre class="ai-status @(_statusOk ? "ai-ok" : "ai-error")">@_statusMessage</pre>
+            }
+        }
+    </div>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
-
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    private void ToggleNavMenu()
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+    private void CollapseNav() => collapseNavMenu = true;
+
+    // AI model state
+    private bool _loadingModel = true;
+    private string? _loadError;
+    private string[] _localModels = [];
+
+    private string _activeProvider = "AzureOpenAI";
+    private string _activeModel = "gemma3:1b";
+
+    private string _pendingProvider = "AzureOpenAI";
+    private string _pendingModel = "gemma3:1b";
+
+    private bool _isDirty;
+    private bool _applying;
+    private string? _statusMessage;
+    private bool _statusOk;
+
+    [Inject] private HttpClient Http { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
     {
-        collapseNavMenu = !collapseNavMenu;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<AiModelResponse>("/api/config/ai-model");
+            if (result is not null)
+            {
+                _activeProvider = result.Provider;
+                _activeModel = result.OllamaModel;
+                _pendingProvider = result.Provider;
+                _pendingModel = result.OllamaModel;
+                _localModels = result.AvailableLocalModels;
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message.Length > 40 ? ex.Message[..40] + "…" : ex.Message;
+        }
+        finally
+        {
+            _loadingModel = false;
+        }
     }
+
+    private void SelectProvider(string provider, string? model)
+    {
+        _pendingProvider = provider;
+        if (model is not null) _pendingModel = model;
+        _isDirty = _pendingProvider != _activeProvider || _pendingModel != _activeModel;
+        _statusMessage = null;
+    }
+
+    private async Task ApplyModel()
+    {
+        _applying = true;
+        _statusMessage = null;
+        StateHasChanged();
+        try
+        {
+            var body = new { provider = _pendingProvider, ollamaModel = _pendingModel };
+            var resp = await Http.PutAsJsonAsync("/api/config/ai-model", body);
+            if (resp.IsSuccessStatusCode)
+            {
+                _activeProvider = _pendingProvider;
+                _activeModel = _pendingModel;
+                _isDirty = false;
+                _statusMessage = "✓ Switched";
+                _statusOk = true;
+            }
+            else
+            {
+                _statusMessage = $"Error {(int)resp.StatusCode}";
+                _statusOk = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = ex.Message.Length > 35 ? ex.Message[..35] + "…" : ex.Message;
+            _statusOk = false;
+        }
+        finally
+        {
+            _applying = false;
+        }
+    }
+
+    private static string ModelLabel(string model) => model switch
+    {
+        "gemma3:1b"    => "Gemma 3 1B ★",
+        "llama3.2:1b"  => "Llama 3.2 1B",
+        "qwen2.5:0.5b" => "Qwen 2.5 0.5B",
+        "smollm2:360m" => "SmolLM2 360M",
+        _              => model,
+    };
+
+    private sealed record AiModelResponse(
+        string Provider,
+        string OllamaModel,
+        string[] AvailableLocalModels);
 }
+

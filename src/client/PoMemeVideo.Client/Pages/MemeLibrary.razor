@@ -1,0 +1,150 @@
+@page "/library"
+@inject HttpClient Http
+
+<PageTitle>PoMemeVideo — Library</PageTitle>
+
+<div class="library-page">
+    <pre class="page-header">
+╔═══════════════════════════════════════════════════════╗
+║  PoMemeVideo // MEME SOUND LIBRARY                    ║
+║  [ BROWSE → PREVIEW → TAG ]                           ║
+╚═══════════════════════════════════════════════════════╝</pre>
+
+    <div class="search-bar">
+        <input class="ascii-input"
+               placeholder="FILTER BY TAG (comma-separated)..."
+               @bind="_tagFilter"
+               @bind:event="oninput"
+               @onkeyup="OnTagFilterChanged" />
+        <button class="ascii-btn" @onclick="LoadSounds">[ SEARCH ]</button>
+    </div>
+
+    @if (_loading)
+    {
+        <pre class="status">[ LOADING SOUND LIBRARY... ]</pre>
+    }
+    else if (_sounds.Length == 0)
+    {
+        <pre class="status">[ NO SOUNDS FOUND ]@(_tagFilter.Length > 0 ? $" — no matches for '{_tagFilter}'" : " — library is empty")</pre>
+    }
+    else
+    {
+        <pre class="status">[ @_totalCount TOTAL — SHOWING @_sounds.Length ]</pre>
+        <div class="sound-grid">
+            @foreach (var sound in _sounds)
+            {
+                <div class="sound-card">
+                    <pre class="sound-name">◆ @sound.DisplayName</pre>
+                    <pre class="sound-meta">  DURATION : @((sound.DurationMs / 1000.0).ToString("F1"))s</pre>
+                    @if (sound.ActionVectorTags.Length > 0)
+                    {
+                        <pre class="sound-tags">  TAGS     : @string.Join(", ", sound.ActionVectorTags)</pre>
+                    }
+                    @if (!string.IsNullOrEmpty(sound.BlobUrl))
+                    {
+                        <audio controls src="@sound.BlobUrl" class="audio-player"></audio>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <pre class="page-error">⚠ @_errorMessage</pre>
+    }
+</div>
+
+<style>
+.library-page {
+    background: #000;
+    color: #00FF41;
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    padding: 0.5rem;
+}
+.page-header { color: #00FF41; margin-bottom: 1rem; }
+.search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.ascii-input {
+    background: #000;
+    color: #00FF41;
+    border: 1px solid #00FF41;
+    padding: 0.3rem 0.6rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    flex: 1;
+}
+.ascii-input::placeholder { color: #005500; }
+.ascii-btn {
+    background: #000;
+    color: #00FF41;
+    border: 1px solid #00FF41;
+    padding: 0.3rem 0.8rem;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+}
+.ascii-btn:hover { background: #00FF41; color: #000; }
+.status { color: #007700; margin-bottom: 1rem; }
+.sound-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 0.75rem;
+}
+.sound-card {
+    border: 1px solid #00FF41;
+    padding: 0.5rem;
+}
+.sound-name { color: #00FF41; margin: 0; }
+.sound-meta, .sound-tags { color: #007700; margin: 0; font-size: 0.8rem; }
+.audio-player { width: 100%; margin-top: 0.5rem; filter: invert(1) hue-rotate(85deg); }
+.page-error { color: #FF4141; border: 1px solid #FF4141; padding: 0.5rem; margin-top: 1rem; }
+</style>
+
+@code {
+    private SoundAssetDto[] _sounds = [];
+    private int _totalCount;
+    private bool _loading;
+    private string _tagFilter = string.Empty;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSounds();
+    }
+
+    private async Task LoadSounds()
+    {
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var url = string.IsNullOrWhiteSpace(_tagFilter)
+                ? "/api/memelibrary/sounds"
+                : $"/api/memelibrary/sounds?tags={Uri.EscapeDataString(_tagFilter)}";
+
+            var response = await Http.GetFromJsonAsync<SoundsResponse>(url);
+            _sounds = response?.Sounds ?? [];
+            _totalCount = response?.TotalCount ?? 0;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"LOAD ERROR: {ex.Message}";
+            _sounds = [];
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnTagFilterChanged(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadSounds();
+    }
+
+    private record SoundsResponse(int TotalCount, SoundAssetDto[] Sounds);
+}

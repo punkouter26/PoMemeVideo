@@ -1,0 +1,72 @@
+@implements IDisposable
+
+<div class="ascii-panel">
+    <pre class="panel-header">╔═══════════════════════════════════╗
+║  DIRECTOR'S SCRIPT  ▓            ║
+╚═══════════════════════════════════╝</pre>
+    <div class="script-feed">
+        @foreach (var entry in _entries)
+        {
+            <pre class="script-entry-block">@FormatEntry(entry)</pre>
+        }
+    </div>
+</div>
+
+<style>
+.script-feed {
+    height: 300px;
+    overflow-y: auto;
+    background: #000;
+    padding: 0.5rem;
+}
+.script-entry-block {
+    color: #00FF41;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    border-left: 2px solid #00FF41;
+    padding-left: 0.5rem;
+    margin-bottom: 0.5rem;
+    animation: typeIn 0.3s steps(40, end);
+    white-space: pre-wrap;
+}
+@@keyframes typeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+</style>
+
+@code {
+    [Parameter, EditorRequired] public EngineHubClient HubClient { get; set; } = null!;
+
+    private readonly List<ScriptEntryDto> _entries = new();
+
+    protected override void OnInitialized()
+    {
+        HubClient.DirectorScriptEntry += OnEntry;
+    }
+
+    private void OnEntry(ScriptEntryDto entry)
+    {
+        _entries.Add(entry);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatEntry(ScriptEntryDto e)
+    {
+        return $$"""
+{
+  "t": {{e.TimestampMs}}ms,
+  "sound": "{{e.SoundId}}",
+  "rationale": "{{e.SelectionRationale?.Replace("\"", "\\\"")}}", 
+  "ironic": {{e.IsIronic.ToString().ToLowerInvariant()}},
+  "effect": "{{e.VisualEffect}}",
+  "placement": "{{e.PlacementType}}"
+}
+""";
+    }
+
+    public void Dispose()
+    {
+        HubClient.DirectorScriptEntry -= OnEntry;
+    }
+}

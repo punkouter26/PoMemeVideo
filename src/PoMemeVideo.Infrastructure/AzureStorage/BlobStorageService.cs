@@ -2,10 +2,11 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.DependencyInjection;
+using PoMemeVideo.Domain.Interfaces;
 
 namespace PoMemeVideo.Infrastructure.AzureStorage;
 
-public class BlobStorageService
+public class BlobStorageService : IBlobStorageService
 {
     private readonly BlobServiceClientFactory _factory;
 
@@ -54,5 +55,9 @@ public class BlobStorageService
 public static class BlobStorageServiceExtensions
 {
     public static IServiceCollection AddBlobStorageService(this IServiceCollection services)
-        => services.AddSingleton<BlobStorageService>();
+    {
+        services.AddSingleton<BlobStorageService>();
+        services.AddSingleton<IBlobStorageService>(sp => sp.GetRequiredService<BlobStorageService>());
+        return services;
+    }
 }
