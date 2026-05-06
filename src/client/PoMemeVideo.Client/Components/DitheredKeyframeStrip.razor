@@ -1,0 +1,106 @@
+@inject IJSRuntime JS
+
+<div class="keyframe-strip-wrapper ascii-border-double">
+    @if (_isGenerating)
+    {
+        <pre class="strip-status">[ GENERATING KEYFRAME STRIP... ]</pre>
+    }
+    else if (_dataUrls.Count > 0)
+    {
+        <div class="keyframe-strip">
+            @for (int i = 0; i < _dataUrls.Count; i++)
+            {
+                var dataUrl = _dataUrls[i];
+                var index = i;
+                <img class="keyframe-thumb"
+                     src="@dataUrl"
+                     alt="Frame @index"
+                     title="t=@(index * 3)s" />
+            }
+        </div>
+        <pre class="strip-label">[ @_dataUrls.Count FRAMES @@ 3s INTERVALS &#x2014; 1-BIT MATRIX GREEN ]</pre>
+    }
+    else if (_hasError)
+    {
+        <pre class="strip-error">⚠ KEYFRAME GENERATION FAILED</pre>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ElementReference VideoElement { get; set; }
+    [Parameter] public string FileInputId { get; set; } = "ascii-file-input";
+
+    private readonly List<string> _dataUrls = [];
+    private bool _isGenerating;
+    private bool _hasError;
+
+    /// <summary>
+    /// Triggers dithered keyframe generation from the bound video element.
+    /// Call this after the video's <c>loadedmetadata</c> event fires.
+    /// </summary>
+    public async Task GenerateAsync(CancellationToken cancellationToken = default)
+    {
+        _isGenerating = true;
+        _hasError = false;
+        _dataUrls.Clear();
+        StateHasChanged();
+
+        try
+        {
+            var frames = await JS.InvokeAsync<string[]>(
+                "canvasDither.generateDitheredFrames",
+                cancellationToken,
+                VideoElement,
+                3 /* intervalSeconds */,
+                FileInputId);
+
+            _dataUrls.AddRange(frames);
+        }
+        catch
+        {
+            _hasError = true;
+        }
+        finally
+        {
+            _isGenerating = false;
+            StateHasChanged();
+        }
+    }
+}
+
+<style>
+    .keyframe-strip-wrapper {
+        overflow-x: auto;
+        padding: 0.5rem;
+        border: 1px solid #00FF41;
+        min-height: 5rem;
+    }
+
+    .keyframe-strip {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        align-items: flex-start;
+    }
+
+    .keyframe-thumb {
+        width: 120px;
+        height: auto;
+        image-rendering: pixelated;
+        border: 1px solid #00FF41;
+        flex-shrink: 0;
+    }
+
+    .strip-status,
+    .strip-label,
+    .strip-error {
+        color: #00FF41;
+        font-family: 'Courier New', monospace;
+        font-size: 0.75rem;
+        margin: 0.25rem 0 0;
+    }
+
+    .strip-error {
+        color: #FF0000;
+    }
+</style>

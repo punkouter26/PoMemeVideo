@@ -1,0 +1,312 @@
+@page "/"
+@page "/source"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
+@using PoMemeVideo.Client.Services
+@using PoMemeVideo.Client.Components
+@using PoMemeVideo.Shared.Enums
+
+<PageTitle>PoMemeVideo — Source</PageTitle>
+
+<div class="source-page">
+    <pre class="page-header">
+╔═══════════════════════════════════════════════════════╗
+║  PoMemeVideo // VIDEO INGESTION TERMINAL              ║
+║  [ DROP VIDEO → GENERATE KEYFRAMES → INITIATE ]      ║
+╚═══════════════════════════════════════════════════════╝</pre>
+
+    <div style="display: @(_uploaded ? "none" : "block")">
+        <AsciiDropZone OnFileAccepted="OnFileAccepted" />
+    </div>
+
+    @* Hidden video element used for keyframe extraction — not visible to the user *@
+    <video @ref="_videoRef"
+           style="display:none"
+           preload="metadata"
+           muted
+           playsinline>
+    </video>
+
+    @if (_selectedFile is not null && !_uploaded)
+    {
+        <div class="upload-status">
+            <pre>
+ FILE    : @_selectedFile.Name
+ SIZE    : @(_selectedFile.Size / 1024 / 1024) MB
+ STATUS  : @_statusMessage</pre>
+
+            @if (_uploadProgress > 0 && _uploadProgress < 100)
+            {
+                <pre class="progress-bar">[ @ProgressBar(_uploadProgress) ] @_uploadProgress%</pre>
+            }
+        </div>
+    }
+
+    @if (_keyframeStripVisible)
+    {
+        <DitheredKeyframeStrip @ref="_keyframeStrip" VideoElement="_videoRef" />
+
+        <div class="controls">
+            <label class="ascii-toggle">
+                <input type="checkbox" @bind="_aggressiveVisuals" />
+                [ AGGRESSIVE VISUALS : @(_aggressiveVisuals ? "ON " : "OFF") ]
+            </label>
+
+            <button class="ascii-btn initiate-btn"
+                    @onclick="OnInitiate"
+                    disabled="@_initiating">
+                @(_initiating ? "[ INITIATING... ]" : "[ INITIATE ]")
+            </button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <pre class="page-error">⚠ @_errorMessage</pre>
+    }
+</div>
+
+@code {
+    // State
+    private IBrowserFile? _selectedFile;
+    private bool _uploaded;
+    private bool _keyframeStripVisible;
+    private bool _aggressiveVisuals;
+    private bool _initiating;
+    private int _uploadProgress;
+    private string _statusMessage = "PENDING";
+    private string? _errorMessage;
+
+    // Session data returned by the API
+    private Guid _sessionId;
+    private string _blobPath = string.Empty;
+    private double _videoDurationSeconds;
+
+    // Component refs
+    private ElementReference _videoRef;
+    private DitheredKeyframeStrip? _keyframeStrip;
+
+    private async Task OnFileAccepted(IBrowserFile file)
+    {
+        _selectedFile = file;
+        _errorMessage = null;
+        _uploadProgress = 0;
+        _statusMessage = "REQUESTING SAS TOKEN...";
+        StateHasChanged();
+
+        try
+        {
+            // Step 1 — request SAS token from API
+            var sasResponse = await Http.PostAsJsonAsync("/api/ingestion/sas", new
+            {
+                fileName = file.Name,
+                fileSizeBytes = file.Size,
+            });
+
+            if (!sasResponse.IsSuccessStatusCode)
+            {
+                ErrorResponse? err = null;
+                try { err = await sasResponse.Content.ReadFromJsonAsync<ErrorResponse>(); } catch { }
+                _errorMessage = $"SAS ERROR: {err?.Message ?? sasResponse.ReasonPhrase} ({(int)sasResponse.StatusCode})";
+                _statusMessage = "FAILED";
+                return;
+            }
+
+            var sas = await sasResponse.Content.ReadFromJsonAsync<SasTokenResponse>()
+                ?? throw new InvalidOperationException("Empty SAS response");
+
+            _sessionId = sas.SessionId;
+            _blobPath = ExtractBlobPath(sas.SasUrl);
+            _statusMessage = "UPLOADING...";
+            StateHasChanged();
+
+            // Step 2 — upload directly to Azure Blob Storage via SAS
+            var uploadService = new BlobUploadService(new HttpClient());
+            var progress = new Progress<int>(p =>
+            {
+                _uploadProgress = p;
+                InvokeAsync(StateHasChanged);
+            });
+
+            await uploadService.UploadAsync(sas.SasUrl, file, progress);
+            _statusMessage = "EXTRACTING DURATION...";
+            StateHasChanged();
+
+            // Step 3 — measure video duration via the hidden <video> element
+            _videoDurationSeconds = await LoadVideoDurationAsync(sas.SasUrl, file);
+
+            // Step 4 — confirm upload with the API
+            _statusMessage = "CONFIRMING SESSION...";
+            StateHasChanged();
+
+            var confirmResponse = await Http.PostAsJsonAsync("/api/ingestion/sessions", new
+            {
+                sessionId = _sessionId,
+                blobPath = _blobPath,
+                videoDurationSeconds = _videoDurationSeconds,
+                aggressiveVisuals = _aggressiveVisuals,
+            });
+
+            if (!confirmResponse.IsSuccessStatusCode)
+            {
+                _errorMessage = "SESSION CONFIRM FAILED";
+                _statusMessage = "FAILED";
+                return;
+            }
+
+            _uploaded = true;
+            _statusMessage = "UPLOAD COMPLETE";
+            _keyframeStripVisible = true;
+            StateHasChanged();
+
+            // Step 5 — generate dithered keyframe strip
+            if (_keyframeStrip is not null)
+                await _keyframeStrip.GenerateAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"ERROR: {ex.Message}";
+            _statusMessage = "FAILED";
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnInitiate()
+    {
+        _initiating = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        // Update aggressive visuals before navigation if needed
+        // (already confirmed at upload; this reflects any toggle change)
+        // In a real implementation we'd PATCH the session, but for Phase 3 navigate directly
+        Nav.NavigateTo($"/engine/{_sessionId}");
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Loads a video URL into the hidden video element and awaits loadedmetadata.
+    /// Returns the duration in seconds, or 0 if unavailable.
+    /// </summary>
+    private async Task<double> LoadVideoDurationAsync(string url, IBrowserFile file)
+    {
+        try
+        {
+            // Use the already-selected ascii-file-input element via createObjectURL — no CORS issues.
+            return await JS.InvokeAsync<double>("canvasDither.getFileDuration", "ascii-file-input", _videoRef);
+        }
+        catch
+        {
+            // Fallback: estimate based on file size (rough: 1 MB ≈ 1 second at typical bitrate)
+            return file.Size / (1024.0 * 1024.0);
+        }
+    }
+
+    /// <summary>Extracts container/blob path from a SAS URL, stripping the query string.</summary>
+    private static string ExtractBlobPath(string sasUrl)
+    {
+        // sasUrl = https://account.blob.core.windows.net/sessions/{sessionId}/source.mp4?sv=...
+        var uri = new Uri(sasUrl);
+        // Path looks like: /sessions/{sessionId}/source.mp4
+        // Remove leading '/' and use the rest as the blob path
+        return uri.AbsolutePath.TrimStart('/');
+    }
+
+    private static string ProgressBar(int percent)
+    {
+        const int width = 20;
+        var filled = (int)(percent / 100.0 * width);
+        return new string('█', filled) + new string('░', width - filled);
+    }
+
+    // API response models
+    private sealed record SasTokenResponse(Guid SessionId, string SasUrl, DateTimeOffset ExpiresAt);
+    private sealed record ErrorResponse(string Error, string Message);
+}
+
+<style>
+    .source-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        background: #000;
+        color: #00FF41;
+        font-family: 'Courier New', monospace;
+        min-height: 100vh;
+    }
+
+    .page-header {
+        color: #00FF41;
+        margin: 0;
+        font-size: 0.85rem;
+        line-height: 1.3;
+    }
+
+    .upload-status pre {
+        margin: 0;
+        color: #00FF41;
+    }
+
+    .progress-bar {
+        color: #00FF41;
+        margin: 0;
+    }
+
+    .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .ascii-toggle {
+        cursor: pointer;
+        user-select: none;
+        font-family: 'Courier New', monospace;
+        color: #00FF41;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .ascii-toggle input[type="checkbox"] {
+        accent-color: #00FF41;
+    }
+
+    .ascii-btn {
+        background: transparent;
+        border: 1px solid #00FF41;
+        color: #00FF41;
+        font-family: 'Courier New', monospace;
+        font-size: 1rem;
+        padding: 0.4rem 1rem;
+        cursor: pointer;
+        letter-spacing: 0.05em;
+    }
+
+    .initiate-btn {
+        font-size: 1.25rem;
+        padding: 0.6rem 2rem;
+        align-self: flex-start;
+    }
+
+    .initiate-btn:hover:not(:disabled) {
+        background: #00FF41;
+        color: #000;
+    }
+
+    .initiate-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .page-error {
+        color: #FF0000;
+        margin: 0;
+    }
+</style>

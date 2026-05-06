@@ -1,0 +1,29 @@
+@page "/engine/{SessionId:guid}"
+@inject NavigationManager Nav
+
+<PageTitle>PoMemeVideo — Engine</PageTitle>
+
+<div class="source-page">
+    <pre class="page-header">
+╔═══════════════════════════════════════════════════════╗
+║  PoMemeVideo // PROCESSING ENGINE                     ║
+║  [ QUEUED → PROCESSING → COMPLETE ]                   ║
+╚═══════════════════════════════════════════════════════╝</pre>
+
+    <div class="upload-status">
+        <pre>
+ SESSION : @SessionId
+ STATUS  : QUEUED — ENGINE NOT YET IMPLEMENTED
+ PHASE   : 4 (coming soon)</pre>
+    </div>
+
+    <div style="margin-top:1rem">
+        <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>
+            [ ← BACK TO INGESTION ]
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid SessionId { get; set; }
+}

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PoMemeVideo.Domain\PoMemeVideo.Domain.csproj" />
+    <ProjectReference Include="..\PoMemeVideo.Shared\PoMemeVideo.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

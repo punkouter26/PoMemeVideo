@@ -1,0 +1,138 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="ascii-drop-zone @(_isDragOver ? "drag-over" : "")"
+     @ondragover="OnDragOver"
+     @ondragover:preventDefault="true"
+     @ondragleave="OnDragLeave"
+     @ondrop="OnDrop"
+     @ondrop:preventDefault="true">
+
+    <div class="ascii-border-double">
+        <pre class="drop-zone-art">
+╔══════════════════════════════════════╗
+║                                      ║
+║     DROP VIDEO FILE HERE             ║
+║                                      ║
+║     [ mp4 / mov / avi / webm ]       ║
+║     [ max 500 MB               ]     ║
+║                                      ║
+╚══════════════════════════════════════╝</pre>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="drop-error">
+                <pre>⚠ @_errorMessage</pre>
+            </div>
+        }
+    </div>
+
+    @* Hidden file input for click-to-browse fallback *@
+    <InputFile id="ascii-file-input"
+               OnChange="OnFileInputChange"
+               accept=".mp4,.mov,.avi,.webm"
+               style="display:none" />
+
+    <label for="ascii-file-input" class="ascii-btn">
+        [ BROWSE FILE ]
+    </label>
+</div>
+
+@code {
+    private static readonly HashSet<string> AllowedExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".mov", ".avi", ".webm" };
+
+    private const long MaxFileSizeBytes = 500L * 1024 * 1024;
+
+    [Parameter] public EventCallback<IBrowserFile> OnFileAccepted { get; set; }
+
+    private bool _isDragOver;
+    private string? _errorMessage;
+
+    private void OnDragOver(DragEventArgs _) => _isDragOver = true;
+    private void OnDragLeave(DragEventArgs _) => _isDragOver = false;
+
+    private async Task OnDrop(DragEventArgs e)
+    {
+        _isDragOver = false;
+        // DragEventArgs.DataTransfer.Files is not directly accessible in WASM —
+        // file access from drop is handled via the InputFile component event.
+        // This handler clears error state; actual file selection goes through OnFileInputChange.
+        _errorMessage = null;
+        await Task.CompletedTask;
+    }
+
+    private async Task OnFileInputChange(InputFileChangeEventArgs e)
+    {
+        _errorMessage = null;
+
+        if (e.FileCount == 0) return;
+
+        var file = e.File;
+        var extension = Path.GetExtension(file.Name);
+
+        if (!AllowedExtensions.Contains(extension))
+        {
+            _errorMessage = $"INVALID FORMAT: '{extension}' not supported. Use mp4, mov, avi, or webm.";
+            return;
+        }
+
+        if (file.Size > MaxFileSizeBytes)
+        {
+            _errorMessage = $"FILE TOO LARGE: {file.Size / 1024 / 1024} MB exceeds 500 MB limit.";
+            return;
+        }
+
+        await OnFileAccepted.InvokeAsync(file);
+    }
+
+
+}
+
+<style>
+    .ascii-drop-zone {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .ascii-drop-zone.drag-over .ascii-border-double {
+        opacity: 0.7;
+        animation: flicker 0.1s infinite;
+    }
+
+    .drop-zone-art {
+        color: #00FF41;
+        font-family: 'Courier New', monospace;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .drop-error pre {
+        color: #FF0000;
+        font-family: 'Courier New', monospace;
+        margin: 0.5rem 0 0;
+        animation: flicker 0.5s infinite;
+    }
+
+    .ascii-btn {
+        background: transparent;
+        border: none;
+        color: #00FF41;
+        font-family: 'Courier New', monospace;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .ascii-btn:hover {
+        text-decoration: underline;
+    }
+
+    @@keyframes flicker {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.6; }
+    }
+</style>

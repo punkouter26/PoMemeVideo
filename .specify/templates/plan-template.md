@@ -31,7 +31,20 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify the following gates against the PoMemeVideo Constitution (`.specify/memory/constitution.md`):
+
+| # | Gate | Status |
+|---|------|--------|
+| I | Solution/project uses `PoMemeVideo` prefix; namespace matches; `global.json` pins .NET 10 | ☐ |
+| II | Onion Architecture layers (Domain/Application/Infrastructure) physically separated; Blazor WASM client; Radzen UI; C# 14; SOLID/GoF pattern comments present | ☐ |
+| III | `Directory.Build.props` has `TreatWarningsAsErrors` + `Nullable`; `PoShared.csproj` exists; server hosts WASM on 5000/5001; `wwwroot` only in client | ☐ |
+| IV | OpenAPI (Scalar) enabled; `.http` files provided; `/diag` + `/health` endpoints implemented; `F5` kills prior processes | ☐ |
+| V | All secrets in Azure Key Vault (PoShared); Managed Identity used; Table Storage in app's own RG; App Service Plan from PoShared RG | ☐ |
+| VI | ANON login button present (dev only); random suffix on ANON; email shown in navbar; Microsoft OAuth in dev+prod | ☐ |
+| VII | Unit tests cover Domain/Application; Integration tests use Testcontainers; E2E via Playwright (headed in dev); Azurite in Docker for local storage | ☐ |
+| VIII | Serilog → File+Console+AppInsights; OpenTelemetry enabled; logs include UserId/SessionId/Environment/CorrelationId/Exception; dev UI shows stack traces | ☐ |
+| IX | No dead code; comments only on complex logic + SOLID/GoF; feature flags in appSettings; `/LLMDOCS` maintained; ambiguity stop-rule applied | ☐ |
+| X | "MOCK DATA" banner shown when mock mode active; mock mode controlled by feature flag | ☐ |
 
 ## Project Structure
 

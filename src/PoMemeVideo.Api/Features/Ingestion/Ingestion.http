@@ -1,0 +1,68 @@
+### PoMemeVideo — Ingestion API
+
+@baseUrl = https://localhost:5001
+
+### 1. Generate SAS token for video upload (mp4)
+POST {{baseUrl}}/api/ingestion/sas
+Content-Type: application/json
+
+{
+    "fileName": "my-video.mp4",
+    "fileSizeBytes": 104857600
+}
+
+###
+
+### 2. Generate SAS token for video upload (webm)
+POST {{baseUrl}}/api/ingestion/sas
+Content-Type: application/json
+
+{
+    "fileName": "clip.webm",
+    "fileSizeBytes": 52428800
+}
+
+###
+
+### 3. Generate SAS — invalid extension (expect 400 INVALID_EXTENSION)
+POST {{baseUrl}}/api/ingestion/sas
+Content-Type: application/json
+
+{
+    "fileName": "exploit.exe",
+    "fileSizeBytes": 1024
+}
+
+###
+
+### 4. Generate SAS — file too large (expect 400 FILE_TOO_LARGE)
+POST {{baseUrl}}/api/ingestion/sas
+Content-Type: application/json
+
+{
+    "fileName": "huge.mp4",
+    "fileSizeBytes": 600000000
+}
+
+###
+
+### 5. Confirm session after upload
+# Replace {{sessionId}} with a value returned from request #1
+@sessionId = 00000000-0000-0000-0000-000000000000
+
+POST {{baseUrl}}/api/ingestion/sessions
+Content-Type: application/json
+
+{
+    "sessionId": "{{sessionId}}",
+    "blobPath": "sessions/{{sessionId}}/source.mp4",
+    "videoDurationSeconds": 42.5,
+    "aggressiveVisuals": true
+}
+
+###
+
+### 6. Get session status
+GET {{baseUrl}}/api/ingestion/sessions/{{sessionId}}
+
+###
