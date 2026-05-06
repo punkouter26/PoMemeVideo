@@ -1,0 +1,31 @@
+@* MockDataBanner.razor
+   Calls GET /api/config on init; shows a prominent ⚠ MOCK DATA ⚠ banner
+   when useMockAI is true. Dismissed automatically when flag changes.
+   Intended for Engine.razor and Reveal.razor pages. *@
+@inject HttpClient Http
+
+@if (_showBanner)
+{
+    <div class="mock-data-banner" role="alert">
+        ⚠ MOCK DATA — AI RESPONSES ARE SIMULATED ⚠
+    </div>
+}
+
+@code {
+    private bool _showBanner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var config = await Http.GetFromJsonAsync<ConfigResponse>("/api/config");
+            _showBanner = config?.UseMockAI ?? false;
+        }
+        catch
+        {
+            // If the config endpoint is unavailable, suppress the banner silently.
+        }
+    }
+
+    private sealed record ConfigResponse(bool UseMockAI, bool IsDevelopment);
+}

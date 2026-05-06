@@ -39,6 +39,7 @@ public static class ConfigEndpoints
                 provider = settings.Provider,
                 ollamaModel = settings.OllamaModel,
                 availableLocalModels = RuntimeAiSettings.LocalModels,
+                browserLLMModel = RuntimeAiSettings.BrowserLLMModel,
                 ollamaAvailable,
                 isDevelopment = env.IsDevelopment(),
             });
@@ -50,8 +51,8 @@ public static class ConfigEndpoints
 
         app.MapPut("/api/config/ai-model", (AiModelRequest req, [FromServices] RuntimeAiSettings settings) =>
         {
-            if (req.Provider != "AzureOpenAI" && req.Provider != "Ollama")
-                return Results.BadRequest("provider must be 'AzureOpenAI' or 'Ollama'.");
+            if (req.Provider != "AzureOpenAI" && req.Provider != "Ollama" && req.Provider != "BrowserLLM")
+                return Results.BadRequest("provider must be 'AzureOpenAI', 'Ollama', or 'BrowserLLM'.");
 
             if (req.Provider == "Ollama")
             {

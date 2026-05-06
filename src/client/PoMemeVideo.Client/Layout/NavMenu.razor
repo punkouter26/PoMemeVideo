@@ -57,6 +57,13 @@
                     <span class="ai-label">Azure gpt-4o ☁</span>
                 </label>
 
+                @* Browser LLM via Transformers.js — always available, no Ollama needed *@
+                <label class="ai-option @(_pendingProvider == "BrowserLLM" ? "selected" : "")"
+                       @onclick='() => SelectProvider("BrowserLLM", null)'>
+                    <span class="ai-dot">@(_pendingProvider == "BrowserLLM" ? "●" : "○")</span>
+                    <span class="ai-label">SmolLM2-360M ⚡ [browser]</span>
+                </label>
+
                 @* Local models — greyed out when Ollama is unreachable *@
                 @foreach (var m in _localModels)
                 {
@@ -105,6 +112,7 @@
 
     private string _activeProvider = "AzureOpenAI";
     private string _activeModel = "gemma3:1b";
+    private string? _browserLLMModel;  // model id from server config
 
     private string _pendingProvider = "AzureOpenAI";
     private string _pendingModel = "gemma3:1b";
@@ -115,6 +123,7 @@
     private bool _statusOk;
 
     [Inject] private HttpClient Http { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,6 +139,11 @@
                 _localModels = result.AvailableLocalModels;
                 _ollamaAvailable = result.OllamaAvailable;
                 _isDevelopment = result.IsDevelopment;
+                _browserLLMModel = result.BrowserLLMModel;
+
+                // Warm up the browser model in the background if it is selected
+                if (result.Provider == "BrowserLLM" && result.BrowserLLMModel is not null)
+                    _ = JS.InvokeVoidAsync("browserLLM.warmup", result.BrowserLLMModel);
             }
         }
         catch (Exception ex)
@@ -220,6 +234,7 @@
         string Provider,
         string OllamaModel,
         string[] AvailableLocalModels,
+        string? BrowserLLMModel,
         bool OllamaAvailable,
         bool IsDevelopment);
 }

@@ -1,5 +1,6 @@
 // SOLID: Open/Closed — new AI providers plug in via IAiVisionService without modifying this command
 using PoMemeVideo.Application.MemeLibrary;
+using PoMemeVideo.Application.Rendering;
 using PoMemeVideo.Domain.Entities;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Shared.Enums;
@@ -25,6 +26,7 @@ public sealed class RunEngineCommand
     private readonly IEngineNotifier _notifier;
     private readonly SemanticMatchingService _matching;
     private readonly IBlobStorageService _blobs;
+    private readonly RenderVideoCommand _render;
 
     public RunEngineCommand(
         IVideoSessionRepository sessions,
@@ -34,7 +36,8 @@ public sealed class RunEngineCommand
         IDirectorScriptRepository scripts,
         IEngineNotifier notifier,
         SemanticMatchingService matching,
-        IBlobStorageService blobs)
+        IBlobStorageService blobs,
+        RenderVideoCommand render)
     {
         _sessions = sessions;
         _sounds = sounds;
@@ -44,6 +47,7 @@ public sealed class RunEngineCommand
         _notifier = notifier;
         _matching = matching;
         _blobs = blobs;
+        _render = render;
     }
 
     public async Task ExecuteAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
@@ -175,10 +179,11 @@ public sealed class RunEngineCommand
                     $"SCRIPT ENTRY: t={entry.TimestampMs}ms | {entry.PlacementType} | {entry.SelectionRationale[..Math.Min(60, entry.SelectionRationale.Length)]}", cancellationToken);
             }
 
-            // Update session status to Complete
-            await _sessions.UpdateStatusAsync(sessionId, userId, SessionStatus.Complete, cancellationToken: cancellationToken);
-            await _notifier.DirectorLogAsync(sessionId, "DIRECTOR'S SCRIPT COMPLETE. READY FOR RENDER.", cancellationToken);
-            await _notifier.CompleteAsync(sessionId, string.Empty, cancellationToken);
+            await _notifier.DirectorLogAsync(sessionId, "DIRECTOR'S SCRIPT COMPLETE. STARTING RENDER...", cancellationToken);
+
+            // Hand off to render pipeline — FFmpegRenderService queues the job,
+            // encodes meme sounds into the video, uploads output, then fires CompleteAsync.
+            await _render.ExecuteAsync(sessionId, userId, session, script, cancellationToken);
         }
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {

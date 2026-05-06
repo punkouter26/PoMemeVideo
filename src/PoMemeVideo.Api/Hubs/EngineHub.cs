@@ -58,4 +58,8 @@ public class EngineHubNotifier : IEngineNotifier
     public Task ErrorAsync(Guid sessionId, string errorMessage, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("ProcessingError", errorMessage, cancellationToken);
+
+    public Task BrowserLLMInferenceRequestAsync(Guid sessionId, string payloadJson, CancellationToken cancellationToken = default)
+        => _hubContext.Clients.Group($"session-{sessionId}")
+            .SendAsync("BrowserLLMInferenceRequest", payloadJson, cancellationToken);
 }

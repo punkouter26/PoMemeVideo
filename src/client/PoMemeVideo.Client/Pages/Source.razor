@@ -31,7 +31,7 @@
 
     @if (_selectedFile is not null && !_uploaded)
     {
-        <div class="upload-status">
+        <div class="upload-status ascii-border-double">
             <pre>
  FILE    : @_selectedFile.Name
  SIZE    : @(_selectedFile.Size / 1024 / 1024) MB
@@ -211,10 +211,15 @@
     private static string ExtractBlobPath(string sasUrl)
     {
         // sasUrl = https://account.blob.core.windows.net/sessions/{sessionId}/source.mp4?sv=...
+        //       OR http://127.0.0.1:10000/devstoreaccount1/sessions/{sessionId}/source.mp4?sv=... (Azurite)
         var uri = new Uri(sasUrl);
-        // Path looks like: /sessions/{sessionId}/source.mp4
-        // Remove leading '/' and use the rest as the blob path
-        return uri.AbsolutePath.TrimStart('/');
+        // Strip leading '/' to get: sessions/{id}/source.mp4 (Azure) or devstoreaccount1/sessions/{id}/source.mp4 (Azurite)
+        var path = uri.AbsolutePath.TrimStart('/');
+        // For Azurite: strip the account segment so BlobStorageService.SplitPath gets container/blob
+        const string azuritePrefix = "devstoreaccount1/";
+        if (path.StartsWith(azuritePrefix, StringComparison.OrdinalIgnoreCase))
+            path = path[azuritePrefix.Length..];
+        return path;
     }
 
     private static string ProgressBar(int percent)

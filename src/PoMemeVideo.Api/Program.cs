@@ -16,10 +16,13 @@ using PoMemeVideo.Api.Hubs;
 using PoMemeVideo.Application.Ingestion;
 using PoMemeVideo.Application.MemeLibrary;
 using PoMemeVideo.Application.Processing;
+using PoMemeVideo.Application.Rendering;
+using PoMemeVideo.Infrastructure.FFmpeg;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
+using PoMemeVideo.Infrastructure.BrowserLlm;
 using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
@@ -126,10 +129,14 @@ try
     builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
     builder.Services.AddSingleton<AzureOpenAiDirectorService>();
     builder.Services.AddSingleton<OllamaDirectorService>();
+    builder.Services.AddSingleton<BrowserLLMDirectorService>();
     builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 
     builder.Services.AddScoped<SemanticMatchingService>();
     builder.Services.AddScoped<RunEngineCommand>();
+    builder.Services.AddScoped<RenderVideoCommand>();
+    builder.Services.AddSingleton<FFmpegRenderService>();
+    builder.Services.AddSingleton<IVideoRenderService>(sp => sp.GetRequiredService<FFmpegRenderService>());
 
     // ── Authentication (T019) ───────────────────────────────────────────────
     builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -172,6 +179,9 @@ try
 
     var app = builder.Build();
 
+    // ── Start FFmpeg render worker ───────────────────────────────────────────
+    app.Services.GetRequiredService<FFmpegRenderService>().StartWorker();
+
     // ── Developer Exception Page (T014) ─────────────────────────────────────
     if (app.Environment.IsDevelopment())
     {
@@ -180,8 +190,9 @@ try
 
     app.UseCors();
 
-    // ── Blazor WASM client hosting ───────────────────────────────────────────
-    app.UseBlazorFrameworkFiles();
+    // ── Static files (non-fingerprinted assets from wwwroot) ────────────────
+    // UseBlazorFrameworkFiles() is removed — in .NET 10 the Blazor framework
+    // files are served as StaticWebAssets via MapStaticAssets() below.
     app.UseStaticFiles();
 
     // ── Scalar OpenAPI UI (T023) ─────────────────────────────────────────────
@@ -220,6 +231,18 @@ try
     // ── Processing endpoints (T046) ──────────────────────────────────────
     app.MapProcessingEndpoints();
 
+    // ── Browser LLM result callback — browser POSTs Transformers.js output here
+    app.MapPost("/api/processing/sessions/{sessionId:guid}/browser-director-result",
+        (Guid sessionId,
+         BrowserDirectorResultDto result,
+         BrowserLLMDirectorService svc) =>
+            svc.TryResolve(sessionId, result)
+                ? Results.NoContent()
+                : Results.NotFound(new { error = $"No pending BrowserLLM inference for session {sessionId}." }))
+        .WithName("BrowserDirectorResult")
+        .WithTags("Processing")
+        .AllowAnonymous();
+
     // ── MemeLibrary endpoints (T047) ──────────────────────────────────────
     app.MapMemeLibraryEndpoints();
 
@@ -241,6 +264,9 @@ try
         await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Results.Redirect("/");
     });
+
+    // ── Static web assets (fingerprinted URLs) ────────────────────────────────
+    app.MapStaticAssets();
 
     // ── Blazor WASM SPA fallback ─────────────────────────────────────────────
     app.MapFallbackToFile("index.html");

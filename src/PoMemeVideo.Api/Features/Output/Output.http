@@ -1,4 +1,4 @@
-@baseUrl = https://localhost:7000
+@baseUrl = https://localhost:8000
 
 ### Get Director's Script for a session
 GET {{baseUrl}}/api/output/sessions/959b470e-0752-4b25-b915-3004de243f8e/script

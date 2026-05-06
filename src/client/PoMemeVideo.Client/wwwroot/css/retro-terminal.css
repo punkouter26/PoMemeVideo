@@ -1,0 +1,364 @@
+/* ═══════════════════════════════════════════════════════════
+   retro-terminal.css – PoMemeVideo Matrix Green Aesthetic
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Base ────────────────────────────────────────────────── */
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #000000;
+    color: #00FF41;
+    font-family: 'Courier New', Courier, monospace;
+    min-height: 100vh;
+}
+
+/* ── Scanline overlay via body::after ────────────────────── */
+@keyframes scanlines {
+    0%   { background-position: 0 0; }
+    100% { background-position: 0 4px; }
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9998;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 255, 65, 0.04) 3px,
+        rgba(0, 255, 65, 0.04) 4px
+    );
+    animation: scanlines 0.12s linear infinite;
+}
+
+/* ── Typography ──────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+    color: #00FF41;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+a { color: #00FF41; text-decoration: underline; }
+a:hover { color: #00CC33; }
+
+pre {
+    font-family: 'Courier New', Courier, monospace;
+    color: #00FF41;
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+/* ── ASCII Border (double-line box-drawing chars) ────────── */
+.ascii-border-double {
+    border: 2px solid #00FF41;
+    box-shadow: 0 0 6px rgba(0, 255, 65, 0.4), inset 0 0 4px rgba(0, 255, 65, 0.1);
+    padding: 0.5rem;
+}
+
+/* ── Page headers ────────────────────────────────────────── */
+.page-header {
+    color: #00FF41;
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+}
+
+/* ── Panels ──────────────────────────────────────────────── */
+.ascii-panel {
+    border: 1px solid #00FF41;
+    box-shadow: 0 0 4px rgba(0, 255, 65, 0.3);
+    padding: 0.5rem;
+    background: #000;
+}
+
+.panel-header {
+    color: #00FF41;
+    font-size: 0.75rem;
+    margin: 0 0 0.25rem 0;
+    padding: 0 0.25rem;
+    text-shadow: 0 0 4px rgba(0, 255, 65, 0.5);
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.ascii-btn {
+    background: transparent;
+    border: 1px solid #00FF41;
+    color: #00FF41;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0.4rem 0.8rem;
+    text-decoration: none;
+    display: inline-block;
+    transition: background 0.1s, color 0.1s;
+}
+
+.ascii-btn:hover:not(:disabled) {
+    background: #00FF41;
+    color: #000;
+}
+
+.ascii-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.initiate-btn {
+    font-size: 1.1rem;
+    padding: 0.5rem 1.5rem;
+    box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+}
+
+.wipe-btn {
+    border-color: #FF4141;
+    color: #FF4141;
+}
+
+.wipe-btn:hover:not(:disabled) {
+    background: #FF4141;
+    color: #000;
+}
+
+/* ── CRT Monitor Frame ───────────────────────────────────── */
+.crt-frame {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #00FF41;
+    box-shadow:
+        0 0 20px rgba(0, 255, 65, 0.4),
+        inset 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Flicker animation ───────────────────────────────────── */
+@keyframes flicker {
+    0%  { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.85; }
+    95% { opacity: 1; }
+    97% { opacity: 0.9; }
+    100% { opacity: 1; }
+}
+
+.flicker {
+    animation: flicker 6s ease-in-out infinite;
+}
+
+/* ── Cursor blink ────────────────────────────────────────── */
+@keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}
+
+.cursor-blink::after {
+    content: '█';
+    display: inline-block;
+    animation: cursor-blink 1s step-start infinite;
+    color: #00FF41;
+}
+
+/* ── Error / Warning text ────────────────────────────────── */
+.page-error,
+.error-box {
+    color: #FF4141;
+    border: 1px solid #FF4141;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* ── Upload / status text ────────────────────────────────── */
+.upload-status pre {
+    background: #000;
+    border: 1px solid #00FF41;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.progress-bar {
+    color: #00CC33;
+    font-size: 0.8rem;
+}
+
+/* ── Toggle / checkbox ───────────────────────────────────── */
+.ascii-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    color: #00FF41;
+    font-size: 0.9rem;
+}
+
+.ascii-toggle input[type="checkbox"] {
+    accent-color: #00FF41;
+}
+
+/* ── Navbar ──────────────────────────────────────────────── */
+.retro-navbar {
+    background: #000;
+    border-bottom: 1px solid #00FF41;
+    padding: 0.3rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8rem;
+    color: #00FF41;
+    box-shadow: 0 1px 6px rgba(0, 255, 65, 0.25);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.retro-navbar .brand {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #00FF41;
+    text-decoration: none;
+    text-shadow: 0 0 6px rgba(0, 255, 65, 0.6);
+    letter-spacing: 0.05em;
+}
+
+.retro-navbar .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.retro-navbar .nav-links a {
+    color: #00FF41;
+    text-decoration: none;
+}
+
+.retro-navbar .nav-links a:hover {
+    text-shadow: 0 0 8px #00FF41;
+}
+
+.retro-navbar .auth-status {
+    font-size: 0.75rem;
+    color: #00CC33;
+}
+
+.retro-navbar-divider {
+    border: none;
+    border-top: 1px solid #00FF41;
+    margin: 0;
+    opacity: 0.3;
+}
+
+/* ── Mock data banner ────────────────────────────────────── */
+.mock-data-banner {
+    background: #1a0a00;
+    border: 2px solid #FF8C00;
+    color: #FF8C00;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    padding: 0.4rem 1rem;
+    text-align: center;
+    animation: flicker 4s ease-in-out infinite;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Glitch effect ───────────────────────────────────────── */
+@keyframes glitch-h {
+    0%, 100% { transform: translate(0); }
+    20%       { transform: translate(-2px, 1px); }
+    40%       { transform: translate(2px, -1px); }
+    60%       { transform: translate(-1px, 2px); }
+    80%       { transform: translate(1px, -2px); }
+}
+
+.glitch {
+    animation: glitch-h 0.15s ease-in-out infinite;
+}
+
+/* ── Page layouts ────────────────────────────────────────── */
+.source-page,
+.engine-page,
+.reveal-page,
+.login-page {
+    background: #000;
+    color: #00FF41;
+    font-family: 'Courier New', Courier, monospace;
+    min-height: 100vh;
+    padding: 0.75rem;
+}
+
+/* ── Engine grid ─────────────────────────────────────────── */
+.engine-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.hw-panel     { grid-column: 2; grid-row: 1; }
+.script-panel { grid-column: 1; grid-row: 1 / 3; }
+.log-panel    { grid-column: 2; grid-row: 2; }
+.audit-panel  { grid-column: 1 / 3; grid-row: 3; }
+
+/* ── Reveal grid ─────────────────────────────────────────── */
+.reveal-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.video-panel         { grid-column: 1; grid-row: 1; }
+.script-panel-reveal { grid-column: 2; grid-row: 1; }
+.controls-panel      { grid-column: 1 / 3; grid-row: 2; display: flex; gap: 1rem; align-items: center; }
+
+/* ── Output video ────────────────────────────────────────── */
+.output-video {
+    width: 100%;
+    display: block;
+}
+
+/* ── Controls ────────────────────────────────────────────── */
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid #00FF41;
+}
+
+/* ── Drop zone ───────────────────────────────────────────── */
+.ascii-drop-zone {
+    cursor: pointer;
+    text-align: center;
+    margin: 1rem 0;
+    transition: box-shadow 0.15s;
+}
+
+.ascii-drop-zone.drag-over .ascii-border-double {
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.8), inset 0 0 10px rgba(0, 255, 65, 0.3);
+}
+
+.drop-zone-art {
+    font-size: 1rem;
+    line-height: 1.4;
+    text-align: center;
+    color: #00FF41;
+    text-shadow: 0 0 6px rgba(0, 255, 65, 0.5);
+}
+
+.drop-error {
+    color: #FF4141;
+    font-size: 0.85rem;
+}
+
+/* ── Scrollbar theming ───────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #000; }
+::-webkit-scrollbar-thumb  { background: #00FF41; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #00CC33; }

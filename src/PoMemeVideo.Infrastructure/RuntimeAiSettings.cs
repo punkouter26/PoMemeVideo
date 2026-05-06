@@ -14,7 +14,13 @@ public sealed class RuntimeAiSettings
         "smollm2:360m",
     ];
 
-    /// <summary>"AzureOpenAI" or "Ollama"</summary>
+    /// <summary>
+    /// Hugging Face model ID served by Transformers.js in the browser.
+    /// Must be an ONNX-quantised model published under the onnx-community or Xenova org.
+    /// </summary>
+    public const string BrowserLLMModel = "onnx-community/SmolLM2-360M-Instruct";
+
+    /// <summary>"AzureOpenAI", "Ollama", or "BrowserLLM".</summary>
     public string Provider { get; set; } = "AzureOpenAI";
 
     /// <summary>Active Ollama model tag (only used when Provider == "Ollama").</summary>

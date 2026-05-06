@@ -29,6 +29,7 @@ public sealed class EngineHubClient : IAsyncDisposable
         _connection.On<double, double>("HardwareMetrics", (lat, cpu) => HardwareMetrics?.Invoke(lat, cpu));
         _connection.On<string>("ProcessingComplete", path => ProcessingComplete?.Invoke(path));
         _connection.On<string>("ProcessingError", err => ProcessingError?.Invoke(err));
+        _connection.On<string>("BrowserLLMInferenceRequest", payload => BrowserLLMInferenceRequest?.Invoke(payload));
     }
 
     // ── Server → Client Events ────────────────────────────────────────────────
@@ -50,6 +51,12 @@ public sealed class EngineHubClient : IAsyncDisposable
 
     /// <summary>Fired on unrecoverable engine error.</summary>
     public event Action<string>? ProcessingError;
+
+    /// <summary>
+    /// Fired when the server requests in-browser Transformers.js inference.
+    /// The string argument is the JSON payload for window.browserLLM.generate().
+    /// </summary>
+    public event Action<string>? BrowserLLMInferenceRequest;
 
     // ── Client → Server ───────────────────────────────────────────────────────
 

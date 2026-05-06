@@ -50,6 +50,13 @@ public class BlobStorageService : IBlobStorageService
             throw new ArgumentException($"Blob path must include a container prefix: {path}", nameof(path));
         return (path[..slash], path[(slash + 1)..]);
     }
+
+    /// <summary>
+    /// Returns a BlobContainerClient, creating the container if it doesn't exist.
+    /// Used by FFmpegRenderService to upload rendered output.
+    /// </summary>
+    public BlobContainerClient GetContainerClientPublic(string containerName)
+        => _factory.GetContainerClient(containerName);
 }
 
 public static class BlobStorageServiceExtensions

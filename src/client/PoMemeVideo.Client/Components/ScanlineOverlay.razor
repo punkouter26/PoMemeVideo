@@ -1,0 +1,22 @@
+@* ScanlineOverlay.razor
+   Fixed-position scanline overlay rendered on all pages via MainLayout.
+   The visual scanline effect is also applied by body::after in retro-terminal.css;
+   this component adds an additional layered overlay for stronger CRT presence. *@
+
+<div class="scanline-overlay" aria-hidden="true"></div>
+
+<style>
+.scanline-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9997;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+    );
+}
+</style>

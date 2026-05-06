@@ -1,6 +1,7 @@
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using System.Diagnostics;
+using System.Text;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
@@ -24,24 +25,24 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         _blobService = blobService;
         _logger = logger;
         _jobQueue = Channel.CreateBounded<RenderJob>(
-            new BoundedChannelOptions(Environment.ProcessorCount) 
-            { 
-                FullMode = BoundedChannelFullMode.Wait 
+            new BoundedChannelOptions(Environment.ProcessorCount)
+            {
+                FullMode = BoundedChannelFullMode.Wait
             });
     }
 
     /// <summary>
-    /// Queues a render job for processing.
+    /// Queues a render job and awaits its completion. Returns when FFmpeg finishes and output is uploaded.
     /// </summary>
-    public async Task RenderAsync(
-        RenderJob job,
-        CancellationToken cancellationToken = default)
+    public async Task RenderAsync(RenderJob job, CancellationToken cancellationToken = default)
     {
         await _jobQueue.Writer.WriteAsync(job, cancellationToken);
-
         _logger.LogInformation(
             "FFmpeg render job queued for session {SessionId}: output → {OutputPath}",
             job.SessionId, job.OutputBlobPath);
+
+        // Await actual FFmpeg completion — the worker signals Completion when done
+        await job.Completion.Task;
     }
 
     /// <summary>
@@ -51,7 +52,6 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     {
         if (_processingTask is not null)
             return;
-
         _processingTask = ProcessRenderJobsAsync(_cts.Token);
     }
 
@@ -62,10 +62,12 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             try
             {
                 await ExecuteRenderJobAsync(job, cancellationToken);
+                job.Completion.TrySetResult();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "FFmpeg render failed for session {SessionId}", job.SessionId);
+                job.Completion.TrySetException(ex);
             }
         }
     }
@@ -73,27 +75,238 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     private async Task ExecuteRenderJobAsync(RenderJob job, CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Starting FFmpeg render for session {SessionId} with {SoundCount} sound entries",
+            "Starting FFmpeg render for session {SessionId} with {SoundCount} sound(s)",
             job.SessionId, job.SoundEntries.Count);
 
-        // Phase 5 stub: In production, this would invoke FFmpeg with -filter_complex for:
-        // - Audio replacement (-an on input, adelay + amix for sounds at job.SoundEntries[].TimestampMs)
-        // - Visual effects (deep-fry, snap-zoom, motion blur, overlay) per job.SoundEntries[].VisualEffect
-        // For now, log and complete
-        
-        await Task.Delay(100, cancellationToken); // Simulate work
+        var tempDir = Path.Combine(Path.GetTempPath(), $"pomemevideo-{job.SessionId}");
+        Directory.CreateDirectory(tempDir);
 
-        _logger.LogInformation(
-            "FFmpeg render completed for session {SessionId}. Output: {Path}",
-            job.SessionId, job.OutputBlobPath);
+        try
+        {
+            // ── 1. Download source video from blob ────────────────────────────
+            var sourceExt  = Path.GetExtension(job.SourceBlobPath).TrimStart('.');
+            var sourcePath = Path.Combine(tempDir, $"source.{sourceExt}");
+            await DownloadBlobToFileAsync(job.SourceBlobPath, sourcePath, cancellationToken);
+            _logger.LogInformation("Source video downloaded: {Path}", sourcePath);
+
+            // ── 2. Download each sound file from blob ─────────────────────────
+            var soundPaths = new List<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)>();
+            for (var i = 0; i < job.SoundEntries.Count; i++)
+            {
+                var entry = job.SoundEntries[i];
+                var soundExt  = Path.GetExtension(entry.SoundBlobUrl);
+                if (string.IsNullOrEmpty(soundExt)) soundExt = ".mp3";
+                var soundPath = Path.Combine(tempDir, $"sound_{i}{soundExt}");
+
+                try
+                {
+                    await DownloadBlobToFileAsync(entry.SoundBlobUrl, soundPath, cancellationToken);
+                    soundPaths.Add((entry.TimestampMs, soundPath, entry.VisualEffect, entry.EffectIntensity));
+                    _logger.LogDebug("Sound {Index} downloaded: {Path}", i, soundPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not download sound {Index} ({Url}) — skipping", i, entry.SoundBlobUrl);
+                }
+            }
+
+            // ── 3. Build FFmpeg command ───────────────────────────────────────
+            var outputPath = Path.Combine(tempDir, "output.mp4");
+            var args = BuildFFmpegArgs(sourcePath, soundPaths, outputPath, job.AggressiveVisuals);
+
+            _logger.LogDebug("FFmpeg args: {Args}", args);
+
+            // ── 4. Run FFmpeg ─────────────────────────────────────────────────
+            var exitCode = await RunFFmpegAsync(args, job.SessionId, cancellationToken);
+            if (exitCode != 0)
+                throw new InvalidOperationException($"FFmpeg exited with code {exitCode} for session {job.SessionId}.");
+
+            _logger.LogInformation("FFmpeg render complete for session {SessionId}", job.SessionId);
+
+            // ── 5. Upload output to blob storage ──────────────────────────────
+            await UploadFileToBlobAsync(outputPath, job.OutputBlobPath, cancellationToken);
+            _logger.LogInformation("Output uploaded: {Path}", job.OutputBlobPath);
+        }
+        finally
+        {
+            // ── 6. Clean up temp files ────────────────────────────────────────
+            try { Directory.Delete(tempDir, recursive: true); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Could not delete temp dir {Dir}", tempDir); }
+        }
+    }
+
+    /// <summary>
+    /// GoF: Template Method — builds the -filter_complex string based on effect types.
+    /// Audio: strips original audio (-an), adds each meme sound with adelay, mixes with amix.
+    /// Video: chains optional deep-fry / snap-zoom / motion-blur filters.
+    /// </summary>
+    private static string BuildFFmpegArgs(
+        string sourcePath,
+        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
+        string outputPath,
+        bool aggressiveVisuals)
+    {
+        var sb = new StringBuilder();
+
+        // Input 0: source video (no original audio)
+        sb.Append($"-i \"{sourcePath}\"");
+
+        // Inputs 1..N: sound files
+        foreach (var (_, filePath, _, _) in sounds)
+            sb.Append($" -i \"{filePath}\"");
+
+        // ── filter_complex ────────────────────────────────────────────────────
+        var fc = new StringBuilder();
+
+        // Video chain
+        var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals);
+        fc.Append($"[0:v]{videoChain}[vout]");
+
+        // Audio: silence base + delayed sounds mixed together
+        if (sounds.Count > 0)
+        {
+            fc.Append(';');
+
+            // Generate a silent audio base from the source video length
+            fc.Append($"aevalsrc=0:c=stereo:s=44100:d=3600[silence]");
+
+            // Each sound gets an adelay (delay in ms for left+right channels)
+            for (var i = 0; i < sounds.Count; i++)
+            {
+                var delayMs = sounds[i].TimestampMs;
+                fc.Append($";[{i + 1}:a]adelay={delayMs}|{delayMs}[a{i}]");
+            }
+
+            // amix: combine silence base + all delayed sounds
+            var mixInputs = "[silence]" + string.Concat(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
+            fc.Append($";{mixInputs}amix=inputs={sounds.Count + 1}:normalize=0[aout]");
+        }
+
+        sb.Append($" -filter_complex \"{fc}\"");
+
+        // Map outputs
+        sb.Append(" -map \"[vout]\"");
+        sb.Append(sounds.Count > 0 ? " -map \"[aout]\"" : " -an");
+
+        // Encoding settings: H.264 video + AAC audio, fast encode
+        sb.Append(" -c:v libx264 -preset fast -crf 23");
+        if (sounds.Count > 0)
+            sb.Append(" -c:a aac -b:a 192k");
+        sb.Append(" -movflags +faststart");
+        sb.Append($" -y \"{outputPath}\"");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds the video filter chain. Aggressive visuals enable deep-fry EQ + unsharp.
+    /// Per-entry VisualEffect values apply to the overall output (most common effect wins).
+    /// </summary>
+    private static string BuildVideoFilterChain(
+        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
+        bool aggressiveVisuals)
+    {
+        // Tally which visual effects are requested
+        var effectCounts = sounds
+            .Where(s => s.VisualEffect is not null)
+            .GroupBy(s => s.VisualEffect!)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        var filters = new List<string>();
+
+        if (aggressiveVisuals || effectCounts.ContainsKey("DeepFry"))
+        {
+            // Deep-fry: saturate + sharpen
+            filters.Add("eq=saturation=3:contrast=1.5:brightness=0.05");
+            filters.Add("unsharp=5:5:1.5:5:5:0.0");
+        }
+
+        if (effectCounts.ContainsKey("SnapZoom"))
+        {
+            // Snap-zoom: quick zoom to 200% centered
+            filters.Add("zoompan=z='min(zoom+0.05,2)':d=25:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'");
+        }
+
+        if (effectCounts.ContainsKey("MotionBlur"))
+        {
+            // Motion blur via minterpolate (requires libopencv or tblend fallback)
+            filters.Add("tblend=all_mode=average");
+        }
+
+        return filters.Count > 0 ? string.Join(',', filters) : "copy";
+    }
+
+    private async Task<int> RunFFmpegAsync(string args, Guid sessionId, CancellationToken cancellationToken)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName               = "ffmpeg",
+            Arguments              = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            UseShellExecute        = false,
+            CreateNoWindow         = true,
+        };
+
+        using var process = new Process { StartInfo = psi };
+        var stderr = new StringBuilder();
+
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is not null)
+            {
+                stderr.AppendLine(e.Data);
+                _logger.LogTrace("[FFmpeg:{SessionId}] {Line}", sessionId, e.Data);
+            }
+        };
+
+        process.Start();
+        process.BeginErrorReadLine();
+
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            throw;
+        }
+
+        if (process.ExitCode != 0)
+            _logger.LogError("FFmpeg stderr for {SessionId}:\n{Stderr}", sessionId, stderr);
+
+        return process.ExitCode;
+    }
+
+    private async Task DownloadBlobToFileAsync(string blobPath, string destPath, CancellationToken ct)
+    {
+        await using var blobStream = await _blobService.StreamBlobAsync(blobPath, ct);
+        await using var fileStream = File.Create(destPath);
+        await blobStream.CopyToAsync(fileStream, ct);
+    }
+
+    private async Task UploadFileToBlobAsync(string filePath, string blobPath, CancellationToken ct)
+    {
+        // blobPath format: "sessions/{sessionId}/output.mp4" → container=sessions, blob={sessionId}/output.mp4
+        var slash     = blobPath.IndexOf('/');
+        var container = blobPath[..slash];
+        var blobName  = blobPath[(slash + 1)..];
+
+        var containerClient = _blobService.GetContainerClientPublic(container);
+        var blobClient      = containerClient.GetBlobClient(blobName);
+
+        await using var stream = File.OpenRead(filePath);
+        await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: ct);
     }
 
     public async ValueTask DisposeAsync()
     {
         _jobQueue.Writer.Complete();
+        await _cts.CancelAsync();
         if (_processingTask is not null)
             await _processingTask;
-        _cts.Cancel();
         _cts.Dispose();
     }
 }
+
