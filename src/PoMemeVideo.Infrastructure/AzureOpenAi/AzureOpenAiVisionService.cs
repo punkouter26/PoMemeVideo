@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using PoMemeVideo.Domain.Interfaces;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace PoMemeVideo.Infrastructure.AzureOpenAi;
 
@@ -87,5 +88,7 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
         }
     }
 
-    private sealed record VisionLabel(double TimestampSeconds, string Label);
+    private sealed record VisionLabel(
+        [property: JsonPropertyName("timestamp_seconds")] double TimestampSeconds,
+        [property: JsonPropertyName("label")] string Label);
 }

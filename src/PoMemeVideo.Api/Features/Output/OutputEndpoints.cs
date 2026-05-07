@@ -110,6 +110,43 @@ public static class OutputEndpoints
         .Produces<object>(500)
         .AllowAnonymous();
 
+        // GET /api/output/sessions/{id}/stream/video — inline stream for <video> element (no Content-Disposition: attachment)
+        group.MapGet("/sessions/{sessionId:guid}/stream/video", async (
+            Guid sessionId,
+            IVideoSessionRepository sessionRepository,
+            BlobStorageService blobService,
+            HttpContext httpContext,
+            CancellationToken ct) =>
+        {
+            var userId = ResolveUserId(httpContext);
+
+            var session = await sessionRepository.GetByIdAsync(sessionId, userId, ct);
+            if (session is null)
+                return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
+
+            if (string.IsNullOrEmpty(session.OutputBlobPath))
+                return Results.NotFound(new { error = "OUTPUT_NOT_READY", sessionId });
+
+            try
+            {
+                var stream = await blobService.StreamBlobAsync(session.OutputBlobPath, ct);
+                return Results.File(
+                    stream,
+                    contentType: "video/mp4",
+                    enableRangeProcessing: true);   // no fileDownloadName → Content-Disposition: inline
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem(detail: ex.Message, statusCode: 500);
+            }
+        })
+        .WithName("StreamVideo")
+        .WithTags("Output")
+        .Produces(200)
+        .Produces<object>(404)
+        .Produces<object>(500)
+        .AllowAnonymous();
+
         // GET /api/output/sessions/{id}/download/script — download Director's Script as JSON
         group.MapGet("/sessions/{sessionId:guid}/download/script", async (
             Guid sessionId,

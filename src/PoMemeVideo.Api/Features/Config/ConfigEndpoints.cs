@@ -8,11 +8,15 @@ public static class ConfigEndpoints
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/config", (
-            IHostEnvironment environment) =>
+            IHostEnvironment environment,
+            RuntimeAiSettings settings,
+            IConfiguration configuration) =>
         {
             return Results.Ok(new
             {
-                isDevelopment = environment.IsDevelopment()
+                isDevelopment = environment.IsDevelopment(),
+                provider = settings.Provider,
+                useMockAI = configuration.GetValue<bool>("UseMockAI")
             });
         })
         .WithName("GetConfig")

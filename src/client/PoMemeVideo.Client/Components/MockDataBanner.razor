@@ -4,15 +4,21 @@
    Intended for Engine.razor and Reveal.razor pages. *@
 @inject HttpClient Http
 
-@if (_showBanner)
+@if (Visible)
 {
     <div class="mock-data-banner" role="alert">
-        ⚠ MOCK DATA — AI RESPONSES ARE SIMULATED ⚠
+        @Message
     </div>
 }
 
 @code {
     private bool _showBanner;
+
+    [Parameter] public bool ForceShow { get; set; }
+
+    [Parameter] public string Message { get; set; } = "⚠ MOCK DATA — AI RESPONSES ARE SIMULATED ⚠";
+
+    private bool Visible => ForceShow || _showBanner;
 
     protected override async Task OnInitializedAsync()
     {

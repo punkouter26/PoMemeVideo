@@ -133,7 +133,7 @@
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth || 320;
         canvas.height = video.videoHeight || 240;
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
         const dataUrls = [];
 
@@ -145,7 +145,11 @@
             dataUrls.push(canvas.toDataURL("image/png"));
         }
 
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        if (objectUrl) {
+            video.removeAttribute("src");
+            video.load();
+            URL.revokeObjectURL(objectUrl);
+        }
         return dataUrls;
     }
 
@@ -200,6 +204,8 @@
             const finish = (dur) => {
                 if (settled) return;
                 settled = true;
+                video.removeAttribute("src");
+                video.load();
                 URL.revokeObjectURL(url);
                 video.removeEventListener("loadedmetadata", onLoaded);
                 video.removeEventListener("error", onError);
@@ -259,7 +265,7 @@
             const scale = Math.min(1, 640 / (video.videoWidth || 640));
             canvas.width = Math.round((video.videoWidth || 640) * scale);
             canvas.height = Math.round((video.videoHeight || 360) * scale);
-            const ctx = canvas.getContext("2d");
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
             const dataUrls = [];
             for (const t of times) {
@@ -269,6 +275,8 @@
             }
             return dataUrls;
         } finally {
+            video.removeAttribute("src");
+            video.load();
             URL.revokeObjectURL(objectUrl);
         }
     }

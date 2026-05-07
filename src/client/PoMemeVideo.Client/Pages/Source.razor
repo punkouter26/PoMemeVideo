@@ -17,6 +17,21 @@
 ║  [ DROP VIDEO → GENERATE KEYFRAMES → INITIATE ]      ║
 ╚═══════════════════════════════════════════════════════╝</pre>
 
+    @if (_devHealth is not null)
+    {
+        <div class="dev-health-panel ascii-border-double">
+            <pre class="vision-header">╔══════════════════════════════════════╗
+║  LOCAL DEV STATUS                   ║
+╚══════════════════════════════════════╝</pre>
+            <pre class="vision-entry"> APP        │ @_devHealth.Status.ToUpperInvariant()</pre>
+            <pre class="vision-entry"> AI         │ @_aiProviderStatus</pre>
+            @foreach (var check in _devHealth.Checks.OrderBy(k => k.Key))
+            {
+                <pre class="vision-entry"> @check.Key.PadRight(10).ToUpperInvariant() │ @check.Value</pre>
+            }
+        </div>
+    }
+
     <div style="display: @(_uploaded ? "none" : "block")">
         <AsciiDropZone OnFileAccepted="OnFileAccepted" />
     </div>
@@ -138,8 +153,12 @@
     // Vision analysis results
     private readonly List<VisionLabel> _visionLabels = [];
     private bool _visionAnalysed;
+    private HealthResponse? _devHealth;
+    private string _aiProviderStatus = "UNKNOWN";
 
     private sealed record VisionLabel(double TimestampSeconds, string Label);
+    private sealed record HealthResponse(string Status, Dictionary<string, string> Checks);
+    private sealed record AiModelResponse(string Provider, bool OllamaAvailable, bool IsDevelopment);
 
     private sealed record FrameUploadResult(
         int FramesStored,
@@ -150,6 +169,11 @@
     // Component refs
     private ElementReference _videoRef;
     private DitheredKeyframeStrip? _keyframeStrip;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDevStatusAsync();
+    }
 
     private async Task OnFileAccepted(IBrowserFile file)
     {
@@ -345,6 +369,33 @@
     private sealed record SasTokenResponse(Guid SessionId, string SasUrl, DateTimeOffset ExpiresAt);
     private sealed record ErrorResponse(string Error, string Message);
 
+    private async Task LoadDevStatusAsync()
+    {
+        try
+        {
+            _devHealth = await Http.GetFromJsonAsync<HealthResponse>("/health");
+        }
+        catch
+        {
+            _devHealth = null;
+        }
+
+        try
+        {
+            var ai = await Http.GetFromJsonAsync<AiModelResponse>("/api/config/ai-model");
+            if (ai is not null)
+            {
+                _aiProviderStatus = ai.Provider == "Ollama" && !ai.OllamaAvailable
+                    ? "OLLAMA (UNAVAILABLE)"
+                    : ai.Provider.ToUpperInvariant();
+            }
+        }
+        catch
+        {
+            _aiProviderStatus = "UNKNOWN";
+        }
+    }
+
     private async Task DoClearData()
     {
         _clearing = true;
@@ -493,5 +544,9 @@
         color: #00FF41;
         font-size: 0.75rem;
         margin: 0;
+    }
+
+    .dev-health-panel {
+        max-width: 44rem;
     }
 </style>

@@ -322,6 +322,20 @@ pre {
     display: block;
 }
 
+.reveal-meta {
+    margin-top: 0.75rem;
+    border-top: 1px solid rgba(0, 255, 65, 0.35);
+    padding-top: 0.75rem;
+}
+
+.video-fallback-box {
+    margin-top: 0.75rem;
+    border: 1px solid #FF8C00;
+    color: #FFB347;
+    padding: 0.75rem;
+    background: rgba(255, 140, 0, 0.08);
+}
+
 /* ── Controls ────────────────────────────────────────────── */
 .controls {
     display: flex;

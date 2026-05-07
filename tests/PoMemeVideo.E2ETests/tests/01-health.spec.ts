@@ -12,8 +12,8 @@ test.describe('Health endpoint', () => {
     const res = await request.get('/api/config');
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body).toHaveProperty('useMockAI');
-    expect(body.useMockAI).toBe(true);
+    expect(body).toHaveProperty('isDevelopment');
+    expect(typeof body.isDevelopment).toBe('boolean');
   });
 
   test('GET /api/config/ai-model returns provider info', async ({ request }) => {

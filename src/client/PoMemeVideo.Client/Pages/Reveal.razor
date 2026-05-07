@@ -9,6 +9,11 @@
 <div class="reveal-page">
     <MockDataBanner />
 
+    @if (_mockFallbackActive)
+    {
+        <MockDataBanner ForceShow="true" Message="⚠ FALLBACK DIRECTOR ACTIVE — THIS RESULT WAS GENERATED WITH MOCK SCRIPT ENTRIES ⚠" />
+    }
+
     <pre class="page-header">
 ╔═══════════════════════════════════════════════════════╗
 ║  PoMemeVideo // REVEAL                                ║
@@ -33,11 +38,23 @@
                     <div class="ascii-border-double">
                         <pre class="panel-header">[ OUTPUT VIDEO ]</pre>
                         <CrtMonitorFrame>
-                            <video class="output-video" autoplay controls>
-                                <source src="/api/output/sessions/@SessionId/download/video" type="video/mp4" />
+                            <video class="output-video" autoplay controls @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
+                                <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
                                 Your browser does not support the video tag.
                             </video>
                         </CrtMonitorFrame>
+
+                        <div class="reveal-meta">
+                            <pre> STATUS     : @_session.Status</pre>
+                            <pre> DURATION   : @_session.VideoDurationSeconds.ToString("F1")s</pre>
+                            <pre> GENERATED  : @(_session.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "PENDING")</pre>
+                            <pre> SOUNDS     : @(_script?.TotalSoundCount ?? 0)</pre>
+                        </div>
+
+                        @if (_videoLoadFailed)
+                        {
+                            <pre class="video-fallback-box">[ PLAYER FALLBACK ] Inline playback failed in this browser. Use DOWNLOAD VIDEO or open the direct stream: /api/output/sessions/@SessionId/stream/video</pre>
+                        }
                     </div>
                 }
                 else
@@ -65,9 +82,13 @@
                         }
                     </div>
                 }
+                else if (_script is not null)
+                {
+                    <pre style="color: #888;">[ No script entries generated for this session ]</pre>
+                }
                 else
                 {
-                    <pre style="color: #888;">[ Script loading... ]</pre>
+                    <pre style="color: #888;">[ Script unavailable ]</pre>
                 }
             </div>
 
@@ -99,6 +120,8 @@
     private DirectorScriptDto? _script;
     private string _scriptJson = "";
     private string? _statusMessage;
+    private bool _mockFallbackActive;
+    private bool _videoLoadFailed;
 
     protected override async Task OnInitializedAsync()
     {
@@ -140,6 +163,9 @@
                     if (_script is not null)
                     {
                         _scriptJson = System.Text.Json.JsonSerializer.Serialize(_script, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        _mockFallbackActive = _script.Entries.Any(e =>
+                            !string.IsNullOrWhiteSpace(e.SelectionRationale) &&
+                            e.SelectionRationale.Contains("[MOCK]", StringComparison.OrdinalIgnoreCase));
                     }
                 }
             }
@@ -214,6 +240,16 @@
         {
             _statusMessage = $"Error: {ex.Message}";
         }
+    }
+
+    private void OnVideoLoaded()
+    {
+        _videoLoadFailed = false;
+    }
+
+    private void OnVideoError()
+    {
+        _videoLoadFailed = true;
     }
 }
 

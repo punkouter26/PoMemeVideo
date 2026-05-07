@@ -136,7 +136,7 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
         _repository
             .UpdateStatusAsync(
                 sessionId, Arg.Any<Guid>(), Arg.Any<SessionStatus>(),
-                Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
         var response = await _client!.PostAsJsonAsync("/api/ingestion/sessions", new

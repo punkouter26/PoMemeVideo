@@ -19,6 +19,7 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     private readonly Channel<RenderJob> _jobQueue;
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
+    private int _disposed; // 0 = live, 1 = disposed (Interlocked)
 
     public FFmpegRenderService(BlobStorageService blobService, ILogger<FFmpegRenderService> logger)
     {
@@ -303,10 +304,16 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _jobQueue.Writer.Complete();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return; // already disposed — idempotent guard against double-dispose from DI
+
+        _jobQueue.Writer.TryComplete();  // idempotent — no-op if already completed
         await _cts.CancelAsync();
         if (_processingTask is not null)
-            await _processingTask;
+        {
+            try { await _processingTask; }
+            catch (OperationCanceledException) { /* expected on graceful shutdown */ }
+        }
         _cts.Dispose();
     }
 }

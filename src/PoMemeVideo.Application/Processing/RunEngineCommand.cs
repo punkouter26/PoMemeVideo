@@ -325,7 +325,9 @@ public sealed class RunEngineCommand
         }
     }
 
-    private sealed record VisionLabelItem(double TimestampSeconds, string Label);
+    private sealed record VisionLabelItem(
+        [property: System.Text.Json.Serialization.JsonPropertyName("timestamp_seconds")] double TimestampSeconds,
+        [property: System.Text.Json.Serialization.JsonPropertyName("label")] string Label);
 
     private static ScriptEntryDto MapToDto(ScriptEntry entry) => new()
     {

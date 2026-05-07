@@ -4,9 +4,12 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using PoMemeVideo.Api.Endpoints;
+using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
 using PoMemeVideo.Api.Features.MemeLibrary;
@@ -29,6 +32,19 @@ using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
+
+// ── CLI verb: dotnet run -- seed-sounds [--seeds-dir <path>] ─────────────────
+// Short-circuits before web host construction so no Azure auth/storage is needed.
+if (args.Length > 0 && args[0] == "seed-sounds")
+{
+    var config = new ConfigurationBuilder()
+        .SetBasePath(Directory.GetCurrentDirectory())
+        .AddJsonFile("appsettings.json", optional: true)
+        .AddJsonFile("appsettings.Development.json", optional: true)
+        .AddEnvironmentVariables()
+        .Build();
+    return await SeedSoundsCommand.RunAsync(args[1..], config);
+}
 
 // Bootstrap logger for startup errors
 Log.Logger = new LoggerConfiguration()
@@ -115,7 +131,8 @@ try
     builder.Services.AddAzureTableClientFactory();
     builder.Services.AddBlobServiceClientFactory();
     builder.Services.AddBlobStorageService();
-
+    // ── Auth (T076) ────────────────────────────────────────────────────
+    builder.Services.AddUserIdentityTableRepository();
     // ── Ingestion (T025, T026) ───────────────────────────────────────────
     builder.Services.AddVideoSessionTableRepository();
     builder.Services.AddScoped<IngestVideoCommand>();
@@ -142,16 +159,31 @@ try
     builder.Services.AddSingleton<FFmpegRenderService>();
     builder.Services.AddSingleton<IVideoRenderService>(sp => sp.GetRequiredService<FFmpegRenderService>());
 
-    // ── Authentication (T019) ───────────────────────────────────────────────
-    builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-        .AddCookie(options =>
-        {
-            options.LoginPath = "/auth/login/microsoft";
-            options.LogoutPath = "/auth/logout";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            options.Cookie.SameSite = SameSiteMode.Lax;
-        });
+    // ── Authentication (T019, T078) ──────────────────────────────────────────
+    // Microsoft.Identity.Web registers both OpenIdConnect and Cookie schemes.
+    // Cookie scheme is used for both ANON sign-in and OIDC session persistence.
+    // Gracefully degrades when AzureAd:ClientId is absent (ANON-only dev mode).
+    var azureAdSection = builder.Configuration.GetSection("AzureAd");
+    var hasAzureAd = !string.IsNullOrWhiteSpace(azureAdSection["ClientId"]);
+
+    if (hasAzureAd)
+    {
+        builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+            .AddMicrosoftIdentityWebApp(azureAdSection);
+    }
+    else
+    {
+        // Dev fallback: cookie-only auth (no Azure AD configured)
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(options =>
+            {
+                options.LoginPath = "/login";
+                options.LogoutPath = "/auth/logout";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+            });
+    }
     builder.Services.AddAuthorization();
 
     // ── SignalR (T020) ──────────────────────────────────────────────────────
@@ -256,21 +288,43 @@ try
     // ── Admin endpoints ───────────────────────────────────────────────────
     app.MapAdminEndpoints();
 
-    // ── Auth stubs (T019) ────────────────────────────────────────────────────    // ANON login handled in AnonAuthHandler (Phase 7, T077) — stub returns 501 for now
-    app.MapPost("/auth/anon", () => Results.StatusCode(501))
-        .AllowAnonymous();
+    // ── Auth endpoints (T077, T078) ──────────────────────────────────────────
+    app.MapAuthEndpoints();            // GET /api/auth/me
+    app.MapAnonAuthEndpoints(app.Environment);  // POST /auth/anon (dev-only)
 
-    app.MapGet("/auth/login/microsoft", () => Results.Redirect("/"))
-        .AllowAnonymous();
+    app.MapGet("/auth/login/microsoft", async (HttpContext ctx) =>
+    {
+        var hasOidc = ctx.RequestServices
+            .GetRequiredService<IAuthenticationSchemeProvider>()
+            .GetSchemeAsync(OpenIdConnectDefaults.AuthenticationScheme)
+            .GetAwaiter().GetResult() is not null;
+
+        if (hasOidc)
+        {
+            await ctx.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
+                new AuthenticationProperties { RedirectUri = "/" });
+        }
+        else
+        {
+            // Azure AD not configured — redirect to login page
+            ctx.Response.Redirect("/login");
+        }
+    }).AllowAnonymous();
 
     app.MapGet("/auth/callback", () => Results.Redirect("/"))
         .AllowAnonymous();
 
     app.MapPost("/auth/logout", async (HttpContext ctx) =>
     {
+        var provider = ctx.RequestServices.GetRequiredService<IAuthenticationSchemeProvider>();
+        var hasOidc = await provider.GetSchemeAsync(OpenIdConnectDefaults.AuthenticationScheme) is not null;
+
+        if (hasOidc)
+            await ctx.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
+
         await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Results.Redirect("/");
-    });
+    }).AllowAnonymous();
 
     // ── Static web assets (fingerprinted URLs) ────────────────────────────────
     app.MapStaticAssets();
@@ -283,9 +337,8 @@ try
     {
         var blobFactory = app.Services.GetRequiredService<BlobServiceClientFactory>();
         var allowedOrigins = app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? ["http://localhost:5280"];
-        foreach (var origin in allowedOrigins)
-            await blobFactory.EnsureDevCorsAsync("*");
+            ?? ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5280"];
+        await blobFactory.EnsureDevCorsAsync(string.Join(",", allowedOrigins));
     }
 
     await app.RunAsync();
