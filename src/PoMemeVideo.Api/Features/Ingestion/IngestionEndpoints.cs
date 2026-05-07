@@ -3,6 +3,8 @@ using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Shared.Models;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace PoMemeVideo.Api.Features.Ingestion;
 
@@ -99,6 +101,65 @@ public static class IngestionEndpoints
         .Produces<object>(404)
         .AllowAnonymous();
 
+        // POST /api/ingestion/sessions/{sessionId}/frames — upload raw keyframe images for AI vision
+        app.MapPost("/api/ingestion/sessions/{sessionId:guid}/frames", async (
+            Guid sessionId,
+            FrameUploadRequest request,
+            IVideoSessionRepository sessionRepository,
+            IBlobStorageService blobs,
+            IAiVisionService vision,
+            HttpContext httpContext,
+            CancellationToken ct) =>
+        {
+            var userId = ResolveUserId(httpContext);
+            var session = await sessionRepository.GetByIdAsync(sessionId, userId, ct);
+            if (session is null)
+                return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
+
+            // Delete any previous frames / labels for this session
+            await blobs.DeleteBlobsByPrefixAsync($"sessions/{sessionId}/frames/", ct);
+
+            // Store raw PNG frames
+            var base64Images = new List<string>(request.Frames.Count);
+            for (var i = 0; i < request.Frames.Count; i++)
+            {
+                var b64 = request.Frames[i];
+                var comma = b64.IndexOf(',');
+                if (comma >= 0) b64 = b64[(comma + 1)..];
+                base64Images.Add(b64);
+
+                var bytes = Convert.FromBase64String(b64);
+                using var ms = new MemoryStream(bytes);
+                await blobs.UploadBlobAsync($"sessions/{sessionId}/frames/frame_{i:D4}.png", ms, "image/png", ct);
+            }
+
+            // Run vision analysis immediately so labels are ready before INITIATE
+            var visionLabels = Array.Empty<(double TimestampSeconds, string Label)>();
+            if (base64Images.Count > 0)
+            {
+                try { visionLabels = await vision.AnalyseAsync([.. base64Images], ct); }
+                catch { /* vision unavailable — engine will fall back to time-based placement */ }
+            }
+
+            // Persist labels as a JSON blob so the engine can read them without re-calling the AI
+            var labelsJson = JsonSerializer.Serialize(
+                visionLabels.Select(v => new { timestamp_seconds = v.TimestampSeconds, label = v.Label }).ToArray());
+            using var labelsStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(labelsJson));
+            await blobs.UploadBlobAsync($"sessions/{sessionId}/vision-labels.json", labelsStream, "application/json", ct);
+
+            return Results.Ok(new
+            {
+                sessionId,
+                framesStored = base64Images.Count,
+                visionLabels = visionLabels.Select(v => new { timestampSeconds = v.TimestampSeconds, label = v.Label }).ToArray(),
+            });
+        })
+        .WithName("UploadFrames")
+        .WithTags("Ingestion")
+        .Produces<object>(200)
+        .Produces<object>(404)
+        .AllowAnonymous();
+
         // GET /api/ingestion/sessions/{sessionId} — retrieve session status
         app.MapGet("/api/ingestion/sessions/{sessionId:guid}", async (
             Guid sessionId,
@@ -157,3 +218,6 @@ public sealed record SessionConfirmRequest(
     string BlobPath,
     double VideoDurationSeconds,
     bool AggressiveVisuals);
+
+public sealed record FrameUploadRequest(
+    [property: JsonPropertyName("frames")] IReadOnlyList<string> Frames);

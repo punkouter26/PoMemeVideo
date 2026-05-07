@@ -1,0 +1,127 @@
+@page "/results"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@using PoMemeVideo.Shared.Models
+@using PoMemeVideo.Shared.Enums
+
+<PageTitle>PoMemeVideo — Results</PageTitle>
+
+<div class="results-page">
+    <pre class="page-header">
+╔═══════════════════════════════════════════════════════╗
+║  PoMemeVideo // COMPLETED VIDEOS                      ║
+║  [ ALL SESSIONS WITH MEME SOUNDS APPLIED ]            ║
+╚═══════════════════════════════════════════════════════╝</pre>
+
+    @if (_loading)
+    {
+        <pre class="status">[ LOADING RESULTS... ]</pre>
+    }
+    else if (_error is not null)
+    {
+        <pre class="error-box">[ ERROR ] @_error</pre>
+    }
+    else if (_sessions.Count == 0)
+    {
+        <pre class="status">[ NO COMPLETED VIDEOS YET — PROCESS ONE FROM SOURCE ]</pre>
+        <div style="text-align:center; margin-top:1rem;">
+            <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>[ GO TO SOURCE ]</button>
+        </div>
+    }
+    else
+    {
+        <pre class="status">[ @_sessions.Count COMPLETED VIDEO(S) ]</pre>
+
+        <div class="results-grid">
+            @foreach (var session in _sessions)
+            {
+                <div class="result-card ascii-border-double">
+                    <pre class="result-id">◆ SESSION : @session.SessionId</pre>
+                    <pre class="result-meta">  COMPLETED : @(session.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</pre>
+                    <pre class="result-meta">  DURATION  : @(session.VideoDurationSeconds.ToString("F1"))s</pre>
+                    <pre class="result-meta">  AGGRESSIVE: @(session.AggressiveVisuals ? "YES" : "NO")</pre>
+
+                    @if (!string.IsNullOrEmpty(session.OutputBlobPath))
+                    {
+                        <div class="result-preview">
+                            <video controls preload="metadata" style="width:100%; max-height:240px; background:#000;">
+                                <source src="/api/output/sessions/@session.SessionId/download/video" type="video/mp4" />
+                            </video>
+                        </div>
+
+                        <div class="result-actions">
+                            <button class="ascii-btn" @onclick="() => DownloadVideo(session.SessionId)">[ ⬇ DOWNLOAD ]</button>
+                            <button class="ascii-btn" @onclick="() => GoToReveal(session.SessionId)">[ REVEAL ]</button>
+                            <button class="ascii-btn wipe-btn" @onclick="() => DeleteSession(session)">[ WIPE ]</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <pre style="color:#FF4141;">  OUTPUT NOT AVAILABLE</pre>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<VideoSessionDto> _sessions = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResults();
+    }
+
+    private async Task LoadResults()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var results = await Http.GetFromJsonAsync<List<VideoSessionDto>>("/api/output/results");
+            _sessions = results ?? [];
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void DownloadVideo(Guid sessionId)
+    {
+        Nav.NavigateTo($"/api/output/sessions/{sessionId}/download/video", forceLoad: true);
+    }
+
+    private void GoToReveal(Guid sessionId)
+    {
+        Nav.NavigateTo($"/reveal/{sessionId}");
+    }
+
+    private async Task DeleteSession(VideoSessionDto session)
+    {
+        var response = await Http.DeleteAsync($"/api/output/sessions/{session.SessionId}");
+        if (response.IsSuccessStatusCode)
+        {
+            _sessions.Remove(session);
+        }
+    }
+}
+
+<style>
+    .results-page { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
+    .result-card { padding: 0.75rem; background: #0a0a0a; }
+    .result-id { color: #00FF41; font-size: 0.75rem; margin: 0 0 0.25rem; word-break: break-all; }
+    .result-meta { color: #aaffaa; font-size: 0.75rem; margin: 0; }
+    .result-preview { margin: 0.75rem 0; }
+    .result-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .wipe-btn { color: #FF4141; border-color: #FF4141; }
+    .wipe-btn:hover { background: #FF4141; color: #000; }
+</style>

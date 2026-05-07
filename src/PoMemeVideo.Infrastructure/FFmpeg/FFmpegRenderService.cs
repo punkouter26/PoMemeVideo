@@ -162,14 +162,9 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals);
         fc.Append($"[0:v]{videoChain}[vout]");
 
-        // Audio: silence base + delayed sounds mixed together
+        // Audio: delayed meme sounds mixed together, trimmed to video length via -shortest
         if (sounds.Count > 0)
         {
-            fc.Append(';');
-
-            // Generate a silent audio base from the source video length
-            fc.Append($"aevalsrc=0:c=stereo:s=44100:d=3600[silence]");
-
             // Each sound gets an adelay (delay in ms for left+right channels)
             for (var i = 0; i < sounds.Count; i++)
             {
@@ -177,9 +172,10 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                 fc.Append($";[{i + 1}:a]adelay={delayMs}|{delayMs}[a{i}]");
             }
 
-            // amix: combine silence base + all delayed sounds
-            var mixInputs = "[silence]" + string.Concat(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
-            fc.Append($";{mixInputs}amix=inputs={sounds.Count + 1}:normalize=0[aout]");
+            // amix: combine all delayed sounds only (no silent base — output length
+            // is controlled by -shortest which trims to the video stream duration)
+            var mixInputs = string.Concat(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
+            fc.Append($";{mixInputs}amix=inputs={sounds.Count}:normalize=0:duration=longest[aout]");
         }
 
         sb.Append($" -filter_complex \"{fc}\"");
@@ -192,6 +188,9 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         sb.Append(" -c:v libx264 -preset fast -crf 23");
         if (sounds.Count > 0)
             sb.Append(" -c:a aac -b:a 192k");
+        // -shortest: trim output to the video stream length so audio doesn't extend past video end
+        if (sounds.Count > 0)
+            sb.Append(" -shortest");
         sb.Append(" -movflags +faststart");
         sb.Append($" -y \"{outputPath}\"");
 
@@ -221,10 +220,12 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             filters.Add("unsharp=5:5:1.5:5:5:0.0");
         }
 
-        if (effectCounts.ContainsKey("SnapZoom"))
+        var snapZoomEntries = sounds.Where(s => s.VisualEffect == "SnapZoom").ToList();
+        if (snapZoomEntries.Count > 0)
         {
-            // Snap-zoom: quick zoom to 200% centered
-            filters.Add("zoompan=z='min(zoom+0.05,2)':d=25:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'");
+            // SnapZoom is an audio-placement cue only — the meme sound fires at the timestamp.
+            // A true per-frame zoom requires segment splicing which is not yet implemented;
+            // visual effect is intentionally omitted here to avoid filter-graph errors.
         }
 
         if (effectCounts.ContainsKey("MotionBlur"))

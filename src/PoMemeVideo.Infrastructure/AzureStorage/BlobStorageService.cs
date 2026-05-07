@@ -23,6 +23,15 @@ public class BlobStorageService : IBlobStorageService
         return response.Value.Content;
     }
 
+    public async Task UploadBlobAsync(string path, Stream content, string contentType, CancellationToken cancellationToken = default)
+    {
+        var (containerName, blobName) = SplitPath(path);
+        var container = _factory.GetContainerClient(containerName);
+        await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        var blobClient = container.GetBlobClient(blobName);
+        await blobClient.UploadAsync(content, new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } }, cancellationToken);
+    }
+
     public async IAsyncEnumerable<string> ListBlobsByPrefixAsync(string prefix, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var (containerName, blobPrefix) = SplitPath(prefix);

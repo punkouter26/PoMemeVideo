@@ -332,6 +332,31 @@ pre {
     border-top: 1px solid #00FF41;
 }
 
+/* ── Vision labels ───────────────────────────────────────── */
+.vision-labels {
+    margin: 0.75rem 0;
+    padding: 0.5rem;
+}
+
+.vision-header {
+    color: #00FF41;
+    margin: 0 0 0.25rem;
+    font-size: 0.8rem;
+}
+
+.vision-entry {
+    color: #00FF41;
+    margin: 0;
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+.vision-fallback {
+    color: #888;
+    font-size: 0.8rem;
+    margin: 0.5rem 0;
+}
+
 /* ── Drop zone ───────────────────────────────────────────── */
 .ascii-drop-zone {
     cursor: pointer;

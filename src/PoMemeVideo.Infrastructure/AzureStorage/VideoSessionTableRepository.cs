@@ -58,6 +58,18 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         }
     }
 
+    public async Task<IReadOnlyList<VideoSession>> ListCompletedAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var results = new List<VideoSession>();
+        var filter = $"PartitionKey eq '{userId}' and Status eq 'Complete'";
+        await foreach (var entity in _table.QueryAsync<VideoSessionTableEntity>(filter, cancellationToken: cancellationToken))
+        {
+            results.Add(ToDomain(entity));
+        }
+        results.Sort((a, b) => DateTimeOffset.Compare(b.CompletedAt ?? b.CreatedAt, a.CompletedAt ?? a.CreatedAt));
+        return results;
+    }
+
     public async Task UpdateStatusAsync(
         Guid sessionId,
         Guid userId,

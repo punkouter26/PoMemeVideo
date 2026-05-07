@@ -216,6 +216,61 @@
     }
 
     // Export to global scope for JSRuntime.InvokeAsync calls from Blazor
-    global.canvasDither = { generateDitheredFrames, getVideoDuration, getFileDuration };
+    global.canvasDither = { generateDitheredFrames, captureRawFrames, getVideoDuration, getFileDuration };
+
+    /**
+     * Captures raw (undithered) PNG frames from a video at regular intervals.
+     * Used for AI vision analysis — full colour, no 1-bit processing.
+     *
+     * @param {string} fileInputId   ID of the <input type="file"> element
+     * @param {HTMLVideoElement} video  Hidden video element to seek
+     * @param {number} [intervalSeconds=3]  Seconds between sampled frames
+     * @returns {Promise<string[]>}  Array of base64 PNG data URLs
+     */
+    async function captureRawFrames(fileInputId, video, intervalSeconds) {
+        intervalSeconds = intervalSeconds || 3;
+
+        const input = document.getElementById(fileInputId);
+        const file = input && input.files && input.files[0];
+        if (!file) throw new Error("No file selected");
+
+        const objectUrl = URL.createObjectURL(file);
+        try {
+            await new Promise((resolve, reject) => {
+                let settled = false;
+                const finish = (ok) => { if (!settled) { settled = true; ok ? resolve() : reject(new Error("video load failed")); } };
+                video.addEventListener("loadedmetadata", () => finish(true), { once: true });
+                video.addEventListener("error", () => finish(false), { once: true });
+                setTimeout(() => finish(false), 10000);
+                video.src = objectUrl;
+                video.load();
+            });
+
+            const duration = video.duration;
+            if (!isFinite(duration) || duration <= 0) return [];
+
+            // Capture at 3s intervals; always at least one frame at t=0
+            const times = [];
+            for (let t = 0; t < duration; t += intervalSeconds) times.push(t);
+            if (times.length === 0) times.push(0);
+
+            const canvas = document.createElement("canvas");
+            // Cap at 640px wide to keep payload size manageable for the AI API
+            const scale = Math.min(1, 640 / (video.videoWidth || 640));
+            canvas.width = Math.round((video.videoWidth || 640) * scale);
+            canvas.height = Math.round((video.videoHeight || 360) * scale);
+            const ctx = canvas.getContext("2d");
+
+            const dataUrls = [];
+            for (const t of times) {
+                await seekTo(video, t);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                dataUrls.push(canvas.toDataURL("image/png"));
+            }
+            return dataUrls;
+        } finally {
+            URL.revokeObjectURL(objectUrl);
+        }
+    }
 
 })(window);

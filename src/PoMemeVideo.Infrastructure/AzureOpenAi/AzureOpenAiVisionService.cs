@@ -2,6 +2,7 @@
 using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using PoMemeVideo.Domain.Interfaces;
 using System.Text.Json;
@@ -16,9 +17,11 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
     };
 
     private readonly ChatClient _chatClient;
+    private readonly ILogger<AzureOpenAiVisionService> _logger;
 
-    public AzureOpenAiVisionService(IConfiguration config)
+    public AzureOpenAiVisionService(IConfiguration config, ILogger<AzureOpenAiVisionService> logger)
     {
+        _logger = logger;
         var endpoint = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured.");
 
@@ -58,15 +61,28 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
 
         var response = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
         var text = response.Value.Content[0].Text.Trim();
+        _logger.LogInformation("GPT-4o Vision raw response: {Response}", text);
+
+        // Strip markdown code fences if GPT-4o wrapped the JSON (e.g. ```json ... ```)
+        var json = text;
+        if (json.StartsWith("```"))
+        {
+            var firstNewline = json.IndexOf('\n');
+            if (firstNewline >= 0) json = json[(firstNewline + 1)..];
+            var lastFence = json.LastIndexOf("```");
+            if (lastFence >= 0) json = json[..lastFence].Trim();
+        }
 
         try
         {
-            var items = JsonSerializer.Deserialize<VisionLabel[]>(text, JsonOpts) ?? [];
+            var items = JsonSerializer.Deserialize<VisionLabel[]>(json, JsonOpts) ?? [];
+            _logger.LogInformation("GPT-4o Vision parsed {Count} label(s): {Labels}",
+                items.Length, string.Join(", ", items.Select(x => $"t={x.TimestampSeconds:F1}s→{x.Label}")));
             return items.Select(x => (x.TimestampSeconds, x.Label)).ToArray();
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback: return single label for the beginning
+            _logger.LogWarning(ex, "GPT-4o Vision JSON parse failed. Raw text was: {Text}", text);
             return [(0.0, "unknown action")];
         }
     }

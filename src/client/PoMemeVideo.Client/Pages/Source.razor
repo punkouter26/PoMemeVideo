@@ -21,6 +21,29 @@
         <AsciiDropZone OnFileAccepted="OnFileAccepted" />
     </div>
 
+    @* Clear all data button — always visible when not processing *@
+    @if (!_uploaded && !_visionInProgress && !_initiating)
+    {
+        <div class="clear-data-row">
+            @if (_clearConfirm)
+            {
+                <pre class="clear-warning">⚠ THIS WILL DELETE ALL SESSION BLOBS AND METADATA. SOUND LIBRARY IS PRESERVED.</pre>
+                <button class="ascii-btn clear-confirm-btn" @onclick="DoClearData" disabled="@_clearing">
+                    @(_clearing ? "[ CLEARING... ]" : "[ YES — WIPE ALL DATA ]")
+                </button>
+                <button class="ascii-btn" @onclick='() => _clearConfirm = false'>[ CANCEL ]</button>
+            }
+            else
+            {
+                <button class="ascii-btn clear-btn" @onclick='() => _clearConfirm = true'>[ CLEAR ALL DATA ]</button>
+            }
+            @if (!string.IsNullOrEmpty(_clearMessage))
+            {
+                <pre class="clear-status">@_clearMessage</pre>
+            }
+        </div>
+    }
+
     @* Hidden video element used for keyframe extraction — not visible to the user *@
     <video @ref="_videoRef"
            style="display:none"
@@ -48,6 +71,23 @@
     {
         <DitheredKeyframeStrip @ref="_keyframeStrip" VideoElement="_videoRef" />
 
+        @if (_visionLabels.Count > 0)
+        {
+            <div class="vision-labels ascii-border-double">
+                <pre class="vision-header">╔══════════════════════════════════════╗
+║  AI VISION ANALYSIS — SCENE LABELS  ║
+╚══════════════════════════════════════╝</pre>
+                @foreach (var label in _visionLabels)
+                {
+                    <pre class="vision-entry"> t=@(label.TimestampSeconds.ToString("F1"))s │ @label.Label.ToUpperInvariant()</pre>
+                }
+            </div>
+        }
+        else if (_visionAnalysed)
+        {
+            <pre class="vision-fallback"> AI VISION: no triggers detected — time-based placement will be used</pre>
+        }
+
         <div class="controls">
             <label class="ascii-toggle">
                 <input type="checkbox" @bind="_aggressiveVisuals" />
@@ -56,8 +96,15 @@
 
             <button class="ascii-btn initiate-btn"
                     @onclick="OnInitiate"
-                    disabled="@_initiating">
-                @(_initiating ? "[ INITIATING... ]" : "[ INITIATE ]")
+                    disabled="@(_initiating || _visionInProgress)">
+                @if (_visionInProgress)
+                {
+                    <span>[ ANALYSING... PLEASE WAIT ]</span>
+                }
+                else
+                {
+                    <span>@(_initiating ? "[ INITIATING... ]" : "[ INITIATE ]")</span>
+                }
             </button>
         </div>
     }
@@ -75,6 +122,10 @@
     private bool _keyframeStripVisible;
     private bool _aggressiveVisuals;
     private bool _initiating;
+    private bool _visionInProgress;
+    private bool _clearConfirm;
+    private bool _clearing;
+    private string? _clearMessage;
     private int _uploadProgress;
     private string _statusMessage = "PENDING";
     private string? _errorMessage;
@@ -83,6 +134,18 @@
     private Guid _sessionId;
     private string _blobPath = string.Empty;
     private double _videoDurationSeconds;
+
+    // Vision analysis results
+    private readonly List<VisionLabel> _visionLabels = [];
+    private bool _visionAnalysed;
+
+    private sealed record VisionLabel(double TimestampSeconds, string Label);
+
+    private sealed record FrameUploadResult(
+        int FramesStored,
+        VisionLabelItem[]? VisionLabels);
+
+    private sealed record VisionLabelItem(double TimestampSeconds, string Label);
 
     // Component refs
     private ElementReference _videoRef;
@@ -161,9 +224,58 @@
             _keyframeStripVisible = true;
             StateHasChanged();
 
-            // Step 5 — generate dithered keyframe strip
+            // Step 5 — generate dithered keyframe strip (display only)
             if (_keyframeStrip is not null)
                 await _keyframeStrip.GenerateAsync();
+
+            // Step 6 — capture raw (undithered) frames and upload to API for AI vision analysis
+            _visionInProgress = true;
+            _statusMessage = "ANALYSING VIDEO WITH AI...";
+            StateHasChanged();
+            try
+            {
+                var rawFrames = await JS.InvokeAsync<string[]>(
+                    "canvasDither.captureRawFrames",
+                    "ascii-file-input",
+                    _videoRef,
+                    3 /* intervalSeconds */);
+
+                if (rawFrames.Length > 0)
+                {
+                    var frameResponse = await Http.PostAsJsonAsync(
+                        $"/api/ingestion/sessions/{_sessionId}/frames",
+                        new { frames = rawFrames });
+
+                    if (frameResponse.IsSuccessStatusCode)
+                    {
+                        var result = await frameResponse.Content.ReadFromJsonAsync<FrameUploadResult>();
+                        _visionLabels.Clear();
+                        if (result?.VisionLabels is { Length: > 0 } labels)
+                            _visionLabels.AddRange(labels.Select(l => new VisionLabel(l.TimestampSeconds, l.Label)));
+
+                        _visionAnalysed = true;
+                        _statusMessage = _visionLabels.Count > 0
+                            ? $"READY — {_visionLabels.Count} SCENE(S) IDENTIFIED"
+                            : "READY — NO AI TRIGGERS FOUND (time-based placement will be used)";
+                    }
+                    else
+                    {
+                        _statusMessage = "READY (frame analysis failed — AI will use fallback)";
+                    }
+                }
+                else
+                {
+                    _statusMessage = "READY (no frames extracted)";
+                }
+            }
+            catch
+            {
+                _statusMessage = "UPLOAD COMPLETE (frame capture failed — AI will use fallback)";
+            }
+            finally
+            {
+                _visionInProgress = false;
+            }
         }
         catch (Exception ex)
         {
@@ -232,6 +344,30 @@
     // API response models
     private sealed record SasTokenResponse(Guid SessionId, string SasUrl, DateTimeOffset ExpiresAt);
     private sealed record ErrorResponse(string Error, string Message);
+
+    private async Task DoClearData()
+    {
+        _clearing = true;
+        _clearMessage = null;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.DeleteAsync("/api/admin/data");
+            _clearMessage = response.IsSuccessStatusCode
+                ? "ALL SESSION DATA WIPED. SOUND LIBRARY INTACT."
+                : $"ERROR: {response.StatusCode}";
+        }
+        catch (Exception ex)
+        {
+            _clearMessage = $"ERROR: {ex.Message}";
+        }
+        finally
+        {
+            _clearing = false;
+            _clearConfirm = false;
+            StateHasChanged();
+        }
+    }
 }
 
 <style>
@@ -312,6 +448,50 @@
 
     .page-error {
         color: #FF0000;
+        margin: 0;
+    }
+
+    .clear-data-row {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+
+    .clear-btn {
+        color: #555;
+        border-color: #333;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        opacity: 0.6;
+    }
+
+    .clear-btn:hover {
+        color: #FF4141;
+        border-color: #FF4141;
+        opacity: 1;
+    }
+
+    .clear-confirm-btn {
+        color: #FF4141;
+        border-color: #FF4141;
+    }
+
+    .clear-confirm-btn:hover:not(:disabled) {
+        background: #FF4141;
+        color: #000;
+    }
+
+    .clear-warning {
+        color: #FF4141;
+        font-size: 0.75rem;
+        margin: 0;
+    }
+
+    .clear-status {
+        color: #00FF41;
+        font-size: 0.75rem;
         margin: 0;
     }
 </style>

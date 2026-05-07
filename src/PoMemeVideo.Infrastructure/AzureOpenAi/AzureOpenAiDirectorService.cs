@@ -47,14 +47,24 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
 
         var prompt =
             "You are a meme video director. Given video action labels and available meme sounds, " +
-            "create a DirectorScript mapping sounds to moments.\n\n" +
+            "create a DirectorScript that maps meme sounds to moments in the video.\n\n" +
             $"Action labels (JSON): {labelsJson}\n" +
             $"Available sounds (JSON): {soundsJson}\n\n" +
-            "Return ONLY a JSON array of script entries like:\n" +
+            "Return ONLY a JSON array of script entries. Each entry MUST include:\n" +
+            "- sceneDescription: a vivid 1-2 sentence description of what is happening in the scene at that moment\n" +
+            "- selectionRationale: explain specifically why this meme sound fits the scene (tone, timing, irony, cultural reference)\n" +
+            "- soundId: must match one of the provided soundId values exactly\n" +
+            "- timestampMs: timestamp in milliseconds\n" +
+            "- actionVectorTags: array of action tags\n" +
+            "- isIronic: true if the sound choice is ironic/subversive\n" +
+            "- visualEffect: one of None, DeepFry, SnapZoom, MotionBlur, Overlay\n" +
+            "- effectIntensity: 0.0 to 1.0\n\n" +
+            "Example format:\n" +
             "[{\"timestampMs\": 3000, \"soundId\": \"...\", \"actionVectorTags\": [\"explosion\"], " +
-            "\"selectionRationale\": \"why this sound fits\", \"isIronic\": false, " +
-            "\"visualEffect\": \"DeepFry\", \"effectIntensity\": 0.8}]\n" +
-            "No extra text. VisualEffect must be one of: None, DeepFry, SnapZoom, MotionBlur, Overlay.";
+            "\"sceneDescription\": \"A character stumbles backward after being hit, arms flailing wildly.\", " +
+            "\"selectionRationale\": \"The comedic impact sound perfectly punctuates the physical chaos and amplifies the absurdity.\", " +
+            "\"isIronic\": false, \"visualEffect\": \"SnapZoom\", \"effectIntensity\": 0.8}]\n" +
+            "No extra text outside the JSON array.";
 
         var messages = new List<ChatMessage>
         {

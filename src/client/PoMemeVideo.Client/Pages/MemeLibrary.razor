@@ -40,10 +40,7 @@
                     {
                         <pre class="sound-tags">  TAGS     : @string.Join(", ", sound.ActionVectorTags)</pre>
                     }
-                    @if (!string.IsNullOrEmpty(sound.BlobUrl))
-                    {
-                        <audio controls src="@sound.BlobUrl" class="audio-player"></audio>
-                    }
+                    <audio controls src="/api/memelibrary/sounds/@sound.SoundId/stream" class="audio-player" preload="metadata"></audio>
                 </div>
             }
         </div>

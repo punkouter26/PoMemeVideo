@@ -1,4 +1,6 @@
 // SOLID: Open/Closed — new AI providers plug in via IAiVisionService without modifying this command
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using PoMemeVideo.Application.MemeLibrary;
 using PoMemeVideo.Application.Rendering;
 using PoMemeVideo.Domain.Entities;
@@ -22,32 +24,38 @@ public sealed class RunEngineCommand
     private readonly ISoundAssetRepository _sounds;
     private readonly IAiVisionService _aiVision;
     private readonly IDirectorService _director;
+    private readonly IDirectorService _fallbackDirector;
     private readonly IDirectorScriptRepository _scripts;
     private readonly IEngineNotifier _notifier;
     private readonly SemanticMatchingService _matching;
     private readonly IBlobStorageService _blobs;
     private readonly RenderVideoCommand _render;
+    private readonly ILogger<RunEngineCommand> _logger;
 
     public RunEngineCommand(
         IVideoSessionRepository sessions,
         ISoundAssetRepository sounds,
         IAiVisionService aiVision,
         IDirectorService director,
+        [FromKeyedServices("mock")] IDirectorService fallbackDirector,
         IDirectorScriptRepository scripts,
         IEngineNotifier notifier,
         SemanticMatchingService matching,
         IBlobStorageService blobs,
-        RenderVideoCommand render)
+        RenderVideoCommand render,
+        ILogger<RunEngineCommand> logger)
     {
         _sessions = sessions;
         _sounds = sounds;
         _aiVision = aiVision;
         _director = director;
+        _fallbackDirector = fallbackDirector;
         _scripts = scripts;
         _notifier = notifier;
         _matching = matching;
         _blobs = blobs;
         _render = render;
+        _logger = logger;
     }
 
     public async Task ExecuteAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
@@ -70,12 +78,34 @@ public sealed class RunEngineCommand
 
             // Load keyframe images from blob storage (client-side extracted frames)
             var keyframeImages = await LoadKeyframeImagesAsync(sessionId, cancellationToken);
+            _logger.LogInformation("Session {SessionId}: {FrameCount} keyframe(s) loaded from blob storage.", sessionId, keyframeImages.Length);
             await _notifier.DirectorLogAsync(sessionId,
                 $"KEYFRAMES LOADED: {keyframeImages.Length} frame(s) ready for analysis.", cancellationToken);
 
-            // AI Vision analysis
-            await _notifier.DirectorLogAsync(sessionId, "RUNNING AI VISION ANALYSIS...", cancellationToken);
-            var visionLabels = await _aiVision.AnalyseAsync(keyframeImages, cancellationToken);
+            // Use pre-computed vision labels if available (written during frame upload), otherwise re-analyse
+            var visionLabels = await LoadPrecomputedVisionLabelsAsync(sessionId, cancellationToken);
+            if (visionLabels.Length > 0)
+            {
+                _logger.LogInformation("Session {SessionId}: Using {LabelCount} pre-computed vision label(s).", sessionId, visionLabels.Length);
+                await _notifier.DirectorLogAsync(sessionId,
+                    $"VISION LABELS LOADED: {visionLabels.Length} pre-analysed trigger(s) ready.", cancellationToken);
+            }
+            else if (keyframeImages.Length > 0)
+            {
+                // Fallback: run vision analysis now (no pre-computed labels)
+                await _notifier.DirectorLogAsync(sessionId, "RUNNING AI VISION ANALYSIS...", cancellationToken);
+                visionLabels = await _aiVision.AnalyseAsync(keyframeImages, cancellationToken);
+            }
+            else
+            {
+                // No keyframes and no pre-computed labels — skip vision entirely, time-based fallback will apply
+                _logger.LogInformation("Session {SessionId}: No keyframes available — skipping vision analysis, time-based placement will be used.", sessionId);
+                await _notifier.DirectorLogAsync(sessionId, "NO KEYFRAMES — SKIPPING VISION ANALYSIS. TIME-BASED PLACEMENT WILL BE USED.", cancellationToken);
+            }
+
+            _logger.LogInformation("Session {SessionId}: Vision returned {LabelCount} label(s): {Labels}",
+                sessionId, visionLabels.Length,
+                string.Join(", ", visionLabels.Select(v => $"t={v.TimestampSeconds:F1}s → \"{v.Label}\"")));
             await _notifier.DirectorLogAsync(sessionId,
                 $"ACTION DETECTED: {visionLabels.Length} semantic trigger(s) identified.", cancellationToken);
 
@@ -107,11 +137,25 @@ public sealed class RunEngineCommand
                 placementRequests.Add(new((long)(ts * 1000), best.Sound, best.Score));
             }
 
-            // If no requests from matching (e.g., empty library), create stub entries
+            // Time-based fallback: when no placements exist (e.g. no keyframes or no library matches),
+            // place a meme sound every 2 seconds up to 10 seconds, with at least one sound always placed.
             if (placementRequests.Count == 0 && allSounds.Count > 0)
             {
-                foreach (var (ts, label) in visionLabels.Take(5))
-                    placementRequests.Add(new((long)(ts * 1000), allSounds[0], 0.5f));
+                var videoMs = (long)(session.VideoDurationSeconds * 1000);
+                var windowMs = Math.Min(videoMs, 10_000L);
+                var times = new List<long>();
+                for (var t = 0L; t < windowMs; t += 2_000L)
+                    times.Add(t);
+                if (times.Count == 0) times.Add(0); // always at least one
+
+                for (var i = 0; i < times.Count; i++)
+                {
+                    var sound = allSounds[Random.Shared.Next(allSounds.Count)];
+                    placementRequests.Add(new(times[i], sound, 0.5f));
+                }
+
+                await _notifier.DirectorLogAsync(sessionId,
+                    $"TIME-BASED FALLBACK: {placementRequests.Count} placement(s) every 2s (video={session.VideoDurationSeconds:F1}s, cap=10s).", cancellationToken);
             }
 
             // Apply token-bucket timing constraints
@@ -144,9 +188,25 @@ public sealed class RunEngineCommand
 
             var approvedSounds = decisions.Select(d => d.SelectedSound).ToList();
 
-            // Director service enriches entries (adds rationale, isIronic, visual effects)
+            // Director service enriches entries (adds rationale, isIronic, visual effects, scene descriptions)
             await _notifier.DirectorLogAsync(sessionId, "DIRECTOR IMPROVISING... BUILDING SCRIPT...", cancellationToken);
             var scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
+
+            // Fallback: if AI director returned nothing, use mock director so we always have entries
+            if (scriptEntries.Length == 0 && approvedLabels.Length > 0)
+            {
+                _logger.LogWarning("Session {SessionId}: AI director returned 0 entries — falling back to mock director.", sessionId);
+                await _notifier.DirectorLogAsync(sessionId, "AI DIRECTOR UNAVAILABLE — ACTIVATING MOCK DIRECTOR...", cancellationToken);
+                scriptEntries = await _fallbackDirector.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
+            }
+
+            // Populate SoundName from the approved sound list (by matching SoundId)
+            var soundNameMap = approvedSounds.ToDictionary(s => s.SoundId, s => s.DisplayName);
+            foreach (var entry in scriptEntries)
+            {
+                if (string.IsNullOrEmpty(entry.SoundName) && soundNameMap.TryGetValue(entry.SoundId, out var name))
+                    entry.SoundName = name;
+            }
 
             // Override timestamps and placement types from timing decisions
             for (var i = 0; i < scriptEntries.Length && i < decisions.Count; i++)
@@ -245,13 +305,37 @@ public sealed class RunEngineCommand
         return [.. images];
     }
 
+    private async Task<(double TimestampSeconds, string Label)[]> LoadPrecomputedVisionLabelsAsync(
+        Guid sessionId, CancellationToken ct)
+    {
+        try
+        {
+            var path = $"sessions/{sessionId}/vision-labels.json";
+            using var stream = await _blobs.StreamBlobAsync(path, ct);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, ct);
+            var json = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            var items = System.Text.Json.JsonSerializer.Deserialize<VisionLabelItem[]>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return items is null ? [] : items.Select(x => (x.TimestampSeconds, x.Label)).ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private sealed record VisionLabelItem(double TimestampSeconds, string Label);
+
     private static ScriptEntryDto MapToDto(ScriptEntry entry) => new()
     {
         EntryId = entry.EntryId,
         SessionId = entry.SessionId,
         TimestampMs = entry.TimestampMs,
         SoundId = entry.SoundId,
+        SoundName = entry.SoundName,
         ActionVectorTags = entry.ActionVectorTags,
+        SceneDescription = entry.SceneDescription,
         SelectionRationale = entry.SelectionRationale,
         IsIronic = entry.IsIronic,
         VisualEffect = entry.VisualEffect,

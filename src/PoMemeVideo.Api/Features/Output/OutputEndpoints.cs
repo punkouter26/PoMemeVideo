@@ -3,6 +3,8 @@ using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Shared.Models;
 using PoMemeVideo.Shared.Enums;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace PoMemeVideo.Api.Features.Output;
 
@@ -16,40 +18,50 @@ public static class OutputEndpoints
         group.MapGet("/sessions/{sessionId:guid}/script", async (
             Guid sessionId,
             IVideoSessionRepository sessionRepository,
+            IDirectorScriptRepository scriptRepository,
             HttpContext httpContext,
             CancellationToken ct) =>
         {
             var userId = ResolveUserId(httpContext);
-            
+
             var session = await sessionRepository.GetByIdAsync(sessionId, userId, ct);
             if (session is null)
                 return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
 
-            // For now, return a placeholder DirectorScript DTO
-            // In a full implementation, this would load from a DirectorScriptRepository
-            // For Phase 5, we construct a DTO from the session's OutputBlobPath
+            var script = await scriptRepository.GetBySessionIdAsync(sessionId, ct);
+            if (script is null)
+                return Results.NotFound(new { error = "SCRIPT_NOT_FOUND", sessionId });
+
+            // Deserialize stored entries (enums as strings)
+            var jsonOpts = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter() },
+            };
+            var entries = JsonSerializer.Deserialize<List<PoMemeVideo.Domain.Entities.ScriptEntry>>(script.EntriesJson, jsonOpts) ?? [];
+
             var scriptDto = new DirectorScriptDto
             {
-                SessionId = session.SessionId,
-                GeneratedAt = DateTimeOffset.UtcNow,
-                TotalSoundCount = 1,
-                AverageDensitySeconds = 2.0,
-                Entries = new List<ScriptEntryDto>()
+                SessionId = script.SessionId,
+                GeneratedAt = script.GeneratedAt,
+                TotalSoundCount = script.TotalSoundCount,
+                AverageDensitySeconds = script.AverageDensitySeconds,
+                Entries = entries.Select(e => new ScriptEntryDto
                 {
-                    new ScriptEntryDto
-                    {
-                        EntryId = Guid.NewGuid(),
-                        SessionId = session.SessionId,
-                        TimestampMs = 2000,
-                        SoundId = Guid.NewGuid(),
-                        ActionVectorTags = new[] { "impact", "motion" },
-                        SelectionRationale = "Matched falling motion at 2s",
-                        IsIronic = false,
-                        VisualEffect = VisualEffectType.DeepFry,
-                        EffectIntensity = 1.0,
-                        PlacementType = PlacementType.Triggered
-                    }
-                }
+                    EntryId = e.EntryId,
+                    SessionId = e.SessionId,
+                    TimestampMs = e.TimestampMs,
+                    SoundId = e.SoundId,
+                    SoundName = e.SoundName,
+                    ActionVectorTags = e.ActionVectorTags,
+                    SceneDescription = e.SceneDescription,
+                    SelectionRationale = e.SelectionRationale,
+                    IsIronic = e.IsIronic,
+                    VisualEffect = e.VisualEffect,
+                    EffectIntensity = e.EffectIntensity,
+                    OverlayAssetId = e.OverlayAssetId,
+                    PlacementType = e.PlacementType,
+                }).ToList(),
             };
 
             return Results.Ok(scriptDto);
@@ -102,6 +114,7 @@ public static class OutputEndpoints
         group.MapGet("/sessions/{sessionId:guid}/download/script", async (
             Guid sessionId,
             IVideoSessionRepository sessionRepository,
+            IDirectorScriptRepository scriptRepository,
             HttpContext httpContext,
             CancellationToken ct) =>
         {
@@ -111,33 +124,17 @@ public static class OutputEndpoints
             if (session is null)
                 return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
 
-            // Retrieve the script DTO (same logic as /script endpoint)
-            var scriptDto = new DirectorScriptDto
+            var script = await scriptRepository.GetBySessionIdAsync(sessionId, ct);
+
+            var jsonOpts = new JsonSerializerOptions
             {
-                SessionId = session.SessionId,
-                GeneratedAt = DateTimeOffset.UtcNow,
-                TotalSoundCount = 1,
-                AverageDensitySeconds = 2.0,
-                Entries = new List<ScriptEntryDto>()
-                {
-                    new ScriptEntryDto
-                    {
-                        EntryId = Guid.NewGuid(),
-                        SessionId = session.SessionId,
-                        TimestampMs = 2000,
-                        SoundId = Guid.NewGuid(),
-                        ActionVectorTags = new[] { "impact", "motion" },
-                        SelectionRationale = "Matched falling motion at 2s",
-                        IsIronic = false,
-                        VisualEffect = VisualEffectType.DeepFry,
-                        EffectIntensity = 1.0,
-                        PlacementType = PlacementType.Triggered
-                    }
-                }
+                PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter() },
+                WriteIndented = true,
             };
 
-            var jsonContent = System.Text.Json.JsonSerializer.Serialize(scriptDto);
-            var bytes = System.Text.Encoding.UTF8.GetBytes(jsonContent);
+            var payload = script is not null ? script.EntriesJson : "[]";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(payload);
             var stream = new MemoryStream(bytes);
 
             return Results.File(
@@ -185,6 +182,36 @@ public static class OutputEndpoints
         .Produces(204)
         .Produces<object>(404)
         .Produces<object>(500)
+        .AllowAnonymous();
+
+        // GET /api/results — list all completed sessions for the current user
+        group.MapGet("/results", async (
+            IVideoSessionRepository sessionRepository,
+            HttpContext httpContext,
+            CancellationToken ct) =>
+        {
+            var userId = ResolveUserId(httpContext);
+            var sessions = await sessionRepository.ListCompletedAsync(userId, ct);
+
+            var dtos = sessions.Select(s => new VideoSessionDto
+            {
+                SessionId = s.SessionId,
+                UserId = s.UserId,
+                SourceBlobPath = s.SourceBlobPath,
+                VideoDurationSeconds = s.VideoDurationSeconds,
+                AggressiveVisuals = s.AggressiveVisuals,
+                Status = s.Status,
+                ErrorMessage = s.ErrorMessage,
+                CreatedAt = s.CreatedAt,
+                CompletedAt = s.CompletedAt,
+                OutputBlobPath = s.OutputBlobPath,
+            }).ToList();
+
+            return Results.Ok(dtos);
+        })
+        .WithName("ListResults")
+        .WithTags("Output")
+        .Produces<List<VideoSessionDto>>(200)
         .AllowAnonymous();
 
         return app;

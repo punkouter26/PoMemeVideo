@@ -10,6 +10,7 @@ using PoMemeVideo.Api.Endpoints;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
 using PoMemeVideo.Api.Features.MemeLibrary;
+using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Api.Features.Output;
 using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Api.Hubs;
@@ -23,6 +24,7 @@ using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Infrastructure.BrowserLlm;
+using PoMemeVideo.Infrastructure.Mock;
 using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
@@ -130,6 +132,8 @@ try
     builder.Services.AddSingleton<AzureOpenAiDirectorService>();
     builder.Services.AddSingleton<OllamaDirectorService>();
     builder.Services.AddSingleton<BrowserLLMDirectorService>();
+    builder.Services.AddSingleton<MockDirectorService>();
+    builder.Services.AddKeyedSingleton<IDirectorService, MockDirectorService>("mock");
     builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 
     builder.Services.AddScoped<SemanticMatchingService>();
@@ -248,6 +252,9 @@ try
 
     // ── Output endpoints (T062–T065) ──────────────────────────────────────
     app.MapOutputEndpoints();
+
+    // ── Admin endpoints ───────────────────────────────────────────────────
+    app.MapAdminEndpoints();
 
     // ── Auth stubs (T019) ────────────────────────────────────────────────────    // ANON login handled in AnonAuthHandler (Phase 7, T077) — stub returns 501 for now
     app.MapPost("/auth/anon", () => Results.StatusCode(501))
