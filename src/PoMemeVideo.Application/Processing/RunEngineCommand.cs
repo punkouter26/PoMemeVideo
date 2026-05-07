@@ -1,5 +1,4 @@
 // SOLID: Open/Closed — new AI providers plug in via IAiVisionService without modifying this command
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PoMemeVideo.Application.MemeLibrary;
 using PoMemeVideo.Application.Rendering;
@@ -24,7 +23,6 @@ public sealed class RunEngineCommand
     private readonly ISoundAssetRepository _sounds;
     private readonly IAiVisionService _aiVision;
     private readonly IDirectorService _director;
-    private readonly IDirectorService _fallbackDirector;
     private readonly IDirectorScriptRepository _scripts;
     private readonly IEngineNotifier _notifier;
     private readonly SemanticMatchingService _matching;
@@ -37,7 +35,6 @@ public sealed class RunEngineCommand
         ISoundAssetRepository sounds,
         IAiVisionService aiVision,
         IDirectorService director,
-        [FromKeyedServices("mock")] IDirectorService fallbackDirector,
         IDirectorScriptRepository scripts,
         IEngineNotifier notifier,
         SemanticMatchingService matching,
@@ -49,7 +46,6 @@ public sealed class RunEngineCommand
         _sounds = sounds;
         _aiVision = aiVision;
         _director = director;
-        _fallbackDirector = fallbackDirector;
         _scripts = scripts;
         _notifier = notifier;
         _matching = matching;
@@ -192,16 +188,8 @@ public sealed class RunEngineCommand
             await _notifier.DirectorLogAsync(sessionId, "DIRECTOR IMPROVISING... BUILDING SCRIPT...", cancellationToken);
             var scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
 
-            // Fallback: if AI director returned nothing, use mock director so we always have entries
-            if (scriptEntries.Length == 0 && approvedLabels.Length > 0)
-            {
-                _logger.LogWarning("Session {SessionId}: AI director returned 0 entries — falling back to mock director.", sessionId);
-                await _notifier.DirectorLogAsync(sessionId, "AI DIRECTOR UNAVAILABLE — ACTIVATING MOCK DIRECTOR...", cancellationToken);
-                scriptEntries = await _fallbackDirector.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
-            }
-
             // Populate SoundName from the approved sound list (by matching SoundId)
-            var soundNameMap = approvedSounds.ToDictionary(s => s.SoundId, s => s.DisplayName);
+            var soundNameMap = approvedSounds.DistinctBy(s => s.SoundId).ToDictionary(s => s.SoundId, s => s.DisplayName);
             foreach (var entry in scriptEntries)
             {
                 if (string.IsNullOrEmpty(entry.SoundName) && soundNameMap.TryGetValue(entry.SoundId, out var name))

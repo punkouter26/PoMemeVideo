@@ -27,7 +27,6 @@ using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Infrastructure.BrowserLlm;
-using PoMemeVideo.Infrastructure.Mock;
 using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
@@ -149,8 +148,6 @@ try
     builder.Services.AddSingleton<AzureOpenAiDirectorService>();
     builder.Services.AddSingleton<OllamaDirectorService>();
     builder.Services.AddSingleton<BrowserLLMDirectorService>();
-    builder.Services.AddSingleton<MockDirectorService>();
-    builder.Services.AddKeyedSingleton<IDirectorService, MockDirectorService>("mock");
     builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 
     builder.Services.AddScoped<SemanticMatchingService>();

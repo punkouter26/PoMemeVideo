@@ -10,11 +10,6 @@
 <div class="engine-page">
     <MockDataBanner />
 
-    @if (_mockFallbackActive)
-    {
-        <MockDataBanner ForceShow="true" Message="⚠ FALLBACK DIRECTOR ACTIVE — SCRIPT ENTRIES ARE USING MOCK OUTPUT ⚠" />
-    }
-
     <pre class="page-header">
 ╔═══════════════════════════════════════════════════════╗
 ║  PoMemeVideo // PROCESSING ENGINE                     ║
@@ -57,7 +52,6 @@
 
     private EngineHubClient? _hubClient;
     private string? _errorMessage;
-    private bool _mockFallbackActive;
 
     protected override async Task OnInitializedAsync()
     {
@@ -67,7 +61,6 @@
 
         _hubClient.ProcessingComplete += OnComplete;
         _hubClient.ProcessingError += OnError;
-        _hubClient.DirectorLogEntry += OnDirectorLogEntry;
         _hubClient.BrowserLLMInferenceRequest += OnBrowserLLMInferenceRequest;
 
         await _hubClient.JoinSessionAsync(SessionId);
@@ -105,15 +98,6 @@
     {
         _errorMessage = message;
         InvokeAsync(StateHasChanged);
-    }
-
-    private void OnDirectorLogEntry(string message)
-    {
-        if (!_mockFallbackActive && message.Contains("MOCK DIRECTOR", StringComparison.OrdinalIgnoreCase))
-        {
-            _mockFallbackActive = true;
-            InvokeAsync(StateHasChanged);
-        }
     }
 
     // ── Browser LLM round-trip ─────────────────────────────────────────────
@@ -157,7 +141,6 @@
         {
             _hubClient.ProcessingComplete -= OnComplete;
             _hubClient.ProcessingError -= OnError;
-            _hubClient.DirectorLogEntry -= OnDirectorLogEntry;
             _hubClient.BrowserLLMInferenceRequest -= OnBrowserLLMInferenceRequest;
             await _hubClient.LeaveSessionAsync(SessionId);
             await _hubClient.DisposeAsync();
