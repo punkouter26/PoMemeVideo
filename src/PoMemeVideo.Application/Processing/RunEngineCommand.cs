@@ -6,6 +6,7 @@ using PoMemeVideo.Domain.Entities;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Shared.Enums;
 using PoMemeVideo.Shared.Models;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -56,6 +57,16 @@ public sealed class RunEngineCommand
 
     public async Task ExecuteAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
     {
+        var diagRunId = Guid.NewGuid().ToString("N")[..8];
+        var diagPrefix = $"[diag:{diagRunId}][session:{sessionId}]";
+        using var logScope = _logger.BeginScope(new Dictionary<string, object>
+        {
+            ["SessionId"] = sessionId,
+            ["DiagRunId"] = diagRunId,
+        });
+
+        _logger.LogInformation("{DiagPrefix} RunEngineCommand started.", diagPrefix);
+
         var session = await _sessions.GetByIdAsync(sessionId, userId, cancellationToken)
             ?? throw new InvalidOperationException($"Session {sessionId} not found.");
 
@@ -184,9 +195,28 @@ public sealed class RunEngineCommand
 
             var approvedSounds = decisions.Select(d => d.SelectedSound).ToList();
 
+            _logger.LogInformation(
+                "{DiagPrefix} Director input prepared. ApprovedLabels={LabelCount}, ApprovedSounds={SoundCount}, FirstLabel={FirstLabel}, FirstSound={FirstSound}",
+                diagPrefix,
+                approvedLabels.Length,
+                approvedSounds.Count,
+                approvedLabels.FirstOrDefault().Label,
+                approvedSounds.FirstOrDefault()?.DisplayName);
+
             // Director service enriches entries (adds rationale, isIronic, visual effects, scene descriptions)
             await _notifier.DirectorLogAsync(sessionId, "DIRECTOR IMPROVISING... BUILDING SCRIPT...", cancellationToken);
+            _logger.LogInformation(
+                "{DiagPrefix} Entering IDirectorService.DirectAsync (Provider delegated by SwitchingDirectorService). CancellationRequested={CancellationRequested}",
+                diagPrefix,
+                cancellationToken.IsCancellationRequested);
+            var directorStopwatch = Stopwatch.StartNew();
             var scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
+            directorStopwatch.Stop();
+            _logger.LogInformation(
+                "{DiagPrefix} IDirectorService.DirectAsync returned {EntryCount} entry/entries in {ElapsedMs} ms.",
+                diagPrefix,
+                scriptEntries.Length,
+                directorStopwatch.ElapsedMilliseconds);
 
             // Fallback: if the director returned nothing but we have approved placements, build basic entries directly
             if (scriptEntries.Length == 0 && decisions.Count > 0)

@@ -10,14 +10,23 @@
 ║  [ BROWSE → PREVIEW → TAG ]                           ║
 ╚═══════════════════════════════════════════════════════╝</pre>
 
-    <div class="search-bar">
-        <input class="ascii-input"
-               placeholder="FILTER BY TAG (comma-separated)..."
-               @bind="_tagFilter"
-               @bind:event="oninput"
-               @onkeyup="OnTagFilterChanged" />
-        <button class="ascii-btn" @onclick="LoadSounds">[ SEARCH ]</button>
+    <div class="library-controls-row">
+        <button class="ascii-btn compact-btn" @onclick='() => _showAdvancedFilters = !_showAdvancedFilters'>
+            @(_showAdvancedFilters ? "[ HIDE FILTERS ]" : "[ SHOW FILTERS ]")
+        </button>
     </div>
+
+    @if (_showAdvancedFilters)
+    {
+        <div class="search-bar">
+            <input class="ascii-input"
+                   placeholder="FILTER BY TAG (comma-separated)..."
+                   @bind="_tagFilter"
+                   @bind:event="oninput"
+                   @onkeyup="OnTagFilterChanged" />
+            <button class="ascii-btn" @onclick="LoadSounds">[ SEARCH ]</button>
+        </div>
+    }
 
     @if (_loading)
     {
@@ -61,7 +70,9 @@
     padding: 0.5rem;
 }
 .page-header { color: #00FF41; margin-bottom: 1rem; }
+.library-controls-row { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
 .search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.compact-btn { font-size: 0.75rem; padding: 0.25rem 0.6rem; }
 .ascii-input {
     background: #000;
     color: #00FF41;
@@ -101,6 +112,7 @@
     private SoundAssetDto[] _sounds = [];
     private int _totalCount;
     private bool _loading;
+    private bool _showAdvancedFilters;
     private string _tagFilter = string.Empty;
     private string? _errorMessage;
 

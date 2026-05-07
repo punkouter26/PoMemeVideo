@@ -158,6 +158,7 @@ test.describe('US1 – Source page UI interactions', () => {
 
   test('CLEAR ALL DATA button is visible on Source page', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
+    await page.getByText('[ SHOW ADVANCED CONTROLS ]').click();
     const clearBtn = page.locator('button.clear-btn');
     await expect(clearBtn).toBeVisible();
     await expect(clearBtn).toContainText('CLEAR ALL DATA');
@@ -183,7 +184,7 @@ test.describe('US1 – Source page UI interactions', () => {
     const ctx = await page.context().browser()!.newContext();
     const freshPage = await ctx.newPage();
     await freshPage.goto('/', { waitUntil: 'networkidle' });
-    const authStatus = freshPage.locator('.auth-status');
+    const authStatus = freshPage.locator('.auth-status').first();
     await expect(authStatus).toBeVisible();
     const text = await authStatus.innerText();
     expect(text).toMatch(/GUEST|ANON|@/);

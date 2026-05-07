@@ -18,12 +18,13 @@
 
     @if (_hubClient is not null)
     {
-        <div class="engine-grid">
-            <!-- Top-right: Hardware Monitor -->
-            <div class="hw-panel ascii-border-double">
-                <HardwareMonitor HubClient="_hubClient" />
-            </div>
+        <div class="engine-controls">
+            <button class="ascii-btn" @onclick="ToggleAdvancedPanels">
+                @(_showAdvancedPanels ? "[ HIDE ADVANCED PANELS ]" : "[ SHOW ADVANCED PANELS ]")
+            </button>
+        </div>
 
+        <div class="engine-grid">
             <!-- Left: Director's Script Feed -->
             <div class="script-panel ascii-border-double">
                 <DirectorScriptFeed HubClient="_hubClient" />
@@ -34,10 +35,16 @@
                 <DirectorLogFeed HubClient="_hubClient" />
             </div>
 
-            <!-- Bottom: System Audit Box -->
-            <div class="audit-panel ascii-border-double">
-                <SystemAuditBox HubClient="_hubClient" />
-            </div>
+            @if (_showAdvancedPanels)
+            {
+                <div class="hw-panel ascii-border-double">
+                    <HardwareMonitor HubClient="_hubClient" />
+                </div>
+
+                <div class="audit-panel ascii-border-double">
+                    <SystemAuditBox HubClient="_hubClient" />
+                </div>
+            }
         </div>
     }
 
@@ -52,6 +59,12 @@
 
     private EngineHubClient? _hubClient;
     private string? _errorMessage;
+    private bool _showAdvancedPanels;
+
+    private void ToggleAdvancedPanels()
+    {
+        _showAdvancedPanels = !_showAdvancedPanels;
+    }
 
     protected override async Task OnInitializedAsync()
     {

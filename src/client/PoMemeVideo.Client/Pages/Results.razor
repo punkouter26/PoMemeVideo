@@ -43,17 +43,54 @@
 
                     @if (!string.IsNullOrEmpty(session.OutputBlobPath))
                     {
-                        <div class="result-preview">
-                            <video controls preload="metadata" style="width:100%; max-height:240px; background:#000;">
-                                <source src="/api/output/sessions/@session.SessionId/stream/video" type="video/mp4" />
-                            </video>
-                        </div>
-
                         <div class="result-actions">
                             <button class="ascii-btn" @onclick="() => DownloadVideo(session.SessionId)">[ ⬇ DOWNLOAD ]</button>
-                            <button class="ascii-btn" @onclick="() => GoToReveal(session.SessionId)">[ REVEAL ]</button>
-                            <button class="ascii-btn wipe-btn" @onclick="() => DeleteSession(session)">[ WIPE ]</button>
+                            <button class="ascii-btn" @onclick="() => ToggleQuickReveal(session)">
+                                @(_expandedSessionId == session.SessionId ? "[ HIDE QUICK REVEAL ]" : "[ QUICK REVEAL ]")
+                            </button>
+                            @if (_pendingDeleteSessionId == session.SessionId)
+                            {
+                                <button class="ascii-btn wipe-btn" @onclick="() => DeleteSession(session)">[ CONFIRM WIPE ]</button>
+                                <button class="ascii-btn" @onclick="CancelDelete">[ CANCEL ]</button>
+                            }
+                            else
+                            {
+                                <button class="ascii-btn wipe-btn" @onclick="() => RequestDelete(session.SessionId)">[ WIPE ]</button>
+                            }
                         </div>
+
+                        @if (_expandedSessionId == session.SessionId)
+                        {
+                            <div class="result-preview">
+                                <video controls preload="metadata" style="width:100%; max-height:240px; background:#000;">
+                                    <source src="/api/output/sessions/@session.SessionId/stream/video" type="video/mp4" />
+                                </video>
+                            </div>
+
+                            <div class="quick-script ascii-border-double">
+                                <pre class="quick-script-title">[ SCRIPT SUMMARY ]</pre>
+                                @if (_loadingScriptSessionId == session.SessionId)
+                                {
+                                    <pre class="result-meta">Loading script...</pre>
+                                }
+                                else if (_scriptCache.TryGetValue(session.SessionId, out var script) && script is not null && script.Entries.Count > 0)
+                                {
+                                    @foreach (var entry in script.Entries.Take(5))
+                                    {
+                                        <pre class="result-meta">@((entry.TimestampMs / 1000.0).ToString("F1"))s | @(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</pre>
+                                    }
+
+                                    @if (script.Entries.Count > 5)
+                                    {
+                                        <pre class="result-meta">... +@(script.Entries.Count - 5) more entries</pre>
+                                    }
+                                }
+                                else
+                                {
+                                    <pre class="result-meta">Script unavailable.</pre>
+                                }
+                            </div>
+                        }
                     }
                     else
                     {
@@ -69,6 +106,10 @@
     private List<VideoSessionDto> _sessions = [];
     private bool _loading = true;
     private string? _error;
+    private Guid? _expandedSessionId;
+    private Guid? _loadingScriptSessionId;
+    private Guid? _pendingDeleteSessionId;
+    private readonly Dictionary<Guid, DirectorScriptDto?> _scriptCache = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,17 +140,55 @@
         Nav.NavigateTo($"/api/output/sessions/{sessionId}/download/video", forceLoad: true);
     }
 
-    private void GoToReveal(Guid sessionId)
+    private async Task ToggleQuickReveal(VideoSessionDto session)
     {
-        Nav.NavigateTo($"/reveal/{sessionId}");
+        if (_expandedSessionId == session.SessionId)
+        {
+            _expandedSessionId = null;
+            return;
+        }
+
+        _expandedSessionId = session.SessionId;
+        _pendingDeleteSessionId = null;
+
+        if (_scriptCache.ContainsKey(session.SessionId))
+            return;
+
+        _loadingScriptSessionId = session.SessionId;
+        try
+        {
+            _scriptCache[session.SessionId] = await Http.GetFromJsonAsync<DirectorScriptDto>($"/api/output/sessions/{session.SessionId}/script");
+        }
+        catch
+        {
+            _scriptCache[session.SessionId] = null;
+        }
+        finally
+        {
+            _loadingScriptSessionId = null;
+        }
+    }
+
+    private void RequestDelete(Guid sessionId)
+    {
+        _pendingDeleteSessionId = sessionId;
+    }
+
+    private void CancelDelete()
+    {
+        _pendingDeleteSessionId = null;
     }
 
     private async Task DeleteSession(VideoSessionDto session)
     {
+        _pendingDeleteSessionId = null;
         var response = await Http.DeleteAsync($"/api/output/sessions/{session.SessionId}");
         if (response.IsSuccessStatusCode)
         {
             _sessions.Remove(session);
+            _scriptCache.Remove(session.SessionId);
+            if (_expandedSessionId == session.SessionId)
+                _expandedSessionId = null;
         }
     }
 }
@@ -122,6 +201,8 @@
     .result-meta { color: #aaffaa; font-size: 0.75rem; margin: 0; }
     .result-preview { margin: 0.75rem 0; }
     .result-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .quick-script { margin-top: 0.75rem; padding: 0.5rem; }
+    .quick-script-title { color: #00FF41; font-size: 0.75rem; margin: 0 0 0.4rem; }
     .wipe-btn { color: #FF4141; border-color: #FF4141; }
     .wipe-btn:hover { background: #FF4141; color: #000; }
 </style>

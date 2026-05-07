@@ -17,7 +17,13 @@
 ║  [ DROP VIDEO → GENERATE KEYFRAMES → INITIATE ]      ║
 ╚═══════════════════════════════════════════════════════╝</pre>
 
-    @if (_devHealth is not null)
+    <div class="source-advanced-toggle-row">
+        <button class="ascii-btn compact-btn" @onclick='() => _showAdvancedControls = !_showAdvancedControls'>
+            @(_showAdvancedControls ? "[ HIDE ADVANCED CONTROLS ]" : "[ SHOW ADVANCED CONTROLS ]")
+        </button>
+    </div>
+
+    @if (_showAdvancedControls && _devHealth is not null)
     {
         <div class="dev-health-panel ascii-border-double">
             <pre class="vision-header">╔══════════════════════════════════════╗
@@ -84,7 +90,7 @@
     </div>
 
     @* Clear all data button — always visible when not processing *@
-    @if (!_uploaded && !_visionInProgress && !_initiating)
+    @if (_showAdvancedControls && !_uploaded && !_visionInProgress && !_initiating)
     {
         <div class="clear-data-row">
             @if (_clearConfirm)
@@ -191,6 +197,7 @@
     private int _uploadProgress;
     private string _statusMessage = "PENDING";
     private string? _errorMessage;
+    private bool _showAdvancedControls;
 
     // Session data returned by the API
     private Guid _sessionId;
@@ -665,6 +672,16 @@
         color: #00FF41;
         font-size: 0.75rem;
         margin: 0;
+    }
+
+    .source-advanced-toggle-row {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .compact-btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
     }
 
     .dev-health-panel {

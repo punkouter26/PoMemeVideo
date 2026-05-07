@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @using PoMemeVideo.Shared.Models
+@implements IAsyncDisposable
 
 <PageTitle>PoMemeVideo - Reveal</PageTitle>
 
@@ -91,7 +92,15 @@
             <div class="controls-panel">
                 <button class="ascii-btn" @onclick="DownloadVideo">[ DOWNLOAD VIDEO ]</button>
                 <button class="ascii-btn" @onclick="DownloadScript">[ DOWNLOAD SCRIPT ]</button>
-                <button class="ascii-btn wipe-btn" @onclick="WipeBuffer">[ WIPE BUFFER ]</button>
+                @if (_confirmWipe)
+                {
+                    <button class="ascii-btn wipe-btn" @onclick="WipeBuffer">[ CONFIRM WIPE ]</button>
+                    <button class="ascii-btn" @onclick='() => _confirmWipe = false'>[ CANCEL ]</button>
+                }
+                else
+                {
+                    <button class="ascii-btn wipe-btn" @onclick='() => _confirmWipe = true'>[ WIPE BUFFER ]</button>
+                }
                 @if (!string.IsNullOrWhiteSpace(_statusMessage))
                 {
                     <pre style="font-size: 0.8rem; margin-top: 0.5rem;">@_statusMessage</pre>
@@ -116,6 +125,8 @@
     private string _scriptJson = "";
     private string? _statusMessage;
     private bool _videoLoadFailed;
+    private bool _confirmWipe;
+    private IJSObjectReference? _revealJs;
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,13 +135,8 @@
 
         try
         {
-            // Play glitch transition — use absolute path so it resolves from wwwroot, not _framework/
-            await JS.InvokeVoidAsync("eval", """
-                (async function() {
-                    const { playGlitchTransition } = await import('/js/glitch-transition.js');
-                    await playGlitchTransition();
-                })();
-            """);
+            _revealJs = await JS.InvokeAsync<IJSObjectReference>("import", "/js/reveal.js");
+            await _revealJs.InvokeVoidAsync("playTransition");
 
             // Load session data
             var sessionResponse = await Http.GetAsync($"/api/ingestion/sessions/{SessionId}");
@@ -186,9 +192,8 @@
 
         try
         {
-            await JS.InvokeVoidAsync("eval", $"""
-                window.location.href = '/api/output/sessions/{SessionId}/download/video';
-            """);
+            var module = await EnsureRevealModuleAsync();
+            await module.InvokeVoidAsync("navigateTo", $"/api/output/sessions/{SessionId}/download/video");
             _statusMessage = "Video downloading...";
         }
         catch (Exception ex)
@@ -201,9 +206,8 @@
     {
         try
         {
-            await JS.InvokeVoidAsync("eval", $"""
-                window.location.href = '/api/output/sessions/{SessionId}/download/script';
-            """);
+            var module = await EnsureRevealModuleAsync();
+            await module.InvokeVoidAsync("navigateTo", $"/api/output/sessions/{SessionId}/download/script");
             _statusMessage = "Script downloading...";
         }
         catch (Exception ex)
@@ -214,6 +218,7 @@
 
     private async Task WipeBuffer()
     {
+        _confirmWipe = false;
         _statusMessage = "Wiping buffer...";
         try
         {
@@ -241,6 +246,20 @@
     private void OnVideoError()
     {
         _videoLoadFailed = true;
+    }
+
+    private async Task<IJSObjectReference> EnsureRevealModuleAsync()
+    {
+        _revealJs ??= await JS.InvokeAsync<IJSObjectReference>("import", "/js/reveal.js");
+        return _revealJs;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_revealJs is null)
+            return;
+
+        await _revealJs.DisposeAsync();
     }
 }
 
