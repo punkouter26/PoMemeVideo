@@ -188,6 +188,25 @@ public sealed class RunEngineCommand
             await _notifier.DirectorLogAsync(sessionId, "DIRECTOR IMPROVISING... BUILDING SCRIPT...", cancellationToken);
             var scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
 
+            // Fallback: if the director returned nothing but we have approved placements, build basic entries directly
+            if (scriptEntries.Length == 0 && decisions.Count > 0)
+            {
+                _logger.LogWarning("Session {SessionId}: Director returned 0 entries despite {Count} approved placement(s). Falling back to basic entries.", sessionId, decisions.Count);
+                await _notifier.DirectorLogAsync(sessionId, $"[DIRECTOR FALLBACK] LLM returned no entries — building {decisions.Count} basic placement(s) from approved decisions.", cancellationToken);
+                scriptEntries = decisions.Select((d, i) => new ScriptEntry
+                {
+                    EntryId = Guid.NewGuid(),
+                    SessionId = sessionId,
+                    TimestampMs = d.ApprovedTimestampMs,
+                    SoundId = d.SelectedSound.SoundId,
+                    SoundName = d.SelectedSound.DisplayName,
+                    ActionVectorTags = d.SelectedSound.ActionVectorTags,
+                    SelectionRationale = $"[FALLBACK] Direct semantic match for '{(i < approvedLabels.Length ? approvedLabels[i].Label : d.SelectedSound.DisplayName)}'.",
+                    SceneDescription = i < approvedLabels.Length ? approvedLabels[i].Label : string.Empty,
+                    PlacementType = d.PlacementType,
+                }).ToArray();
+            }
+
             // Populate SoundName from the approved sound list (by matching SoundId)
             var soundNameMap = approvedSounds.DistinctBy(s => s.SoundId).ToDictionary(s => s.SoundId, s => s.DisplayName);
             foreach (var entry in scriptEntries)

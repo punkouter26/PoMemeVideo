@@ -2,6 +2,7 @@
 using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using PoMemeVideo.Domain.Entities;
 using PoMemeVideo.Domain.Interfaces;
@@ -20,9 +21,12 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
     };
 
     private readonly ChatClient _chatClient;
+    private readonly ILogger<AzureOpenAiDirectorService> _logger;
 
-    public AzureOpenAiDirectorService(IConfiguration config)
+    public AzureOpenAiDirectorService(IConfiguration config, ILogger<AzureOpenAiDirectorService> logger)
     {
+        _logger = logger;
+
         var endpoint = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured.");
 
@@ -81,10 +85,14 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
 
         try
         {
-            return JsonSerializer.Deserialize<ScriptEntry[]>(json.Trim(), JsonOpts) ?? [];
+            var entries = JsonSerializer.Deserialize<ScriptEntry[]>(json.Trim(), JsonOpts) ?? [];
+            if (entries.Length == 0)
+                _logger.LogWarning("Session {SessionId}: AzureOpenAI director returned an empty script. Raw response: {Raw}", sessionId, rawText);
+            return entries;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Session {SessionId}: AzureOpenAI director failed to parse response. Raw: {Raw}", sessionId, rawText);
             return [];
         }
     }
