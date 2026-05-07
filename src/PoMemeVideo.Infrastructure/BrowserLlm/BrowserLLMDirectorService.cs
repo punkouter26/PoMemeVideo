@@ -25,10 +25,12 @@ public sealed class BrowserLLMDirectorService : IDirectorService
     private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ScriptEntry[]>> _pending = new();
 
     private readonly IEngineNotifier _notifier;
+    private readonly RuntimeAiSettings _settings;
 
-    public BrowserLLMDirectorService(IEngineNotifier notifier)
+    public BrowserLLMDirectorService(IEngineNotifier notifier, RuntimeAiSettings settings)
     {
         _notifier = notifier;
+        _settings = settings;
     }
 
     public async Task<ScriptEntry[]> DirectAsync(
@@ -46,7 +48,7 @@ public sealed class BrowserLLMDirectorService : IDirectorService
             sessionId,
             visionLabels = visionLabels.Select(v => new { v.TimestampSeconds, v.Label }),
             sounds = topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }),
-            modelId = RuntimeAiSettings.BrowserLLMModel,
+            modelId = _settings.BrowserLLMModel,
         }, JsonOpts);
 
         await _notifier.BrowserLLMInferenceRequestAsync(sessionId, payload, cancellationToken);

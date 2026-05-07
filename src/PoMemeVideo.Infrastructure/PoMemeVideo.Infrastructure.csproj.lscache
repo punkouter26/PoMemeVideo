@@ -63,7 +63,9 @@ AzureStorage/
  BlobStorageService.cs
  DirectorScriptTableRepository.cs
  SoundAssetTableRepository.cs
+ UserIdentityTableRepository.cs
  VideoSessionTableRepository.cs
+BrowserLlm/BrowserLLMDirectorService.cs
 Class1.cs
 FFmpeg/FFmpegRenderService.cs
 Mock/

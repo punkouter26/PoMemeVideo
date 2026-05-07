@@ -29,6 +29,53 @@
             {
                 <pre class="vision-entry"> @check.Key.PadRight(10).ToUpperInvariant() │ @check.Value</pre>
             }
+
+            <div class="home-ai-selector">
+                <pre class="vision-entry"> MODEL      │ @_displayActiveModel</pre>
+
+                <div class="home-ai-options">
+                    <label class="ascii-toggle">
+                        <input type="radio" name="ai-provider" value="AzureOpenAI" checked="@(_pendingProvider == "AzureOpenAI")" @onchange='() => SelectProvider("AzureOpenAI")' />
+                        [ REMOTE OPENAI ]
+                    </label>
+                    <label class="ascii-toggle">
+                        <input type="radio" name="ai-provider" value="BrowserLLM" checked="@(_pendingProvider == "BrowserLLM")" @onchange='() => SelectProvider("BrowserLLM")' />
+                        [ LOCAL WEBGPU ]
+                    </label>
+                </div>
+
+                @if (_pendingProvider == "BrowserLLM")
+                {
+                    <div class="home-ai-model-row">
+                        @if (_localModels.Count > 0)
+                        {
+                            <span>[ LOCAL MODEL ]</span>
+                            <select class="home-ai-model-select" @bind="_pendingBrowserModelId" @bind:after="RecomputeModelDirty">
+                                @foreach (var model in _localModels)
+                                {
+                                    <option value="@model.Id">@model.Label</option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <span>[ NO LOCAL MODELS - RUN: python tools/download-models.py ]</span>
+                        }
+                    </div>
+                }
+
+                @if (_modelDirty)
+                {
+                    <button class="ascii-btn" @onclick="ApplyModelAsync" disabled="@_modelApplying">
+                        @(_modelApplying ? "[ APPLYING MODEL... ]" : "[ APPLY MODEL ]")
+                    </button>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_modelMessage))
+                {
+                    <pre class="clear-status">@_modelMessage</pre>
+                }
+            </div>
         </div>
     }
 
@@ -155,10 +202,21 @@
     private bool _visionAnalysed;
     private HealthResponse? _devHealth;
     private string _aiProviderStatus = "UNKNOWN";
+    private string _displayActiveModel = "UNKNOWN";
+
+    private string _activeProvider = "BrowserLLM";
+    private string _pendingProvider = "BrowserLLM";
+    private string _activeBrowserModelId = "smollm2-360m-instruct-onnx";
+    private string _pendingBrowserModelId = "smollm2-360m-instruct-onnx";
+    private List<LocalModelInfo> _localModels = [];
+    private bool _modelDirty;
+    private bool _modelApplying;
+    private string? _modelMessage;
 
     private sealed record VisionLabel(double TimestampSeconds, string Label);
     private sealed record HealthResponse(string Status, Dictionary<string, string> Checks);
-    private sealed record AiModelResponse(string Provider, bool OllamaAvailable, bool IsDevelopment);
+    private sealed record AiModelResponse(string Provider, string? BrowserLLMModel, LocalModelInfo[]? LocalModels, bool IsDevelopment);
+    private sealed record LocalModelInfo(string Id, string Label);
 
     private sealed record FrameUploadResult(
         int FramesStored,
@@ -385,14 +443,77 @@
             var ai = await Http.GetFromJsonAsync<AiModelResponse>("/api/config/ai-model");
             if (ai is not null)
             {
-                _aiProviderStatus = ai.Provider == "Ollama" && !ai.OllamaAvailable
-                    ? "OLLAMA (UNAVAILABLE)"
-                    : ai.Provider.ToUpperInvariant();
+                _activeProvider = ai.Provider;
+                _pendingProvider = ai.Provider;
+                _localModels = ai.LocalModels?.ToList() ?? [];
+                _activeBrowserModelId = ai.BrowserLLMModel ?? (_localModels.FirstOrDefault()?.Id ?? _activeBrowserModelId);
+                _pendingBrowserModelId = _activeBrowserModelId;
+
+                _aiProviderStatus = ai.Provider == "BrowserLLM" ? "BROWSERLLM" : "AZUREOPENAI";
+                _displayActiveModel = ai.Provider == "BrowserLLM"
+                    ? (_localModels.Count > 0
+                        ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
+                        : "No local models downloaded")
+                    : "Azure OpenAI (GPT-4o)";
+                RecomputeModelDirty();
             }
         }
         catch
         {
             _aiProviderStatus = "UNKNOWN";
+            _displayActiveModel = "UNKNOWN";
+        }
+    }
+
+    private void SelectProvider(string provider)
+    {
+        _pendingProvider = provider;
+        RecomputeModelDirty();
+        _modelMessage = null;
+    }
+
+    private void RecomputeModelDirty()
+    {
+        _modelDirty = _pendingProvider != _activeProvider
+                      || _pendingBrowserModelId != _activeBrowserModelId;
+    }
+
+    private async Task ApplyModelAsync()
+    {
+        _modelApplying = true;
+        _modelMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var body = new { provider = _pendingProvider, browserLLMModel = _pendingBrowserModelId };
+            var response = await Http.PutAsJsonAsync("/api/config/ai-model", body);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _modelMessage = $"MODEL SWITCH FAILED: HTTP {(int)response.StatusCode}";
+                return;
+            }
+
+            _activeProvider = _pendingProvider;
+            _activeBrowserModelId = _pendingBrowserModelId;
+            _modelDirty = false;
+            _aiProviderStatus = _activeProvider == "BrowserLLM" ? "BROWSERLLM" : "AZUREOPENAI";
+            _displayActiveModel = _activeProvider == "BrowserLLM"
+                ? (_localModels.Count > 0
+                    ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
+                    : "No local models downloaded")
+                : "Azure OpenAI (GPT-4o)";
+            _modelMessage = $"MODEL ACTIVE: {_displayActiveModel}";
+        }
+        catch (Exception ex)
+        {
+            _modelMessage = $"MODEL SWITCH FAILED: {ex.Message}";
+        }
+        finally
+        {
+            _modelApplying = false;
+            StateHasChanged();
         }
     }
 
@@ -548,5 +669,37 @@
 
     .dev-health-panel {
         max-width: 44rem;
+    }
+
+    .home-ai-selector {
+        margin-top: 0.75rem;
+        padding-top: 0.5rem;
+        border-top: 1px dashed rgba(0, 255, 65, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .home-ai-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .home-ai-model-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .home-ai-model-select {
+        background: #000;
+        border: 1px solid #00FF41;
+        color: #00FF41;
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        padding: 0.2rem 0.35rem;
+        min-width: 15rem;
     }
 </style>

@@ -25,26 +25,24 @@ public static class ConfigEndpoints
         .AllowAnonymous();
 
         // ── AI model selection ───────────────────────────────────────────────
-        app.MapGet("/api/config/ai-model", async ([FromServices] RuntimeAiSettings settings, IConfiguration config, IHostEnvironment env, CancellationToken ct) =>
+        app.MapGet("/api/config/ai-model", ([FromServices] RuntimeAiSettings settings, IWebHostEnvironment env) =>
         {
-            // Probe Ollama availability (quick, non-blocking)
-            var ollamaAvailable = false;
-            try
-            {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
-                var ollamaUrl = config["Ollama:BaseUrl"] ?? "http://localhost:11434";
-                var resp = await http.GetAsync($"{ollamaUrl}/api/tags", ct);
-                ollamaAvailable = resp.IsSuccessStatusCode;
-            }
-            catch { /* not installed */ }
+            var localModelIds = GetAvailableLocalModelIds(env);
+            var selectedBrowserLLMModel = localModelIds.Contains(settings.BrowserLLMModel, StringComparer.OrdinalIgnoreCase)
+                ? settings.BrowserLLMModel
+                : localModelIds.FirstOrDefault();
 
             return Results.Ok(new
             {
                 provider = settings.Provider,
-                ollamaModel = settings.OllamaModel,
-                availableLocalModels = RuntimeAiSettings.LocalModels,
-                browserLLMModel = RuntimeAiSettings.BrowserLLMModel,
-                ollamaAvailable,
+                browserLLMModel = selectedBrowserLLMModel,
+                localModels = localModelIds.Select(id => new
+                {
+                    id,
+                    label = RuntimeAiSettings.LocalModelDisplayNames.TryGetValue(id, out var label)
+                        ? label
+                        : id,
+                }),
                 isDevelopment = env.IsDevelopment(),
             });
         })
@@ -53,18 +51,31 @@ public static class ConfigEndpoints
         .Produces<object>(200)
         .AllowAnonymous();
 
-        app.MapPut("/api/config/ai-model", (AiModelRequest req, [FromServices] RuntimeAiSettings settings) =>
+        app.MapPut("/api/config/ai-model", (AiModelRequest req, [FromServices] RuntimeAiSettings settings, IWebHostEnvironment env) =>
         {
-            if (req.Provider != "AzureOpenAI" && req.Provider != "Ollama" && req.Provider != "BrowserLLM")
-                return Results.BadRequest("provider must be 'AzureOpenAI', 'Ollama', or 'BrowserLLM'.");
+            if (req.Provider != "AzureOpenAI" && req.Provider != "BrowserLLM")
+                return Results.BadRequest("provider must be 'AzureOpenAI' or 'BrowserLLM'.");
 
-            if (req.Provider == "Ollama")
+            var localModelIds = GetAvailableLocalModelIds(env);
+
+            if (req.Provider == "BrowserLLM")
             {
-                if (string.IsNullOrWhiteSpace(req.OllamaModel))
-                    return Results.BadRequest("ollamaModel is required when provider is 'Ollama'.");
-                if (!RuntimeAiSettings.LocalModels.Contains(req.OllamaModel))
-                    return Results.BadRequest($"Unknown ollamaModel. Valid: {string.Join(", ", RuntimeAiSettings.LocalModels)}");
-                settings.OllamaModel = req.OllamaModel;
+                if (localModelIds.Length == 0)
+                    return Results.BadRequest("No local BrowserLLM models are installed. Run 'python tools/download-models.py' first.");
+
+                if (string.IsNullOrWhiteSpace(req.BrowserLLMModel))
+                    return Results.BadRequest("browserLLMModel is required when provider is 'BrowserLLM'.");
+
+                if (!localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
+                    return Results.BadRequest($"Unknown browserLLMModel '{req.BrowserLLMModel}'.");
+
+                settings.BrowserLLMModel = req.BrowserLLMModel;
+            }
+            else if (!string.IsNullOrWhiteSpace(req.BrowserLLMModel)
+                     && localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
+            {
+                // Allow pre-selecting a local model while AzureOpenAI is active.
+                settings.BrowserLLMModel = req.BrowserLLMModel;
             }
 
             settings.Provider = req.Provider;
@@ -72,7 +83,7 @@ public static class ConfigEndpoints
             return Results.Ok(new
             {
                 provider = settings.Provider,
-                ollamaModel = settings.OllamaModel,
+                browserLLMModel = settings.BrowserLLMModel,
             });
         })
         .WithName("SetAiModel")
@@ -84,6 +95,35 @@ public static class ConfigEndpoints
         return app;
     }
 
-    private sealed record AiModelRequest(string Provider, string? OllamaModel);
+    private static string[] GetAvailableLocalModelIds(IWebHostEnvironment env)
+    {
+        var modelsRoot = ResolveModelsRoot(env.ContentRootPath);
+        if (modelsRoot is null)
+            return [];
+
+        var ids = Directory
+            .GetDirectories(modelsRoot)
+            .Select(Path.GetFileName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return ids;
+    }
+
+    private static string? ResolveModelsRoot(string contentRoot)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(contentRoot, "MODEL"),
+            Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "MODEL")),
+            Path.Combine(Directory.GetCurrentDirectory(), "MODEL"),
+        };
+
+        return candidates.FirstOrDefault(Directory.Exists);
+    }
+
+    private sealed record AiModelRequest(string Provider, string? BrowserLLMModel);
 }
 

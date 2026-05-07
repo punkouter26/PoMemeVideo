@@ -16,7 +16,7 @@
         <a href="/">[ SOURCE ]</a>
         <a href="/library">[ LIBRARY ]</a>
         <a href="/results">[ RESULTS ]</a>
-        <a href="http://localhost:8000/scalar/" target="_blank" rel="noopener noreferrer">[ API ]</a>
+        <a href="https://localhost:5001/scalar/" target="_blank" rel="noopener noreferrer">[ API ]</a>
     </div>
 
     <span class="auth-status">
@@ -29,26 +29,68 @@
             <span style="opacity:0.4;">[ GUEST ]</span>
         }
     </span>
+
+    <span class="auth-status">
+        @if (_aiDisplay is not null)
+        {
+            @_aiDisplay
+        }
+        else
+        {
+            <span style="opacity:0.4;">[ AI: UNKNOWN ]</span>
+        }
+    </span>
 </nav>
 <hr class="retro-navbar-divider" />
 
 @code {
     private string? _authDisplay;
+    private string? _aiDisplay;
     private System.Threading.Timer? _refreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAuthAsync();
+        await LoadAiAsync();
         // Refresh auth state every 30 seconds to pick up logins/logouts.
         _refreshTimer = new System.Threading.Timer(
             async _ =>
             {
                 await LoadAuthAsync();
+                await LoadAiAsync();
                 await InvokeAsync(StateHasChanged);
             },
             null,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAiAsync()
+    {
+        try
+        {
+            var ai = await Http.GetFromJsonAsync<AiModelResponse>("/api/config/ai-model");
+            if (ai is null)
+            {
+                _aiDisplay = null;
+                return;
+            }
+
+            if (ai.Provider == "AzureOpenAI")
+            {
+                _aiDisplay = "[ AI: OPENAI ]";
+                return;
+            }
+
+            var selected = ai.LocalModels?.FirstOrDefault(m => m.Id == ai.BrowserLLMModel)?.Label
+                           ?? ai.BrowserLLMModel
+                           ?? "LOCAL";
+            _aiDisplay = $"[ AI: {selected.ToUpperInvariant()} ]";
+        }
+        catch
+        {
+            _aiDisplay = null;
+        }
     }
 
     private async Task LoadAuthAsync()
@@ -60,9 +102,9 @@
             {
                 // ANON\d{6} pattern — show ANON LOGGED IN
                 if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^ANON\d{6}$"))
-                    _authDisplay = $"[ ANON LOGGED IN : {name} ]";
+                    _authDisplay = "[ ANON LOGGED IN ]";
                 else
-                    _authDisplay = $"[ {name} ]";
+                    _authDisplay = $"[ {me.Email ?? name} ]";
             }
             else
             {
@@ -79,4 +121,6 @@
     public void Dispose() => _refreshTimer?.Dispose();
 
     private sealed record AuthMeResponse(string? DisplayName, string? Email);
+    private sealed record AiModelResponse(string Provider, string? BrowserLLMModel, LocalModelInfo[]? LocalModels);
+    private sealed record LocalModelInfo(string Id, string Label);
 }

@@ -140,6 +140,34 @@
     flex: 1;
 }
 
+.ai-model-select-wrap {
+    margin-top: 0.45rem;
+}
+
+.ai-model-label {
+    display: block;
+    font-family: monospace;
+    font-size: 0.67rem;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 0.25rem;
+}
+
+.ai-model-select {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 3px;
+    background: rgba(0,0,0,0.35);
+    color: #d7d7d7;
+    padding: 0.3rem 0.35rem;
+    font-family: monospace;
+    font-size: 0.72rem;
+}
+
+.ai-model-select:focus {
+    outline: none;
+    border-color: #7dd3fc;
+}
+
 .ai-apply-btn {
     margin-top: 0.5rem;
     width: 100%;

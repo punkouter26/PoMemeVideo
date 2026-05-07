@@ -85,9 +85,41 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
 
         try
         {
-            var entries = JsonSerializer.Deserialize<ScriptEntry[]>(json.Trim(), JsonOpts) ?? [];
-            if (entries.Length == 0)
+            var dtos = JsonSerializer.Deserialize<DirectorEntry[]>(json.Trim(), JsonOpts) ?? [];
+            if (dtos.Length == 0)
+            {
                 _logger.LogWarning("Session {SessionId}: AzureOpenAI director returned an empty script. Raw response: {Raw}", sessionId, rawText);
+                return [];
+            }
+
+            // Build a lookup: display name → SoundId for resolving cases where LLM echoes the name instead of the GUID
+            var byName = topCandidates.ToDictionary(s => s.DisplayName, s => s.SoundId, StringComparer.OrdinalIgnoreCase);
+            var byId   = topCandidates.ToDictionary(s => s.SoundId.ToString(), s => s.SoundId, StringComparer.OrdinalIgnoreCase);
+
+            Guid ResolveSound(string raw)
+            {
+                if (byId.TryGetValue(raw, out var byIdMatch)) return byIdMatch;
+                if (byName.TryGetValue(raw, out var byNameMatch)) return byNameMatch;
+                if (Guid.TryParse(raw, out var parsed)) return parsed;
+                // Final fallback: first candidate
+                return topCandidates.Count > 0 ? topCandidates[0].SoundId : Guid.Empty;
+            }
+
+            var entries = dtos.Select(e => new ScriptEntry
+            {
+                EntryId = Guid.NewGuid(),
+                SessionId = sessionId,
+                TimestampMs = e.TimestampMs,
+                SoundId = ResolveSound(e.SoundIdRaw),
+                ActionVectorTags = e.ActionVectorTags,
+                SceneDescription = e.SceneDescription,
+                SelectionRationale = e.SelectionRationale,
+                IsIronic = e.IsIronic,
+                VisualEffect = e.VisualEffect,
+                EffectIntensity = e.EffectIntensity,
+                PlacementType = PlacementType.Triggered,
+            }).ToArray();
+
             return entries;
         }
         catch (Exception ex)
@@ -95,5 +127,32 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
             _logger.LogError(ex, "Session {SessionId}: AzureOpenAI director failed to parse response. Raw: {Raw}", sessionId, rawText);
             return [];
         }
+    }
+
+    private sealed class DirectorEntry
+    {
+        [JsonPropertyName("timestampMs")]
+        public long TimestampMs { get; init; }
+
+        [JsonPropertyName("soundId")]
+        public string SoundIdRaw { get; init; } = string.Empty;
+
+        [JsonPropertyName("actionVectorTags")]
+        public string[] ActionVectorTags { get; init; } = [];
+
+        [JsonPropertyName("sceneDescription")]
+        public string SceneDescription { get; init; } = string.Empty;
+
+        [JsonPropertyName("selectionRationale")]
+        public string SelectionRationale { get; init; } = string.Empty;
+
+        [JsonPropertyName("isIronic")]
+        public bool IsIronic { get; init; }
+
+        [JsonPropertyName("visualEffect")]
+        public VisualEffectType? VisualEffect { get; init; }
+
+        [JsonPropertyName("effectIntensity")]
+        public double? EffectIntensity { get; init; }
     }
 }

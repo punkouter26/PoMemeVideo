@@ -21,6 +21,10 @@ public static class HealthEndpoint
             try
             {
                 var tableClient = tableFactory.GetTableClient("HealthCheck");
+                await foreach (var _ in tableClient.QueryAsync<TableEntity>(maxPerPage: 1, cancellationToken: ct))
+                {
+                    break;
+                }
                 checks["tableStorage"] = "Healthy";
             }
             catch (Exception ex)
@@ -54,21 +58,25 @@ public static class HealthEndpoint
             else
                 checks["azureAiVision"] = "Healthy";
 
-            // Ollama / local models (optional — only unhealthy if it's the active provider)
-            try
+            // Azure OpenAI
+            var openAiEndpoint = configuration["AzureOpenAI:Endpoint"];
+            if (string.IsNullOrWhiteSpace(openAiEndpoint))
             {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-                var ollamaUrl = configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
-                var resp = await http.GetAsync($"{ollamaUrl}/api/tags", ct);
-                checks["ollamaGemma4"] = resp.IsSuccessStatusCode ? "Healthy" : $"Unavailable: HTTP {(int)resp.StatusCode}";
+                checks["azureOpenAI"] = "Degraded: not configured";
+                isHealthy = false;
             }
-            catch (Exception)
+            else
             {
-                // Ollama is optional — not installed locally is expected
-                checks["ollamaGemma4"] = $"Unavailable (install Ollama to use local models)";
+                checks["azureOpenAI"] = "Healthy";
             }
 
-            var result = new { status = isHealthy ? "Healthy" : "Degraded", checks };
+            var result = new
+            {
+                status = isHealthy ? "Healthy" : "Degraded",
+                environment = app.ServiceProvider.GetRequiredService<IHostEnvironment>().EnvironmentName,
+                timestampUtc = DateTimeOffset.UtcNow,
+                checks
+            };
             return isHealthy ? Results.Ok(result) : Results.Json(result, statusCode: 503);
         })
         .WithName("GetHealth")

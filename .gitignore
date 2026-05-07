@@ -42,6 +42,7 @@ artifacts/
 *.db
 *.mdf
 *.ldf
+MODEL/
 
 ## Secrets and config (never commit)
 **/appsettings.Development.json

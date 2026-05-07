@@ -34,23 +34,53 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
         _chatClient = client.GetChatClient("gpt-4o");
     }
 
+    private const int VisionBatchSize = 8;
+    private const double FrameIntervalSeconds = 3.0;
+
     public async Task<(double TimestampSeconds, string Label)[]> AnalyseAsync(
         string[] keyframeBase64Images,
         CancellationToken cancellationToken = default)
     {
+        if (keyframeBase64Images.Length == 0)
+            return [];
+
+        var allResults = new List<(double TimestampSeconds, string Label)>();
+
+        for (var batchStart = 0; batchStart < keyframeBase64Images.Length; batchStart += VisionBatchSize)
+        {
+            var batch = keyframeBase64Images.Skip(batchStart).Take(VisionBatchSize).ToArray();
+            var batchOffsetSeconds = batchStart * FrameIntervalSeconds;
+            var batchResults = await AnalyseBatchAsync(batch, batchOffsetSeconds, cancellationToken);
+            allResults.AddRange(batchResults);
+        }
+
+        _logger.LogInformation("GPT-4o Vision total: {Count} label(s) from {Batches} batch(es): {Labels}",
+            allResults.Count,
+            (int)Math.Ceiling(keyframeBase64Images.Length / (double)VisionBatchSize),
+            string.Join(", ", allResults.Select(x => $"t={x.TimestampSeconds:F1}s→{x.Label}")));
+
+        return [.. allResults];
+    }
+
+    private async Task<(double TimestampSeconds, string Label)[]> AnalyseBatchAsync(
+        string[] batchImages,
+        double startOffsetSeconds,
+        CancellationToken cancellationToken)
+    {
         var contentParts = new List<ChatMessageContentPart>
         {
             ChatMessageContentPart.CreateTextPart(
-                "Analyse these video keyframes taken at 3-second intervals. " +
-                "Identify semantic action labels for meme-worthy moments. " +
-                "Return ONLY a JSON array like: [{\"timestamp_seconds\": 3.0, \"label\": \"explosion\"}]. " +
-                "No other text."),
+                $"Analyse these {batchImages.Length} video keyframe(s) taken at {FrameIntervalSeconds}-second intervals " +
+                $"starting at t={startOffsetSeconds:F1}s. " +
+                "Identify semantic action labels ONLY for genuinely meme-worthy moments (do not force labels on boring frames). " +
+                "Return ONLY a JSON array like: [{\"timestamp_seconds\": " + (startOffsetSeconds + FrameIntervalSeconds).ToString("F1") + ", \"label\": \"explosion\"}]. " +
+                "Return [] if there are no interesting moments. No other text."),
         };
 
-        for (var i = 0; i < keyframeBase64Images.Length; i++)
+        for (var i = 0; i < batchImages.Length; i++)
         {
             contentParts.Add(ChatMessageContentPart.CreateImagePart(
-                BinaryData.FromBytes(Convert.FromBase64String(keyframeBase64Images[i])),
+                BinaryData.FromBytes(Convert.FromBase64String(batchImages[i])),
                 "image/png"));
         }
 
@@ -62,9 +92,8 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
 
         var response = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
         var text = response.Value.Content[0].Text.Trim();
-        _logger.LogInformation("GPT-4o Vision raw response: {Response}", text);
+        _logger.LogInformation("GPT-4o Vision raw response (offset={Offset}s): {Response}", startOffsetSeconds, text);
 
-        // Strip markdown code fences if GPT-4o wrapped the JSON (e.g. ```json ... ```)
         var json = text;
         if (json.StartsWith("```"))
         {
@@ -77,14 +106,12 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
         try
         {
             var items = JsonSerializer.Deserialize<VisionLabel[]>(json, JsonOpts) ?? [];
-            _logger.LogInformation("GPT-4o Vision parsed {Count} label(s): {Labels}",
-                items.Length, string.Join(", ", items.Select(x => $"t={x.TimestampSeconds:F1}s→{x.Label}")));
             return items.Select(x => (x.TimestampSeconds, x.Label)).ToArray();
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "GPT-4o Vision JSON parse failed. Raw text was: {Text}", text);
-            return [(0.0, "unknown action")];
+            _logger.LogWarning(ex, "GPT-4o Vision JSON parse failed for batch at offset {Offset}s. Raw: {Text}", startOffsetSeconds, text);
+            return [];
         }
     }
 

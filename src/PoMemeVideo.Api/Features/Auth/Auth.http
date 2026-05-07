@@ -2,7 +2,7 @@
 ### T081b — HTTP requests for all auth endpoints
 ### Constitution Principle IV: .http files required for all primary API functions
 
-@host = http://localhost:8000
+@host = http://localhost:5000
 
 ### ─────────────────────────────────────────────────────
 ### POST /auth/anon — Create ANON identity (dev only)

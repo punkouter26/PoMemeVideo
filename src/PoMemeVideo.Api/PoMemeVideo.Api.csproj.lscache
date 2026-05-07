@@ -56,7 +56,11 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 
 [sourceFiles]
 Endpoints/HealthEndpoint.cs
+Features/Admin/
+ AdminEndpoints.cs
+ SeedSoundsCommand.cs
 Features/
+ Auth/AuthEndpoints.cs
  Config/ConfigEndpoints.cs
  Ingestion/IngestionEndpoints.cs
  MemeLibrary/MemeLibraryEndpoints.cs

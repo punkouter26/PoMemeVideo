@@ -2,6 +2,8 @@ using Azure.Core;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -27,7 +29,6 @@ using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Infrastructure.BrowserLlm;
-using PoMemeVideo.Infrastructure.Ollama;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
@@ -146,7 +147,6 @@ try
     builder.Services.AddHttpClient();  // registers IHttpClientFactory
     builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
     builder.Services.AddSingleton<AzureOpenAiDirectorService>();
-    builder.Services.AddSingleton<OllamaDirectorService>();
     builder.Services.AddSingleton<BrowserLLMDirectorService>();
     builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 
@@ -227,6 +227,28 @@ try
     // UseBlazorFrameworkFiles() is removed — in .NET 10 the Blazor framework
     // files are served as StaticWebAssets via MapStaticAssets() below.
     app.UseStaticFiles();
+    var modelPathCandidates = new[]
+    {
+        Path.Combine(app.Environment.ContentRootPath, "MODEL"),
+        Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "MODEL")),
+        Path.Combine(Directory.GetCurrentDirectory(), "MODEL"),
+    };
+    var modelsRoot = modelPathCandidates.FirstOrDefault(Directory.Exists);
+    if (modelsRoot is not null)
+    {
+        var modelContentTypes = new FileExtensionContentTypeProvider();
+        modelContentTypes.Mappings[".onnx"] = "application/octet-stream";
+        modelContentTypes.Mappings[".onnx_data"] = "application/octet-stream";
+        modelContentTypes.Mappings[".model"] = "application/octet-stream";
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(modelsRoot),
+            RequestPath = "/models",
+            ContentTypeProvider = modelContentTypes,
+            ServeUnknownFileTypes = true,
+        });
+    }
 
     // ── Scalar OpenAPI UI (T023) ─────────────────────────────────────────────
     app.MapOpenApi();
@@ -334,7 +356,7 @@ try
     {
         var blobFactory = app.Services.GetRequiredService<BlobServiceClientFactory>();
         var allowedOrigins = app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5280"];
+            ?? ["http://localhost:5000", "https://localhost:5001", "http://127.0.0.1:5000", "http://localhost:5280"];
         await blobFactory.EnsureDevCorsAsync(string.Join(",", allowedOrigins));
     }
 
@@ -356,8 +378,9 @@ return 0;
 public partial class Program { }
 
 /// <summary>
-/// Loads only secrets prefixed with "PoMemeVideo--" and maps them to
-/// configuration keys with the prefix stripped (e.g. PoMemeVideo--AzureOpenAI--Key → AzureOpenAI:Key).
+/// Loads app-prefixed secrets (PoMemeVideo--) and shared un-prefixed secrets.
+/// App-specific secrets strip the prefix (PoMemeVideo--AzureOpenAI--Key -> AzureOpenAI:Key),
+/// while shared secrets map directly (AzureAd--TenantId -> AzureAd:TenantId).
 /// </summary>
 internal sealed class PrefixKeyVaultSecretManager : KeyVaultSecretManager
 {
@@ -366,9 +389,24 @@ internal sealed class PrefixKeyVaultSecretManager : KeyVaultSecretManager
     public PrefixKeyVaultSecretManager(string prefix) => _prefix = prefix + "--";
 
     public override bool Load(SecretProperties secret)
-        => secret.Name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase);
+    {
+        if (secret.Name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var firstSeparator = secret.Name.IndexOf("--", StringComparison.Ordinal);
+        if (firstSeparator <= 0)
+            return true;
+
+        var prefixCandidate = secret.Name[..firstSeparator];
+        return !prefixCandidate.StartsWith("Po", StringComparison.OrdinalIgnoreCase);
+    }
 
     public override string GetKey(KeyVaultSecret secret)
-        => secret.Name[_prefix.Length..].Replace("--", ConfigurationPath.KeyDelimiter);
+    {
+        var name = secret.Name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase)
+            ? secret.Name[_prefix.Length..]
+            : secret.Name;
+        return name.Replace("--", ConfigurationPath.KeyDelimiter);
+    }
 }
 

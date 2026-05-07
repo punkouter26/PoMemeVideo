@@ -1,0 +1,78 @@
+{
+  "models": [
+    {
+      "id": "smollm2-360m-instruct-onnx",
+      "label": "SmolLM2 360M",
+      "repo": "onnx-community/SmolLM2-360M-Instruct-ONNX",
+      "revision": "main",
+      "recommended": true,
+      "files": [
+        "config.json",
+        "generation_config.json",
+        "quantize_config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "onnx/model_q4f16.onnx"
+      ]
+    },
+    {
+      "id": "qwen2.5-0.5b-instruct",
+      "label": "Qwen 2.5 0.5B",
+      "repo": "onnx-community/Qwen2.5-0.5B-Instruct",
+      "revision": "main",
+      "recommended": true,
+      "files": [
+        "config.json",
+        "generation_config.json",
+        "quantize_config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "onnx/model_q4f16.onnx"
+      ]
+    },
+    {
+      "id": "qwen2.5-1.5b-instruct",
+      "label": "Qwen 2.5 1.5B",
+      "repo": "onnx-community/Qwen2.5-1.5B-Instruct",
+      "revision": "main",
+      "recommended": false,
+      "files": [
+        "config.json",
+        "generation_config.json",
+        "quantize_config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "onnx/model_q4f16.onnx"
+      ]
+    },
+    {
+      "id": "gemma-2-2b-jpn-it",
+      "label": "Gemma 2 2B",
+      "repo": "onnx-community/gemma-2-2b-jpn-it",
+      "revision": "main",
+      "recommended": false,
+      "files": [
+        "config.json",
+        "genai_config.json",
+        "generation_config.json",
+        "tokenizer.json",
+        "tokenizer.model",
+        "tokenizer_config.json",
+        "onnx/model_q4f16.onnx",
+        "onnx/model_q4f16.onnx_data"
+      ]
+    },
+    {
+      "id": "phi-1_5-dev",
+      "label": "Phi 1.5",
+      "manual": true,
+      "notes": "The ONNX bundle currently used by this repo was not found as a public unauthenticated source. Add it manually under MODEL/phi-1_5-dev if you need it."
+    },
+    {
+      "id": "gemma-4-e2b-it-onnx",
+      "label": "Gemma 4 E2B",
+      "manual": true,
+      "notes": "This bundle appears to require authenticated or gated access. Add it manually under MODEL/gemma-4-e2b-it-onnx if you need it."
+    }
+  ]
+}

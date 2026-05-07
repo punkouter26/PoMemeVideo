@@ -53,33 +53,22 @@ public class DiagModel : PageModel
             string.IsNullOrWhiteSpace(visionEndpoint) ? "Not configured" : "Configured",
             !string.IsNullOrWhiteSpace(visionEndpoint)));
 
-        // Ollama
-        try
-        {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-            var ollamaUrl = _configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
-            var resp = await http.GetAsync($"{ollamaUrl}/api/tags");
-            ConnectionChecks.Add(new("Ollama / Gemma 4",
-                resp.IsSuccessStatusCode ? "Connected" : $"HTTP {(int)resp.StatusCode}",
-                resp.IsSuccessStatusCode));
-        }
-        catch (Exception ex)
-        {
-            ConnectionChecks.Add(new("Ollama / Gemma 4", $"Unreachable: {ex.Message}", false));
-        }
-
         // Configuration key names (masked values)
         var sensitiveKeys = new[]
         {
+            "KeyVault:Uri",
             "ConnectionStrings:AzureTableStorage",
             "ConnectionStrings:AzureBlobStorage",
             "AzureAiVision:Endpoint",
             "AzureAiVision:Key",
             "AzureOpenAI:Endpoint",
             "AzureOpenAI:Key",
-            "Ollama:BaseUrl",
             "AzureAd:ClientId",
-            "AzureAd:TenantId"
+            "AzureAd:TenantId",
+            "AzureAd:ClientSecret",
+            "ApplicationInsights:ConnectionString",
+            "OpenTelemetry:Endpoint",
+            "UseMockAI"
         };
 
         foreach (var key in sensitiveKeys)

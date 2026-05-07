@@ -62,29 +62,33 @@
                     <span class="ai-label">Azure gpt-4o ☁</span>
                 </label>
 
-                @* Browser LLM via Transformers.js — always available, no Ollama needed *@
+                @* Browser LLM via Transformers.js — always available, runs locally in-browser *@
                 <label class="ai-option @(_pendingProvider == "BrowserLLM" ? "selected" : "")"
                        @onclick='() => SelectProvider("BrowserLLM", null)'>
                     <span class="ai-dot">@(_pendingProvider == "BrowserLLM" ? "●" : "○")</span>
-                    <span class="ai-label">SmolLM2-360M ⚡ [browser]</span>
+                    <span class="ai-label">Local WebGPU Model ⚡</span>
                 </label>
-
-                @* Local models — greyed out when Ollama is unreachable *@
-                @foreach (var m in _localModels)
-                {
-                    var model = m; // capture for closure
-                    var isSelected = _pendingProvider == "Ollama" && _pendingModel == model;
-                    <label class="ai-option @(isSelected ? "selected" : "") @(_ollamaAvailable ? "" : "ai-disabled")"
-                           @onclick='() => { if (_ollamaAvailable) SelectProvider("Ollama", model); }'>
-                        <span class="ai-dot">@(isSelected ? "●" : "○")</span>
-                        <span class="ai-label">@ModelLabel(model)@(_ollamaAvailable ? "" : " [offline]")</span>
-                    </label>
-                }
-                @if (!_ollamaAvailable)
-                {
-                    <pre class="ai-status">↳ ollama.com to enable local</pre>
-                }
             </div>
+
+            @if (_pendingProvider == "BrowserLLM")
+            {
+                <div class="ai-model-select-wrap">
+                    @if (_localModels.Count > 0)
+                    {
+                        <label class="ai-model-label" for="local-model-select">Local model</label>
+                        <select id="local-model-select" class="ai-model-select" @bind="_pendingBrowserLLMModel" @bind:after="OnPendingModelChanged">
+                            @foreach (var localModel in _localModels)
+                            {
+                                <option value="@localModel.Id">@localModel.Label</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <pre class="ai-status ai-error">No local models found. Run: python tools/download-models.py</pre>
+                    }
+                </div>
+            }
 
             @if (_isDirty)
             {
@@ -111,16 +115,15 @@
     // AI model state
     private bool _loadingModel = true;
     private string? _loadError;
-    private string[] _localModels = [];
-    private bool _ollamaAvailable;
     private bool _isDevelopment;
+    private List<LocalModelInfo> _localModels = [];
 
-    private string _activeProvider = "AzureOpenAI";
-    private string _activeModel = "gemma3:1b";
+    private string _activeProvider = "BrowserLLM";
     private string? _browserLLMModel;  // model id from server config
+    private string _activeBrowserLLMModel = "smollm2-360m-instruct-onnx";
 
-    private string _pendingProvider = "AzureOpenAI";
-    private string _pendingModel = "gemma3:1b";
+    private string _pendingProvider = "BrowserLLM";
+    private string _pendingBrowserLLMModel = "smollm2-360m-instruct-onnx";
 
     private bool _isDirty;
     private bool _applying;
@@ -138,17 +141,22 @@
             if (result is not null)
             {
                 _activeProvider = result.Provider;
-                _activeModel = result.OllamaModel;
                 _pendingProvider = result.Provider;
-                _pendingModel = result.OllamaModel;
-                _localModels = result.AvailableLocalModels;
-                _ollamaAvailable = result.OllamaAvailable;
                 _isDevelopment = result.IsDevelopment;
                 _browserLLMModel = result.BrowserLLMModel;
+                _localModels = result.LocalModels?.ToList() ?? [];
+                _activeBrowserLLMModel = result.BrowserLLMModel ?? (_localModels.FirstOrDefault()?.Id ?? _activeBrowserLLMModel);
+                _pendingBrowserLLMModel = _activeBrowserLLMModel;
+
+                if (_localModels.Count > 0 && !_localModels.Any(m => m.Id == _pendingBrowserLLMModel))
+                    _pendingBrowserLLMModel = _localModels[0].Id;
+
+                if (_localModels.Count > 0 && !_localModels.Any(m => m.Id == _activeBrowserLLMModel))
+                    _activeBrowserLLMModel = _localModels[0].Id;
 
                 // Warm up the browser model in the background if it is selected
-                if (result.Provider == "BrowserLLM" && result.BrowserLLMModel is not null)
-                    _ = JS.InvokeVoidAsync("browserLLM.warmup", result.BrowserLLMModel);
+                if (result.Provider == "BrowserLLM" && _localModels.Count > 0)
+                    _ = JS.InvokeVoidAsync("browserLLM.warmup", _activeBrowserLLMModel);
             }
         }
         catch (Exception ex)
@@ -164,9 +172,22 @@
     private void SelectProvider(string provider, string? model)
     {
         _pendingProvider = provider;
-        if (model is not null) _pendingModel = model;
-        _isDirty = _pendingProvider != _activeProvider || _pendingModel != _activeModel;
+        if (model is not null)
+            _pendingBrowserLLMModel = model;
+        RecomputeDirtyState();
         _statusMessage = null;
+    }
+
+    private void OnPendingModelChanged()
+    {
+        RecomputeDirtyState();
+        _statusMessage = null;
+    }
+
+    private void RecomputeDirtyState()
+    {
+        _isDirty = _pendingProvider != _activeProvider
+                   || _pendingBrowserLLMModel != _activeBrowserLLMModel;
     }
 
     private async Task ApplyModel()
@@ -176,15 +197,18 @@
         StateHasChanged();
         try
         {
-            var body = new { provider = _pendingProvider, ollamaModel = _pendingModel };
+            var body = new { provider = _pendingProvider, browserLLMModel = _pendingBrowserLLMModel };
             var resp = await Http.PutAsJsonAsync("/api/config/ai-model", body);
             if (resp.IsSuccessStatusCode)
             {
                 _activeProvider = _pendingProvider;
-                _activeModel = _pendingModel;
+                _activeBrowserLLMModel = _pendingBrowserLLMModel;
                 _isDirty = false;
                 _statusMessage = "✓ Switched";
                 _statusOk = true;
+
+                if (_activeProvider == "BrowserLLM")
+                    _ = JS.InvokeVoidAsync("browserLLM.warmup", _activeBrowserLLMModel);
             }
             else
             {
@@ -226,21 +250,12 @@
         }
     }
 
-    private static string ModelLabel(string model) => model switch
-    {
-        "gemma3:1b"    => "Gemma 3 1B ★",
-        "llama3.2:1b"  => "Llama 3.2 1B",
-        "qwen2.5:0.5b" => "Qwen 2.5 0.5B",
-        "smollm2:360m" => "SmolLM2 360M",
-        _              => model,
-    };
-
     private sealed record AiModelResponse(
         string Provider,
-        string OllamaModel,
-        string[] AvailableLocalModels,
         string? BrowserLLMModel,
-        bool OllamaAvailable,
+        LocalModelInfo[]? LocalModels,
         bool IsDevelopment);
+
+    private sealed record LocalModelInfo(string Id, string Label);
 }
 

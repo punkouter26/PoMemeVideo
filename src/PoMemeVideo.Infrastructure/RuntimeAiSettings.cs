@@ -6,23 +6,24 @@ namespace PoMemeVideo.Infrastructure;
 /// </summary>
 public sealed class RuntimeAiSettings
 {
-    public static readonly string[] LocalModels =
-    [
-        "gemma3:1b",
-        "llama3.2:1b",
-        "qwen2.5:0.5b",
-        "smollm2:360m",
-    ];
+    public const string DefaultBrowserLLMModel = "smollm2-360m-instruct-onnx";
+
+    public static readonly IReadOnlyDictionary<string, string> LocalModelDisplayNames =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["smollm2-360m-instruct-onnx"] = "SmolLM2 360M",
+            ["qwen2.5-0.5b-instruct"] = "Qwen 2.5 0.5B",
+            ["qwen2.5-1.5b-instruct"] = "Qwen 2.5 1.5B",
+            ["phi-1_5-dev"] = "Phi 1.5",
+            ["gemma-2-2b-jpn-it"] = "Gemma 2 2B",
+            ["gemma-4-e2b-it-onnx"] = "Gemma 4 E2B",
+        };
+
+    /// <summary>"AzureOpenAI" or "BrowserLLM".</summary>
+    public string Provider { get; set; } = "BrowserLLM";
 
     /// <summary>
-    /// Hugging Face model ID served by Transformers.js in the browser.
-    /// Must be an ONNX-quantised model published under the onnx-community or Xenova org.
+    /// Local BrowserLLM model id, mapped to /models/{id} static files.
     /// </summary>
-    public const string BrowserLLMModel = "onnx-community/SmolLM2-360M-Instruct";
-
-    /// <summary>"AzureOpenAI", "Ollama", or "BrowserLLM".</summary>
-    public string Provider { get; set; } = "AzureOpenAI";
-
-    /// <summary>Active Ollama model tag (only used when Provider == "Ollama").</summary>
-    public string OllamaModel { get; set; } = "gemma3:1b";
+    public string BrowserLLMModel { get; set; } = DefaultBrowserLLMModel;
 }

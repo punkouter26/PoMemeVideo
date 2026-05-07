@@ -306,10 +306,14 @@ obj/Debug/net10.0/PoMemeVideo.Client.GeneratedMSBuildEditorConfig.editorconfig
 App.razor
 Components/
  AsciiDropZone.razor
+ CrtMonitorFrame.razor
  DirectorLogFeed.razor
  DirectorScriptFeed.razor
  DitheredKeyframeStrip.razor
  HardwareMonitor.razor
+ MockDataBanner.razor
+ NavBar.razor
+ ScanlineOverlay.razor
  SystemAuditBox.razor
 Layout/
  MainLayout.razor
@@ -318,8 +322,10 @@ Pages/
  Counter.razor
  Engine.razor
  Home.razor
+ Login.razor
  MemeLibrary.razor
  NotFound.razor
+ Results.razor
  Reveal.razor
  Source.razor
  Weather.razor
@@ -329,10 +335,14 @@ _Imports.razor
 App.razor
 Components/
  AsciiDropZone.razor
+ CrtMonitorFrame.razor
  DirectorLogFeed.razor
  DirectorScriptFeed.razor
  DitheredKeyframeStrip.razor
  HardwareMonitor.razor
+ MockDataBanner.razor
+ NavBar.razor
+ ScanlineOverlay.razor
  SystemAuditBox.razor
 Layout/
  MainLayout.razor
@@ -341,8 +351,10 @@ Pages/
  Counter.razor
  Engine.razor
  Home.razor
+ Login.razor
  MemeLibrary.razor
  NotFound.razor
+ Results.razor
  Reveal.razor
  Source.razor
  Weather.razor

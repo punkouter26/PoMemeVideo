@@ -34,7 +34,7 @@
                 <div class="login-section">
                     <pre class="login-label">── DEV MODE ──────────────────────────</pre>
                     <button class="ascii-btn anon-btn" @onclick="LoginAnon" disabled="@_busy">
-                        @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ ANON LOGIN ]")
+                        @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ RANDOM ANON ]")
                     </button>
                     <p class="login-hint">Generates a unique ANON######  identity for this session.</p>
                 </div>

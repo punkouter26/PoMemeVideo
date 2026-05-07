@@ -19,13 +19,11 @@ public sealed class OllamaDirectorService : IDirectorService
     };
 
     private readonly IHttpClientFactory _httpFactory;
-    private readonly RuntimeAiSettings _aiSettings;
     private readonly string _ollamaBaseUrl;
 
-    public OllamaDirectorService(IHttpClientFactory httpFactory, RuntimeAiSettings aiSettings, IConfiguration config)
+    public OllamaDirectorService(IHttpClientFactory httpFactory, IConfiguration config)
     {
         _httpFactory = httpFactory;
-        _aiSettings = aiSettings;
         _ollamaBaseUrl = config["Ollama:BaseUrl"] ?? "http://localhost:11434";
     }
 
@@ -50,7 +48,7 @@ public sealed class OllamaDirectorService : IDirectorService
             "\"visualEffect\": \"DeepFry\", \"effectIntensity\": 0.8}]\n" +
             "No extra text. VisualEffect must be one of: None, DeepFry, SnapZoom, MotionBlur, Overlay.";
 
-        var requestBody = new { model = _aiSettings.OllamaModel, prompt, stream = false };
+        var requestBody = new { model = "gemma3:1b", prompt, stream = false };
         var http = _httpFactory.CreateClient();
         http.BaseAddress = new Uri(_ollamaBaseUrl);
         var response = await http.PostAsJsonAsync("/api/generate", requestBody, cancellationToken);
