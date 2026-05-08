@@ -14,6 +14,8 @@
 [Ll]og/
 [Ll]ogs/
 *.log
+*.csproj.lscache
+**/stderr.txt
 
 ## NuGet packages
 *.nupkg
@@ -59,6 +61,9 @@ yarn-error.log*
 .pnpm-debug.log*
 dist/
 build/
+tests/PoMemeVideo.E2ETests/playwright-report/
+tests/PoMemeVideo.E2ETests/test-results/
+tests/PoMemeVideo.E2ETests/artifacts/
 
 ## Blazor WASM output
 **/wwwroot/appsettings.Development.json
@@ -71,6 +76,11 @@ build/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+.potune-state.json
+
+## Local sample assets
+BODY_Matt_Fight.mp4
+src/client/PoMemeVideo.Client/wwwroot/sample-data/
 
 ## Test results
 TestResults/

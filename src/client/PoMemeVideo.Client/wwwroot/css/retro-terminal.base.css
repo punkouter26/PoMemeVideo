@@ -1,0 +1,35 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(circle at top right, #112018 0%, var(--term-bg) 35%, #010302 100%);
+    color: var(--term-primary);
+    font-family: 'Courier New', Courier, monospace;
+    min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--term-primary);
+    font-family: 'Courier New', Courier, monospace;
+}
+
+a {
+    color: var(--term-primary);
+    text-decoration: underline;
+}
+
+a:hover {
+    color: var(--term-secondary);
+}
+
+pre {
+    font-family: 'Courier New', Courier, monospace;
+    color: var(--term-primary);
+    margin: 0;
+    white-space: pre-wrap;
+}

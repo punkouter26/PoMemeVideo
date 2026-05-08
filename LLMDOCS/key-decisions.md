@@ -1,6 +1,6 @@
 # PoMemeVideo – Key Technical Decisions
 
-> Abbreviated from `specs/001-brainrot-video-processor/research.md`. Update that file for full rationale.
+> Maintained in-repo; update this file when implementation decisions change.
 
 | ID | Decision | Rationale | Status |
 |----|----------|-----------|--------|
@@ -23,5 +23,5 @@
 | IMPL-002 | ANON cookie auth with `SameAsRequest` secure policy in dev | Allows non-HTTPS localhost development without browser cookie rejection |
 | IMPL-003 | `dotnet run -- seed-sounds` CLI verb short-circuits before web host construction | Seeding runs without Azure Key Vault auth; uses `appsettings.Development.json` connection string |
 | IMPL-004 | `SoundAsset` embedding vectors computed from global vocabulary at seed time | Ensures all vectors have identical dimensionality for cosine similarity; vocabulary is deterministic (sorted unique tags) |
-| IMPL-005 | `BrowserLLMDirectorService` added as third director option alongside Ollama/AzureOpenAI | Enables local inference via Transformers.js in the browser when Ollama is not available |
+| IMPL-005 | `BrowserLLMDirectorService` added as a runtime-selectable option alongside AzureOpenAI | Enables local inference via Transformers.js in the browser when cloud AI is unavailable or undesired |
 | IMPL-006 | Azurite CORS configured at startup for `*` origins (dev only) | Enables direct browser-to-Azurite SAS uploads without CORS errors during local development |

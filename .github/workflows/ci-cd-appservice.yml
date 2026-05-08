@@ -1,0 +1,116 @@
+name: CI/CD App Service
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DOTNET_VERSION: 10.0.x
+  SOLUTION_PATH: PoMemeVideo.slnx
+  API_PROJECT: src/PoMemeVideo.Api/PoMemeVideo.Api.csproj
+  AZURE_WEBAPP_NAME: app-pomemevideo
+  AZURE_RESOURCE_GROUP: PoMemeVideo
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: deploy-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION_PATH }} --no-restore -c Release
+
+      - name: Verify formatting
+        run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity minimal
+
+      - name: Run tests
+        run: dotnet test ${{ env.SOLUTION_PATH }} --no-build -c Release --logger "trx;LogFileName=test-results.trx" --results-directory ./TESTRESULTS
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./TESTRESULTS/*.trx
+
+      - name: Publish API
+        run: dotnet publish ${{ env.API_PROJECT }} -c Release --no-restore -o ./publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: ./publish
+          retention-days: 1
+
+  deploy:
+    name: Deploy to Azure App Service
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    timeout-minutes: 20
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: published-app
+          path: ./publish
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy web app package
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
+          package: ./publish
+
+      - name: Health check
+        run: |
+          echo "Waiting for app to warm up..."
+          sleep 30
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+              "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health")
+            echo "Health check attempt $i: HTTP $STATUS"
+            [ "$STATUS" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "::error::Health check failed after 10 attempts"; exit 1

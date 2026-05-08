@@ -1,0 +1,15 @@
+:root {
+    --term-bg: #030706;
+    --term-surface: #0a1210;
+    --term-surface-2: #0e1916;
+    --term-primary: #00f56a;
+    --term-secondary: #4ce9a6;
+    --term-muted: #5a8f74;
+    --term-danger: #ff5f5f;
+    --term-warning: #ffcc66;
+    --term-border: rgba(0, 245, 106, 0.58);
+    --term-border-strong: rgba(0, 245, 106, 0.9);
+    --term-glow-soft: 0 0 10px rgba(0, 245, 106, 0.2);
+    --term-glow-strong: 0 0 14px rgba(0, 245, 106, 0.55);
+    --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}

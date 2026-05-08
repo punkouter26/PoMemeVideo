@@ -62,7 +62,7 @@
 
 | Method | Path | Auth | Response | Notes |
 |--------|------|------|----------|-------|
-| `GET` | `/health` | None | `200 Healthy \| 503 Degraded` | Checks Azure Table Storage, Blob Storage, AI Vision, Ollama |
+| `GET` | `/health` | None | `200 Healthy \| 503 Degraded` | Checks Azure Table Storage, Blob Storage, and AI vision dependencies |
 | `GET` | `/diag` | None | HTML | Connection statuses + masked config values (first3***last3); Razor Page |
 | `GET` | `/scalar` | None | HTML | Scalar OpenAPI UI |
 

@@ -42,7 +42,6 @@ docker-compose.yml                 # Azurite on ports 10000-10002
 │   │   ├── BrowserLlm/            # BrowserLLMDirectorService (Transformers.js callback)
 │   │   ├── FFmpeg/                # FFmpegRenderService (bounded Channel<RenderJob>)
 │   │   ├── Mock/                  # MockAiVisionService, MockDirectorService
-│   │   ├── Ollama/                # OllamaDirectorService (Gemma 4 via localhost:11434)
 │   │   ├── RuntimeAiSettings.cs   # Runtime-switchable AI provider selection
 │   │   └── SwitchingDirectorService.cs # Delegates to active IDirectorService implementation
 │   ├── PoMemeVideo.Shared/        # No dependencies — consumed by Domain, Application, Infrastructure, Client
@@ -63,7 +62,6 @@ docker-compose.yml                 # Azurite on ports 10000-10002
     │   ├── Ingestion/             # IngestVideoCommandTests
     │   ├── MemeLibrary/           # SemanticMatchingServiceTests
     │   ├── Processing/            # TokenBucketTimingServiceTests
-    │   ├── Rendering/             # RenderVideoCommandTests
     │   └── Auth/                  # UserIdentityTests
     ├── PoMemeVideo.IntegrationTests/ # xUnit + Testcontainers (Azurite)
     │   ├── Ingestion/             # IngestionEndpointsTests
@@ -76,7 +74,8 @@ docker-compose.yml                 # Azurite on ports 10000-10002
             ├── 03-ingestion.spec.ts
             ├── 04-memelibrary.spec.ts
             ├── 05-source-page.spec.ts  # US1 keyframe strip + drop zone
-            └── 06-engine-page.spec.ts  # US2 Engine page + SignalR feeds
+            ├── 06-engine-page.spec.ts  # US2 Engine page + SignalR feeds
+            └── 07-ui-contracts.spec.ts # Landmark, navigation, and maintenance flow contracts
 ```
 
 ## Architecture Pattern
@@ -120,7 +119,7 @@ Browser: POST /api/processing/sessions/{id}/initiate → 202 Accepted
     → IAiVisionService (Azure OpenAI GPT-4o / Mock) → timestamped labels
     → SemanticMatchingService (SIMD cosine) → top-3 candidates per label
     → TokenBucketTimingService → PlacementType decision per entry
-    → IDirectorService (Ollama/AzureOpenAI/Mock) → DirectorScript with rationale
+    → IDirectorService (BrowserLLM/AzureOpenAI/Mock) → DirectorScript with rationale
     → IEngineNotifier → SignalR EngineHub → client feeds
     → RenderVideoCommand → FFmpegRenderService → output.mp4 in Blob
     → IEngineNotifier.CompleteAsync → ProcessingComplete → client navigates to /reveal
@@ -145,7 +144,6 @@ Browser /reveal/{id}:
 | Azurite Blob | 10000 |
 | Azurite Queue | 10001 |
 | Azurite Table | 10002 |
-| Ollama (Gemma 4) | 11434 |
 
 ## Patterns Reference
 
@@ -154,7 +152,7 @@ Browser /reveal/{id}:
 | GoF: Repository | `*TableRepository.cs` — all Azure Table Storage adapters |
 | GoF: Command | `IngestVideoCommand`, `RunEngineCommand`, `RenderVideoCommand` |
 | GoF: Observer | `EngineHubClient.cs` — SignalR event streams |
-| GoF: Adapter | `AzureOpenAiVisionService`, `OllamaDirectorService` |
+| GoF: Adapter | `AzureOpenAiVisionService`, `BrowserLLMDirectorService` |
 | GoF: Strategy | `TokenBucketTimingService` — timing algorithm |
 | GoF: Template Method | `FFmpegRenderService` — filter_complex construction |
 | SOLID: SRP | Each command, service, and repository owns one responsibility |
@@ -174,7 +172,7 @@ See `key-decisions.md` for full rationale.
 | Component | Choice |
 |-----------|--------|
 | AI trigger detection | Azure OpenAI GPT-4o Vision (FR-007) |
-| Director improvisation | Gemma 4 via Ollama (Hybrid Connection) |
+| Director improvisation | BrowserLLM or Azure OpenAI selected at runtime |
 | Sound matching | `System.Numerics.Tensors` SIMD cosine similarity |
 | Audio/video render | FFmpeg in Docker (baked into image) |
 | Real-time streaming | SignalR `EngineHub` |

@@ -23,8 +23,8 @@ test.describe('US1 – Source page structure', () => {
     const bodyBg = await page.evaluate(() =>
       window.getComputedStyle(document.body).backgroundColor
     );
-    // Background must be black or very close to it
-    expect(bodyBg).toMatch(/rgb\(0,\s*0,\s*0\)|#000/i);
+    // Allow transparent body color when layered gradients are applied via html/body.
+    expect(bodyBg).toMatch(/rgba\(0,\s*0,\s*0,\s*0\)|rgb\(0,\s*0,\s*0\)|#000/i);
   });
 
   test('Source page contains the ASCII drop zone', async () => {
@@ -156,12 +156,10 @@ test.describe('US1 – Source page UI interactions', () => {
     await expect(dropZone).toContainText('╔');
   });
 
-  test('CLEAR ALL DATA button is visible on Source page', async ({ page }) => {
+  test('CLEAR ALL DATA button is not shown on Source page', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
-    await page.getByText('[ SHOW ADVANCED CONTROLS ]').click();
     const clearBtn = page.locator('button.clear-btn');
-    await expect(clearBtn).toBeVisible();
-    await expect(clearBtn).toContainText('CLEAR ALL DATA');
+    await expect(clearBtn).toHaveCount(0);
   });
 
   test('NavBar is rendered with retro ASCII styling', async ({ page }) => {
@@ -172,11 +170,17 @@ test.describe('US1 – Source page UI interactions', () => {
     await expect(nav).toContainText('PoMemeVideo');
   });
 
-  test('NavBar contains Links to all three wizard pages', async ({ page }) => {
+  test('NavBar contains create, sounds, and history links', async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
-    await expect(page.locator('nav')).toContainText('SOURCE');
-    await expect(page.locator('nav')).toContainText('LIBRARY');
-    await expect(page.locator('nav')).toContainText('RESULTS');
+    await expect(page.locator('nav')).toContainText('CREATE');
+    await expect(page.locator('nav')).toContainText('SOUNDS');
+    await expect(page.locator('nav')).toContainText('HISTORY');
+  });
+
+  test('Source page links to Sound Admin maintenance zone', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' });
+    const adminLink = page.getByRole('button', { name: 'Sound Admin' });
+    await expect(adminLink).toBeVisible();
   });
 
   test('NavBar shows GUEST when not logged in', async ({ page }) => {
