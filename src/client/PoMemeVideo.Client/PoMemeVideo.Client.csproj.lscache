@@ -315,20 +315,15 @@ Components/
  NavBar.razor
  ScanlineOverlay.razor
  SystemAuditBox.razor
-Layout/
- MainLayout.razor
- NavMenu.razor
+Layout/MainLayout.razor
 Pages/
- Counter.razor
  Engine.razor
- Home.razor
  Login.razor
  MemeLibrary.razor
  NotFound.razor
  Results.razor
  Reveal.razor
  Source.razor
- Weather.razor
 _Imports.razor
 
 [dynamicFiles]
@@ -344,18 +339,13 @@ Components/
  NavBar.razor
  ScanlineOverlay.razor
  SystemAuditBox.razor
-Layout/
- MainLayout.razor
- NavMenu.razor
+Layout/MainLayout.razor
 Pages/
- Counter.razor
  Engine.razor
- Home.razor
  Login.razor
  MemeLibrary.razor
  NotFound.razor
  Results.razor
  Reveal.razor
  Source.razor
- Weather.razor
 _Imports.razor

@@ -66,7 +66,6 @@ AzureStorage/
  UserIdentityTableRepository.cs
  VideoSessionTableRepository.cs
 BrowserLlm/BrowserLLMDirectorService.cs
-Class1.cs
 FFmpeg/FFmpegRenderService.cs
 Mock/
  MockAiVisionService.cs

@@ -55,17 +55,25 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 /warnaserror+:NU1605,SYSLIB0011
 
 [sourceFiles]
+Configuration/
+ EndpointMappingExtensions.cs
+ ServiceRegistrationExtensions.cs
+ StartupConfigurationExtensions.cs
 Endpoints/HealthEndpoint.cs
 Features/Admin/
  AdminEndpoints.cs
  SeedSoundsCommand.cs
+Features/Auth/
+ AuthEndpoints.cs
+ UserIdentityResolution.cs
 Features/
- Auth/AuthEndpoints.cs
  Config/ConfigEndpoints.cs
  Ingestion/IngestionEndpoints.cs
  MemeLibrary/MemeLibraryEndpoints.cs
  Output/OutputEndpoints.cs
- Processing/ProcessingEndpoints.cs
+ Processing/
+  EngineRunDispatcher.cs
+  ProcessingEndpoints.cs
 Hubs/EngineHub.cs
 obj/Debug/net10.0/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
@@ -393,12 +401,12 @@ Program.cs
  WindowsBase.dll
 <NUGET>/
  azure.ai.openai/2.1.0/lib/netstandard2.0/Azure.AI.OpenAI.dll
- azure.core/1.53.0/lib/net10.0/Azure.Core.dll
+ azure.core/1.54.0/lib/net10.0/Azure.Core.dll
  azure.data.tables/12.10.0/lib/net8.0/Azure.Data.Tables.dll
- azure.extensions.aspnetcore.configuration.secrets/1.3.2/lib/netstandard2.0/Azure.Extensions.AspNetCore.Configuration.Secrets.dll
+ azure.extensions.aspnetcore.configuration.secrets/1.5.1/lib/net10.0/Azure.Extensions.AspNetCore.Configuration.Secrets.dll
  azure.identity/1.21.0/lib/net10.0/Azure.Identity.dll
  azure.security.keyvault.certificates/4.6.0/lib/netstandard2.0/Azure.Security.KeyVault.Certificates.dll
- azure.security.keyvault.secrets/4.6.0/lib/netstandard2.0/Azure.Security.KeyVault.Secrets.dll
+ azure.security.keyvault.secrets/4.10.0/lib/net10.0/Azure.Security.KeyVault.Secrets.dll
  azure.storage.blobs/12.25.0/lib/net8.0/Azure.Storage.Blobs.dll
  azure.storage.common/12.24.0/lib/net8.0/Azure.Storage.Common.dll
  microsoft.applicationinsights.aspnetcore/2.23.0/lib/netstandard2.0/Microsoft.ApplicationInsights.AspNetCore.dll
@@ -418,7 +426,7 @@ Program.cs
  microsoft.aspnetcore.signalr.client/10.0.7/lib/net10.0/Microsoft.AspNetCore.SignalR.Client.dll
  microsoft.bcl.asyncinterfaces/10.0.3/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll
  microsoft.dotnet.hotreload.webassembly.browser/10.0.203/lib/net10.0/Microsoft.DotNet.HotReload.WebAssembly.Browser.dll
- microsoft.extensions.dependencymodel/9.0.0/lib/net9.0/Microsoft.Extensions.DependencyModel.dll
+ microsoft.extensions.dependencymodel/10.0.0/lib/net10.0/Microsoft.Extensions.DependencyModel.dll
  microsoft.extensions.logging.applicationinsights/2.23.0/lib/netstandard2.0/Microsoft.Extensions.Logging.ApplicationInsights.dll
  microsoft.identity.abstractions/12.0.0/lib/net10.0/Microsoft.Identity.Abstractions.dll
  microsoft.identity.client.extensions.msal/4.83.1/lib/net8.0/Microsoft.Identity.Client.Extensions.Msal.dll
@@ -449,19 +457,19 @@ Program.cs
  opentelemetry.instrumentation.aspnetcore/1.15.2/lib/net10.0/OpenTelemetry.Instrumentation.AspNetCore.dll
  opentelemetry.instrumentation.http/1.15.1/lib/net10.0/OpenTelemetry.Instrumentation.Http.dll
  opentelemetry/1.15.3/lib/net10.0/OpenTelemetry.dll
- scalar.aspnetcore/2.5.0/lib/net9.0/Scalar.AspNetCore.dll
- serilog.aspnetcore/9.0.0/lib/net9.0/Serilog.AspNetCore.dll
+ scalar.aspnetcore/2.14.11/lib/net10.0/Scalar.AspNetCore.dll
+ serilog.aspnetcore/10.0.0/lib/net10.0/Serilog.AspNetCore.dll
  serilog.enrichers.environment/3.0.1/lib/net8.0/Serilog.Enrichers.Environment.dll
  serilog.enrichers.thread/4.0.0/lib/net8.0/Serilog.Enrichers.Thread.dll
- serilog.extensions.hosting/9.0.0/lib/net9.0/Serilog.Extensions.Hosting.dll
- serilog.extensions.logging/9.0.0/lib/net9.0/Serilog.Extensions.Logging.dll
+ serilog.extensions.hosting/10.0.0/lib/net10.0/Serilog.Extensions.Hosting.dll
+ serilog.extensions.logging/10.0.0/lib/net10.0/Serilog.Extensions.Logging.dll
  serilog.formatting.compact/3.0.0/lib/net8.0/Serilog.Formatting.Compact.dll
- serilog.settings.configuration/9.0.0/lib/net9.0/Serilog.Settings.Configuration.dll
- serilog.sinks.applicationinsights/4.0.0/lib/net6.0/Serilog.Sinks.ApplicationInsights.dll
- serilog.sinks.console/6.0.0/lib/net8.0/Serilog.Sinks.Console.dll
+ serilog.settings.configuration/10.0.0/lib/net10.0/Serilog.Settings.Configuration.dll
+ serilog.sinks.applicationinsights/5.0.1/lib/net6.0/Serilog.Sinks.ApplicationInsights.dll
+ serilog.sinks.console/6.1.1/lib/net8.0/Serilog.Sinks.Console.dll
  serilog.sinks.debug/3.0.0/lib/net8.0/Serilog.Sinks.Debug.dll
- serilog.sinks.file/6.0.0/lib/net8.0/Serilog.Sinks.File.dll
- serilog/4.2.0/lib/net9.0/Serilog.dll
+ serilog.sinks.file/7.0.0/lib/net9.0/Serilog.Sinks.File.dll
+ serilog/4.3.1/lib/net10.0/Serilog.dll
  system.clientmodel/1.10.0/lib/net10.0/System.ClientModel.dll
  system.configuration.configurationmanager/6.0.0/lib/net6.0/System.Configuration.ConfigurationManager.dll
  system.diagnostics.performancecounter/6.0.0/lib/net6.0/System.Diagnostics.PerformanceCounter.dll
