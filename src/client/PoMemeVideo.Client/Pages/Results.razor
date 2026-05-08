@@ -4,18 +4,23 @@
 @using PoMemeVideo.Shared.Models
 @using PoMemeVideo.Shared.Enums
 
-<PageTitle>PoMemeVideo — Results</PageTitle>
+<PageTitle>PoMemeVideo — History</PageTitle>
 
 <div class="results-page">
-    <pre class="page-header">
-╔═══════════════════════════════════════════════════════╗
-║  PoMemeVideo // COMPLETED VIDEOS                      ║
-║  [ ALL SESSIONS WITH MEME SOUNDS APPLIED ]            ║
-╚═══════════════════════════════════════════════════════╝</pre>
+
+    <div class="page-hero">
+        <h1 class="hero-title">Video History</h1>
+        <p class="hero-sub">Your completed meme videos — open to review, or download directly</p>
+    </div>
+
+    <div class="results-top-actions">
+        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>+ New Video</button>
+        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/admin/sounds")'>Sound Library</button>
+    </div>
 
     @if (_loading)
     {
-        <pre class="status">[ LOADING RESULTS... ]</pre>
+        <pre class="status">[ Loading… ]</pre>
     }
     else if (_error is not null)
     {
@@ -23,78 +28,60 @@
     }
     else if (_sessions.Count == 0)
     {
-        <pre class="status">[ NO COMPLETED VIDEOS YET — PROCESS ONE FROM SOURCE ]</pre>
-        <div style="text-align:center; margin-top:1rem;">
-            <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>[ GO TO SOURCE ]</button>
+        <div class="empty-state ascii-border-double reveal-in">
+            <pre class="status">[ No completed videos yet ]</pre>
+            <p class="result-meta" style="font-family: var(--font-ui); font-size:0.82rem; padding: 0.25rem 0;">Your renders will appear here once processing completes.</p>
+            <div class="empty-actions">
+                <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>Create a Video</button>
+            </div>
         </div>
     }
     else
     {
-        <pre class="status">[ @_sessions.Count COMPLETED VIDEO(S) ]</pre>
+        <pre class="status">[ @_sessions.Count completed video(s) ]</pre>
 
-        <div class="results-grid">
+        <div class="history-grid">
             @foreach (var session in _sessions)
             {
-                <div class="result-card ascii-border-double">
-                    <pre class="result-id">◆ SESSION : @session.SessionId</pre>
-                    <pre class="result-meta">  COMPLETED : @(session.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "—")</pre>
-                    <pre class="result-meta">  DURATION  : @(session.VideoDurationSeconds.ToString("F1"))s</pre>
-                    <pre class="result-meta">  AGGRESSIVE: @(session.AggressiveVisuals ? "YES" : "NO")</pre>
+                <div class="history-card reveal-in">
+                    <p class="history-card-title">Completed @(session.CompletedAt?.ToLocalTime().ToString("ddd, MMM d yyyy  HH:mm") ?? "—")</p>
+                    <p class="history-card-id">@session.SessionId</p>
+
+                    <div class="history-card-meta">
+                        <span class="history-meta-item">Duration: <span>@(session.VideoDurationSeconds.ToString("F1"))s</span></span>
+                        <span class="history-meta-item">Aggressive: <span>@(session.AggressiveVisuals ? "Yes" : "No")</span></span>
+                    </div>
 
                     @if (!string.IsNullOrEmpty(session.OutputBlobPath))
                     {
-                        <div class="result-actions">
-                            <button class="ascii-btn" @onclick="() => DownloadVideo(session.SessionId)">[ ⬇ DOWNLOAD ]</button>
-                            <button class="ascii-btn" @onclick="() => ToggleQuickReveal(session)">
-                                @(_expandedSessionId == session.SessionId ? "[ HIDE QUICK REVEAL ]" : "[ QUICK REVEAL ]")
-                            </button>
-                            @if (_pendingDeleteSessionId == session.SessionId)
-                            {
-                                <button class="ascii-btn wipe-btn" @onclick="() => DeleteSession(session)">[ CONFIRM WIPE ]</button>
-                                <button class="ascii-btn" @onclick="CancelDelete">[ CANCEL ]</button>
-                            }
-                            else
-                            {
-                                <button class="ascii-btn wipe-btn" @onclick="() => RequestDelete(session.SessionId)">[ WIPE ]</button>
-                            }
+                        <div class="history-card-actions">
+                            <button class="ascii-btn action-primary" @onclick='() => Nav.NavigateTo($"/reveal/{session.SessionId}")'>Open &amp; Review</button>
+                            <button class="ascii-btn action-secondary" @onclick="() => DownloadVideo(session.SessionId)">⬇ Download</button>
                         </div>
 
-                        @if (_expandedSessionId == session.SessionId)
-                        {
-                            <div class="result-preview">
-                                <video controls preload="metadata" style="width:100%; max-height:240px; background:#000;">
+                            <div class="history-card-preview">
+                                <video muted preload="metadata" loop
+                                       onmouseenter="this.play()" onmouseleave="this.pause(); this.currentTime=0;">
                                     <source src="/api/output/sessions/@session.SessionId/stream/video" type="video/mp4" />
                                 </video>
                             </div>
 
-                            <div class="quick-script ascii-border-double">
-                                <pre class="quick-script-title">[ SCRIPT SUMMARY ]</pre>
-                                @if (_loadingScriptSessionId == session.SessionId)
-                                {
-                                    <pre class="result-meta">Loading script...</pre>
-                                }
-                                else if (_scriptCache.TryGetValue(session.SessionId, out var script) && script is not null && script.Entries.Count > 0)
-                                {
-                                    @foreach (var entry in script.Entries.Take(5))
-                                    {
-                                        <pre class="result-meta">@((entry.TimestampMs / 1000.0).ToString("F1"))s | @(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</pre>
-                                    }
-
-                                    @if (script.Entries.Count > 5)
-                                    {
-                                        <pre class="result-meta">... +@(script.Entries.Count - 5) more entries</pre>
-                                    }
-                                }
-                                else
-                                {
-                                    <pre class="result-meta">Script unavailable.</pre>
-                                }
-                            </div>
-                        }
+                        <div class="history-card-danger">
+                            @if (_pendingDeleteSessionId == session.SessionId)
+                            {
+                                <pre class="clear-warning" style="font-size:0.72rem;">⚠ This will permanently delete the video and script.</pre>
+                                <button class="ascii-btn wipe-btn compact-btn" @onclick="() => DeleteSession(session)">[ Confirm Delete ]</button>
+                                <button class="ascii-btn compact-btn" @onclick="CancelDelete">Cancel</button>
+                            }
+                            else
+                            {
+                                <button class="ascii-btn wipe-btn compact-btn" @onclick="() => RequestDelete(session.SessionId)">Delete</button>
+                            }
+                        </div>
                     }
                     else
                     {
-                        <pre style="color:#FF4141;">  OUTPUT NOT AVAILABLE</pre>
+                        <pre class="page-error">  OUTPUT NOT AVAILABLE</pre>
                     }
                 </div>
             }
@@ -192,17 +179,3 @@
         }
     }
 }
-
-<style>
-    .results-page { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-    .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
-    .result-card { padding: 0.75rem; background: #0a0a0a; }
-    .result-id { color: #00FF41; font-size: 0.75rem; margin: 0 0 0.25rem; word-break: break-all; }
-    .result-meta { color: #aaffaa; font-size: 0.75rem; margin: 0; }
-    .result-preview { margin: 0.75rem 0; }
-    .result-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
-    .quick-script { margin-top: 0.75rem; padding: 0.5rem; }
-    .quick-script-title { color: #00FF41; font-size: 0.75rem; margin: 0 0 0.4rem; }
-    .wipe-btn { color: #FF4141; border-color: #FF4141; }
-    .wipe-btn:hover { background: #FF4141; color: #000; }
-</style>

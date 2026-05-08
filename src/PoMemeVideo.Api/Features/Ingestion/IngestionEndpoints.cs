@@ -1,8 +1,8 @@
 using PoMemeVideo.Application.Ingestion;
+using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Shared.Models;
-using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -12,8 +12,10 @@ public static class IngestionEndpoints
 {
     public static IEndpointRouteBuilder MapIngestionEndpoints(this IEndpointRouteBuilder app)
     {
+        var group = app.MapGroup("/api/ingestion").RequireAuthorization();
+
         // POST /api/ingestion/sas — generate SAS token for direct browser-to-Blob upload
-        app.MapPost("/api/ingestion/sas", async (
+        group.MapPost("/sas", async (
             SasRequest request,
             IngestVideoCommand command,
             BlobServiceClientFactory blobFactory,
@@ -60,11 +62,10 @@ public static class IngestionEndpoints
         .WithName("GenerateSasToken")
         .WithTags("Ingestion")
         .Produces<object>(200)
-        .Produces<object>(400)
-        .AllowAnonymous();
+        .Produces<object>(400);
 
         // POST /api/ingestion/sessions — confirm upload complete, finalise session metadata
-        app.MapPost("/api/ingestion/sessions", async (
+        group.MapPost("/sessions", async (
             SessionConfirmRequest request,
             IVideoSessionRepository repository,
             HttpContext httpContext,
@@ -81,15 +82,13 @@ public static class IngestionEndpoints
             session.VideoDurationSeconds = request.VideoDurationSeconds;
             session.AggressiveVisuals = request.AggressiveVisuals;
 
-            // Persist the updated session by recreating (replace) or use UpdateStatus
-            await repository.UpdateStatusAsync(session.SessionId, userId, session.Status, cancellationToken: ct);
-
-            // Persist duration/aggressive flag via a full update through the table entity
-            // (UpdateStatusAsync only updates status; for other fields we recreate the entity via the infrastructure layer)
-            // Since the full update path isn't exposed by the interface, we persist via a workaround:
-            // delete + recreate is safe here — session is still in Ingesting status
-            await repository.DeleteAsync(session.SessionId, userId, ct);
-            await repository.CreateAsync(session, ct);
+            await repository.UpdateMetadataAsync(
+                session.SessionId,
+                userId,
+                session.SourceBlobPath,
+                session.VideoDurationSeconds,
+                session.AggressiveVisuals,
+                ct);
 
             return Results.Created(
                 $"/api/ingestion/sessions/{session.SessionId}",
@@ -98,11 +97,38 @@ public static class IngestionEndpoints
         .WithName("ConfirmUpload")
         .WithTags("Ingestion")
         .Produces<object>(201)
-        .Produces<object>(404)
-        .AllowAnonymous();
+        .Produces<object>(404);
+
+        group.MapPut("/sessions/{sessionId:guid}/options", async (
+            Guid sessionId,
+            SessionOptionsRequest request,
+            IVideoSessionRepository repository,
+            HttpContext httpContext,
+            CancellationToken ct) =>
+        {
+            var userId = ResolveUserId(httpContext);
+
+            var session = await repository.GetByIdAsync(sessionId, userId, ct);
+            if (session is null)
+                return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
+
+            await repository.UpdateMetadataAsync(
+                sessionId,
+                userId,
+                session.SourceBlobPath,
+                session.VideoDurationSeconds,
+                request.AggressiveVisuals,
+                ct);
+
+            return Results.Ok(new { sessionId, aggressiveVisuals = request.AggressiveVisuals });
+        })
+        .WithName("UpdateSessionOptions")
+        .WithTags("Ingestion")
+        .Produces<object>(200)
+        .Produces<object>(404);
 
         // POST /api/ingestion/sessions/{sessionId}/frames — upload raw keyframe images for AI vision
-        app.MapPost("/api/ingestion/sessions/{sessionId:guid}/frames", async (
+        group.MapPost("/sessions/{sessionId:guid}/frames", async (
             Guid sessionId,
             FrameUploadRequest request,
             IVideoSessionRepository sessionRepository,
@@ -135,10 +161,17 @@ public static class IngestionEndpoints
 
             // Run vision analysis immediately so labels are ready before INITIATE
             var visionLabels = Array.Empty<(double TimestampSeconds, string Label)>();
+            var analysisAttempted = false;
+            string? analysisError = null;
             if (base64Images.Count > 0)
             {
+                analysisAttempted = true;
                 try { visionLabels = await vision.AnalyseAsync([.. base64Images], ct); }
-                catch { /* vision unavailable — engine will fall back to time-based placement */ }
+                catch (Exception ex)
+                {
+                    analysisError = ex.GetType().Name;
+                    // Vision unavailable — engine will fall back to time-based placement.
+                }
             }
 
             // Persist labels as a JSON blob so the engine can read them without re-calling the AI
@@ -152,16 +185,24 @@ public static class IngestionEndpoints
                 sessionId,
                 framesStored = base64Images.Count,
                 visionLabels = visionLabels.Select(v => new { timestampSeconds = v.TimestampSeconds, label = v.Label }).ToArray(),
+                visionDiagnostics = new
+                {
+                    framesReceived = request.Frames.Count,
+                    framesStored = base64Images.Count,
+                    analysisAttempted,
+                    analysisError,
+                    labelsDetected = visionLabels.Length,
+                    placementMode = visionLabels.Length > 0 ? "semantic-triggers" : "time-based-fallback",
+                },
             });
         })
         .WithName("UploadFrames")
         .WithTags("Ingestion")
         .Produces<object>(200)
-        .Produces<object>(404)
-        .AllowAnonymous();
+        .Produces<object>(404);
 
         // GET /api/ingestion/sessions/{sessionId} — retrieve session status
-        app.MapGet("/api/ingestion/sessions/{sessionId:guid}", async (
+        group.MapGet("/sessions/{sessionId:guid}", async (
             Guid sessionId,
             IVideoSessionRepository repository,
             HttpContext httpContext,
@@ -192,8 +233,7 @@ public static class IngestionEndpoints
         .WithName("GetSession")
         .WithTags("Ingestion")
         .Produces<VideoSessionDto>(200)
-        .Produces<object>(404)
-        .AllowAnonymous();
+        .Produces<object>(404);
 
         return app;
     }
@@ -204,10 +244,8 @@ public static class IngestionEndpoints
     /// </summary>
     private static Guid ResolveUserId(HttpContext httpContext)
     {
-        var claim = httpContext.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (claim is not null && Guid.TryParse(claim, out var id))
-            return id;
-        return Guid.Empty; // dev fallback — replaced by proper auth in Phase 7
+        return UserIdentityResolution.TryGetUserId(httpContext)
+            ?? throw new InvalidOperationException("Authenticated user id claim is missing.");
     }
 }
 
@@ -218,6 +256,8 @@ public sealed record SessionConfirmRequest(
     string BlobPath,
     double VideoDurationSeconds,
     bool AggressiveVisuals);
+
+public sealed record SessionOptionsRequest(bool AggressiveVisuals);
 
 public sealed record FrameUploadRequest(
     [property: JsonPropertyName("frames")] IReadOnlyList<string> Frames);

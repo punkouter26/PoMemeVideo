@@ -2,6 +2,7 @@ using Azure.Core;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using PoMemeVideo.Shared;
 using Serilog;
 using Serilog.Events;
 
@@ -12,14 +13,14 @@ internal static class StartupConfigurationExtensions
     public static void ConfigurePoMemeVideoConfiguration(this WebApplicationBuilder builder)
     {
         var kvUri = builder.Configuration["KeyVault:Uri"]
-                    ?? "https://kv-poshared.vault.azure.net/";
+                    ?? PoMemeVideoNaming.FallbackSharedKeyVaultUri;
         TokenCredential credential = builder.Environment.IsDevelopment()
             ? new AzureCliCredential()
             : new DefaultAzureCredential();
 
         builder.Configuration.AddAzureKeyVault(
             new SecretClient(new Uri(kvUri), credential),
-            new PrefixKeyVaultSecretManager("PoMemeVideo"));
+            new PrefixKeyVaultSecretManager(PoMemeVideoNaming.SecretPrefix));
 
         if (!builder.Environment.IsDevelopment())
             return;
@@ -48,10 +49,10 @@ internal static class StartupConfigurationExtensions
                 .Enrich.FromLogContext()
                 .Enrich.WithEnvironmentName()
                 .Enrich.WithThreadId()
-                .Enrich.WithProperty("Application", "PoMemeVideo")
+                .Enrich.WithProperty("Application", PoMemeVideoNaming.ApplicationName)
                 .WriteTo.Console()
                 .WriteTo.File(
-                    path: "logs/pomemevideo-.log",
+                    path: $"logs/{PoMemeVideoNaming.ApplicationSlug}-.log",
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 30);
 

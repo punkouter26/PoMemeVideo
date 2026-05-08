@@ -5,29 +5,28 @@
 @using PoMemeVideo.Shared.Models
 @implements IAsyncDisposable
 
-<PageTitle>PoMemeVideo - Reveal</PageTitle>
+<PageTitle>PoMemeVideo — Review</PageTitle>
 
 <div class="reveal-page">
     <MockDataBanner />
 
-    <pre class="page-header">
-╔═══════════════════════════════════════════════════════╗
-║  PoMemeVideo // REVEAL                                ║
-║  SESSION: @SessionId                                  ║
-╚═══════════════════════════════════════════════════════╝</pre>
+    <div class="page-hero">
+        <h1 class="hero-title">Review Your Video</h1>
+        <p class="hero-sub">Session: @SessionId</p>
+    </div>
 
     @if (_loading)
     {
-        <pre style="text-align: center; margin-top: 2rem;">[ INITIALIZING REVEAL... ]</pre>
+        <pre style="text-align: center; margin-top: 2rem;">[ Loading… ]</pre>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
-        <pre class="error-box">[ REVEAL ERROR ] @_error</pre>
+        <pre class="error-box">[ ERROR ] @_error</pre>
     }
     else if (_session is not null)
     {
         <div class="reveal-grid">
-            <!-- Video Player wrapped in CRT frame -->
+            <!-- Video Player -->
             <div class="video-panel">
                 @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
                 {
@@ -49,7 +48,10 @@
 
                         @if (_videoLoadFailed)
                         {
-                            <pre class="video-fallback-box">[ PLAYER FALLBACK ] Inline playback failed in this browser. Use DOWNLOAD VIDEO or open the direct stream: /api/output/sessions/@SessionId/stream/video</pre>
+                            <div class="video-fallback-box">
+                                <pre>[ PLAYER FALLBACK ] Inline playback failed in this browser.</pre>
+                                <a class="ascii-btn" href="/api/output/sessions/@SessionId/stream/video" target="_blank" rel="noopener noreferrer">[ OPEN DIRECT STREAM ]</a>
+                            </div>
                         }
                     </div>
                 }
@@ -61,7 +63,8 @@
 
             <!-- Director Script Panel -->
             <div class="script-panel-reveal ascii-border-double">
-                <pre class="panel-header">[ DIRECTOR'S SCRIPT ]</pre>
+                <pre class="panel-header">[ AI DIRECTOR'S SCRIPT ]</pre>
+                <p class="reveal-script-subtitle">What was added to your video and why</p>
                 @if (_script is not null && _script.Entries.Count > 0)
                 {
                     <div style="max-height: 420px; overflow-y: auto; padding: 0.5rem;">
@@ -70,7 +73,7 @@
                             <div style="border: 1px solid #00ff41; margin-bottom: 0.75rem; padding: 0.5rem; font-family: monospace; font-size: 0.75rem; line-height: 1.5;">
                                 <pre style="color:#00ff41; margin:0;">┌─ CUT @idx ── @((entry.TimestampMs / 1000.0).ToString("F1"))s ─────────────────────────┐</pre>
                                 <pre style="color:#aaffaa; margin:0; white-space:pre-wrap;">  SCENE   : @(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</pre>
-                                <pre style="color:#ffff00; margin:0;">  MEME    : @(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</pre>
+                                <pre style="color:#ffff00; margin:0;">  SOUND   : @(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</pre>
                                 <pre style="color:#ff9900; margin:0; white-space:pre-wrap;">  WHY     : @(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</pre>
                                 <pre style="color:#888; margin:0;">  EFFECT  : @(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</pre>
                                 <pre style="color:#00ff41; margin:0;">└──────────────────────────────────────────────────────────┘</pre>
@@ -82,28 +85,38 @@
                 {
                     <pre style="color: #888;">[ No script entries generated for this session ]</pre>
                 }
+                else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
+                {
+                    <pre style="color: #FFB347; white-space: pre-wrap">@_scriptStatusMessage</pre>
+                }
                 else
                 {
                     <pre style="color: #888;">[ Script unavailable ]</pre>
                 }
             </div>
 
-            <!-- Download & Wipe Buttons -->
+            <!-- Actions Panel -->
             <div class="controls-panel">
-                <button class="ascii-btn" @onclick="DownloadVideo">[ DOWNLOAD VIDEO ]</button>
-                <button class="ascii-btn" @onclick="DownloadScript">[ DOWNLOAD SCRIPT ]</button>
-                @if (_confirmWipe)
-                {
-                    <button class="ascii-btn wipe-btn" @onclick="WipeBuffer">[ CONFIRM WIPE ]</button>
-                    <button class="ascii-btn" @onclick='() => _confirmWipe = false'>[ CANCEL ]</button>
-                }
-                else
-                {
-                    <button class="ascii-btn wipe-btn" @onclick='() => _confirmWipe = true'>[ WIPE BUFFER ]</button>
-                }
+                <div class="reveal-actions-primary">
+                    <button class="ascii-btn download-btn" @onclick="DownloadVideo">⬇ Download Video</button>
+                    <button class="ascii-btn compact-btn" @onclick="DownloadScript">Download Script</button>
+                </div>
+                <div class="reveal-actions-secondary">
+                    @if (_confirmWipe)
+                    {
+                        <button class="ascii-btn wipe-btn" @onclick="WipeBuffer">[ CONFIRM DELETE ]</button>
+                        <button class="ascii-btn" @onclick='() => _confirmWipe = false'>[ CANCEL ]</button>
+                    }
+                    else
+                    {
+                        <button class="ascii-btn wipe-btn compact-btn" @onclick='() => _confirmWipe = true'>Delete Session</button>
+                    }
+                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>View History</button>
+                        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>+ Create Another</button>
+                </div>
                 @if (!string.IsNullOrWhiteSpace(_statusMessage))
                 {
-                    <pre style="font-size: 0.8rem; margin-top: 0.5rem;">@_statusMessage</pre>
+                    <pre style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--term-secondary);">@_statusMessage</pre>
                 }
             </div>
         </div>
@@ -123,6 +136,7 @@
     private VideoSessionDto? _session;
     private DirectorScriptDto? _script;
     private string _scriptJson = "";
+    private string? _scriptStatusMessage;
     private string? _statusMessage;
     private bool _videoLoadFailed;
     private bool _confirmWipe;
@@ -165,11 +179,14 @@
                         _scriptJson = System.Text.Json.JsonSerializer.Serialize(_script, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                     }
                 }
+                else
+                {
+                    _scriptStatusMessage = $"[ SCRIPT STATUS ] HTTP {(int)scriptResponse.StatusCode} while loading script.";
+                }
             }
             catch (Exception ex)
             {
-                // Script may not be available yet; that's okay
-                System.Diagnostics.Debug.WriteLine($"Script load error: {ex.Message}");
+                _scriptStatusMessage = $"[ SCRIPT STATUS ] {ex.Message}";
             }
         }
         catch (Exception ex)
@@ -246,6 +263,7 @@
     private void OnVideoError()
     {
         _videoLoadFailed = true;
+        _statusMessage = "Inline video playback failed. Try direct stream or download.";
     }
 
     private async Task<IJSObjectReference> EnsureRevealModuleAsync()

@@ -1,6 +1,6 @@
 // GoF: Command Pattern — initiates engine pipeline
 using Microsoft.AspNetCore.Mvc;
-using PoMemeVideo.Application.Processing;
+using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Shared.Enums;
 
@@ -10,19 +10,20 @@ public static class ProcessingEndpoints
 {
     public static IEndpointRouteBuilder MapProcessingEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/api/processing");
+        var group = routes.MapGroup("/api/processing").RequireAuthorization();
 
         group.MapPost("/sessions/{sessionId:guid}/initiate", async (
             Guid sessionId,
             [FromServices] IVideoSessionRepository sessions,
-            [FromServices] RunEngineCommand command,
+            [FromServices] IEngineRunDispatcher dispatcher,
             HttpContext ctx,
             CancellationToken cancellationToken) =>
         {
-            // For now, use a placeholder userId; real auth will populate this
-            var userId = Guid.Empty;
+            var userId = UserIdentityResolution.TryGetUserId(ctx);
+            if (userId is null)
+                return Results.Unauthorized();
 
-            var session = await sessions.GetByIdAsync(sessionId, userId, cancellationToken);
+            var session = await sessions.GetByIdAsync(sessionId, userId.Value, cancellationToken);
 
             if (session is null)
                 return Results.NotFound(new { error = $"Session {sessionId} not found." });
@@ -33,10 +34,8 @@ public static class ProcessingEndpoints
                     error = $"Session {sessionId} is not in Ingesting state (current: {session.Status})."
                 });
 
-            // Fire and forget — client receives real-time updates via SignalR
-            _ = Task.Run(
-                () => command.ExecuteAsync(sessionId, userId, CancellationToken.None),
-                CancellationToken.None);
+            if (!dispatcher.TryQueue(sessionId, userId.Value))
+                return Results.Conflict(new { error = $"Session {sessionId} is already queued or running." });
 
             return Results.Accepted($"/api/processing/sessions/{sessionId}", new
             {

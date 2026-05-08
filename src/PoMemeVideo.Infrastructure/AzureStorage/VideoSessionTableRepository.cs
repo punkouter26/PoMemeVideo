@@ -70,6 +70,27 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         return results;
     }
 
+    public async Task UpdateMetadataAsync(
+        Guid sessionId,
+        Guid userId,
+        string sourceBlobPath,
+        double videoDurationSeconds,
+        bool aggressiveVisuals,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _table.GetEntityAsync<VideoSessionTableEntity>(
+            partitionKey: userId.ToString(),
+            rowKey: sessionId.ToString(),
+            cancellationToken: cancellationToken);
+
+        var entity = response.Value;
+        entity.SourceBlobPath = sourceBlobPath;
+        entity.VideoDurationSeconds = videoDurationSeconds;
+        entity.AggressiveVisuals = aggressiveVisuals;
+
+        await _table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Merge, cancellationToken);
+    }
+
     public async Task UpdateStatusAsync(
         Guid sessionId,
         Guid userId,

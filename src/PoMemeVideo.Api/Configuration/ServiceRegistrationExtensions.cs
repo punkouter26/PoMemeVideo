@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Application.Ingestion;
 using PoMemeVideo.Application.MemeLibrary;
 using PoMemeVideo.Application.Processing;
@@ -56,6 +57,9 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddScoped<SemanticMatchingService>();
         builder.Services.AddScoped<RunEngineCommand>();
         builder.Services.AddScoped<RenderVideoCommand>();
+        builder.Services.AddSingleton<EngineRunDispatcher>();
+        builder.Services.AddSingleton<IEngineRunDispatcher>(sp => sp.GetRequiredService<EngineRunDispatcher>());
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<EngineRunDispatcher>());
         builder.Services.AddSingleton<FFmpegRenderService>();
         builder.Services.AddSingleton<IVideoRenderService>(sp => sp.GetRequiredService<FFmpegRenderService>());
 

@@ -1,8 +1,9 @@
-using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
+using PoMemeVideo.Api.Features.Auth;
+using PoMemeVideo.Domain.Interfaces;
+using PoMemeVideo.Shared;
 using PoMemeVideo.Shared.Models;
 using PoMemeVideo.Shared.Enums;
-using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -12,7 +13,7 @@ public static class OutputEndpoints
 {
     public static IEndpointRouteBuilder MapOutputEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/output");
+        var group = app.MapGroup("/api/output").RequireAuthorization();
 
         // GET /api/output/sessions/{id}/script — retrieve Director's Script from Table Storage
         group.MapGet("/sessions/{sessionId:guid}/script", async (
@@ -69,8 +70,7 @@ public static class OutputEndpoints
         .WithName("GetDirectorScript")
         .WithTags("Output")
         .Produces<DirectorScriptDto>(200)
-        .Produces<object>(404)
-        .AllowAnonymous();
+        .Produces<object>(404);
 
         // GET /api/output/sessions/{id}/download/video — stream output MP4
         group.MapGet("/sessions/{sessionId:guid}/download/video", async (
@@ -95,7 +95,7 @@ public static class OutputEndpoints
                 return Results.File(
                     stream,
                     contentType: "video/mp4",
-                    fileDownloadName: $"pomemevideo-{sessionId}.mp4",
+                    fileDownloadName: $"{PoMemeVideoNaming.ApplicationSlug}-{sessionId}.mp4",
                     enableRangeProcessing: true);
             }
             catch (Exception ex)
@@ -107,8 +107,7 @@ public static class OutputEndpoints
         .WithTags("Output")
         .Produces(200)
         .Produces<object>(404)
-        .Produces<object>(500)
-        .AllowAnonymous();
+        .Produces<object>(500);
 
         // GET /api/output/sessions/{id}/stream/video — inline stream for <video> element (no Content-Disposition: attachment)
         group.MapGet("/sessions/{sessionId:guid}/stream/video", async (
@@ -144,8 +143,7 @@ public static class OutputEndpoints
         .WithTags("Output")
         .Produces(200)
         .Produces<object>(404)
-        .Produces<object>(500)
-        .AllowAnonymous();
+        .Produces<object>(500);
 
         // GET /api/output/sessions/{id}/download/script — download Director's Script as JSON
         group.MapGet("/sessions/{sessionId:guid}/download/script", async (
@@ -182,8 +180,7 @@ public static class OutputEndpoints
         .WithName("DownloadDirectorScript")
         .WithTags("Output")
         .Produces(200)
-        .Produces<object>(404)
-        .AllowAnonymous();
+        .Produces<object>(404);
 
         // DELETE /api/output/sessions/{id} — Wipe Buffer: delete session and all associated blobs
         group.MapDelete("/sessions/{sessionId:guid}", async (
@@ -218,8 +215,7 @@ public static class OutputEndpoints
         .WithTags("Output")
         .Produces(204)
         .Produces<object>(404)
-        .Produces<object>(500)
-        .AllowAnonymous();
+        .Produces<object>(500);
 
         // GET /api/results — list all completed sessions for the current user
         group.MapGet("/results", async (
@@ -248,8 +244,7 @@ public static class OutputEndpoints
         })
         .WithName("ListResults")
         .WithTags("Output")
-        .Produces<List<VideoSessionDto>>(200)
-        .AllowAnonymous();
+        .Produces<List<VideoSessionDto>>(200);
 
         return app;
     }
@@ -260,9 +255,7 @@ public static class OutputEndpoints
     /// </summary>
     private static Guid ResolveUserId(HttpContext httpContext)
     {
-        var claim = httpContext.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (claim is not null && Guid.TryParse(claim, out var id))
-            return id;
-        return Guid.Empty; // dev fallback
+        return UserIdentityResolution.TryGetUserId(httpContext)
+            ?? throw new InvalidOperationException("Authenticated user id claim is missing.");
     }
 }

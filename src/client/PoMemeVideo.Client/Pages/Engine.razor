@@ -5,33 +5,53 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
-<PageTitle>PoMemeVideo — Engine</PageTitle>
+<PageTitle>PoMemeVideo — Processing</PageTitle>
 
 <div class="engine-page">
     <MockDataBanner />
 
-    <pre class="page-header">
-╔═══════════════════════════════════════════════════════╗
-║  PoMemeVideo // PROCESSING ENGINE                     ║
-║  SESSION: @SessionId                                  ║
-╚═══════════════════════════════════════════════════════╝</pre>
+    <div class="engine-hero">
+        <h1 class="engine-hero-title">Processing Your Video</h1>
+        <p class="engine-hero-session">Session: @SessionId</p>
+    </div>
 
     @if (_hubClient is not null)
     {
-        <div class="engine-controls">
-            <button class="ascii-btn" @onclick="ToggleAdvancedPanels">
-                @(_showAdvancedPanels ? "[ HIDE ADVANCED PANELS ]" : "[ SHOW ADVANCED PANELS ]")
-            </button>
+        <div class="engine-progress-strip">
+            <div class="engine-progress-step step-done">
+                <span class="step-dot"></span> Connected
+            </div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step step-done">
+                <span class="step-dot"></span> Video Ready
+            </div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step step-active">
+                <span class="step-dot"></span> AI Directing…
+            </div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step">
+                <span class="step-dot"></span> Rendering
+            </div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step">
+                <span class="step-dot"></span> Complete
+            </div>
         </div>
 
         <div class="engine-grid">
-            <!-- Left: Director's Script Feed -->
-            <div class="script-panel ascii-border-double">
+            <!-- Left: AI Director's Script — primary panel -->
+            <div class="script-panel ascii-border-double engine-script-panel">
+                <div class="engine-panel-title">
+                    <span>AI Director's Script</span>
+                    <span style="font-size:0.68rem; color:var(--term-muted); font-weight:normal;">sounds added and why — live</span>
+                </div>
                 <DirectorScriptFeed HubClient="_hubClient" />
             </div>
 
-            <!-- Right: Director's Log Feed -->
-            <div class="log-panel ascii-border-double">
+            <!-- Right: Processing Log -->
+            <div class="log-panel ascii-border-double engine-log-panel">
+                <div class="engine-panel-title">Processing Log</div>
                 <DirectorLogFeed HubClient="_hubClient" />
             </div>
 
@@ -46,11 +66,17 @@
                 </div>
             }
         </div>
+
+        <div style="margin-top: 0.75rem;">
+            <button class="ascii-btn compact-btn" @onclick="ToggleAdvancedPanels">
+                @(_showAdvancedPanels ? "[ Hide Technical Panels ]" : "[ Show Technical Panels ]")
+            </button>
+        </div>
     }
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <pre class="error-box">[ENGINE ERROR] @_errorMessage</pre>
+        <pre class="error-box">[PROCESSING ERROR] @_errorMessage</pre>
     }
 </div>
 

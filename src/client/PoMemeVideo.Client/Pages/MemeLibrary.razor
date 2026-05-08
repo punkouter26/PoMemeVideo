@@ -1,55 +1,79 @@
 @page "/library"
+@page "/admin/sounds"
 @inject HttpClient Http
+@inject NavigationManager Nav
+@implements IDisposable
 
-<PageTitle>PoMemeVideo — Library</PageTitle>
+<PageTitle>PoMemeVideo — Sound Admin</PageTitle>
 
-<div class="library-page">
-    <pre class="page-header">
-╔═══════════════════════════════════════════════════════╗
-║  PoMemeVideo // MEME SOUND LIBRARY                    ║
-║  [ BROWSE → PREVIEW → TAG ]                           ║
-╚═══════════════════════════════════════════════════════╝</pre>
+<div class="sound-admin-page">
 
-    <div class="library-controls-row">
-        <button class="ascii-btn compact-btn" @onclick='() => _showAdvancedFilters = !_showAdvancedFilters'>
-            @(_showAdvancedFilters ? "[ HIDE FILTERS ]" : "[ SHOW FILTERS ]")
-        </button>
+    <div class="page-hero">
+        <h1 class="hero-title">Sound Admin<span class="admin-page-badge">ADMIN</span></h1>
+        <p class="hero-sub">Browse, preview, and explore the full meme sound library</p>
     </div>
 
-    @if (_showAdvancedFilters)
-    {
+    <div class="library-controls-row ascii-border-double reveal-in">
         <div class="search-bar">
             <input class="ascii-input"
-                   placeholder="FILTER BY TAG (comma-separated)..."
-                   @bind="_tagFilter"
-                   @bind:event="oninput"
-                   @onkeyup="OnTagFilterChanged" />
-            <button class="ascii-btn" @onclick="LoadSounds">[ SEARCH ]</button>
+                   placeholder="Filter by tag (comma-separated)…"
+                   @bind="TagFilter"
+                   @bind:event="oninput" />
+            <button class="ascii-btn compact-btn" @onclick="LoadSounds" disabled="@_loading">Search</button>
+            <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">Clear</button>
         </div>
-    }
+
+        @if (ActiveTags.Count > 0)
+        {
+            <div class="active-tags" aria-label="Active filters">
+                @foreach (var tag in ActiveTags)
+                {
+                    <button class="sound-tag" @onclick="() => RemoveTag(tag)">#@tag ×</button>
+                }
+            </div>
+        }
+    </div>
 
     @if (_loading)
     {
-        <pre class="status">[ LOADING SOUND LIBRARY... ]</pre>
+        <pre class="status">[ Loading sounds… ]</pre>
     }
     else if (_sounds.Length == 0)
     {
-        <pre class="status">[ NO SOUNDS FOUND ]@(_tagFilter.Length > 0 ? $" — no matches for '{_tagFilter}'" : " — library is empty")</pre>
+        <div class="empty-state ascii-border-double reveal-in">
+            <pre class="status">[ No sounds found@(!string.IsNullOrWhiteSpace(_tagFilter) ? $" — no matches for '{_tagFilter}'" : " — library is empty") ]</pre>
+            <div class="empty-actions">
+                <button class="ascii-btn compact-btn" @onclick="ClearFilters">Reset Filters</button>
+                <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>Go to Create</button>
+            </div>
+        </div>
     }
     else
     {
-        <pre class="status">[ @_totalCount TOTAL — SHOWING @_sounds.Length ]</pre>
-        <div class="sound-grid">
+        <div class="admin-count-bar">
+            <pre class="status">[ @_totalCount sounds total — showing @_sounds.Length ]</pre>
+        </div>
+        <div class="sound-admin-grid">
             @foreach (var sound in _sounds)
             {
-                <div class="sound-card">
-                    <pre class="sound-name">◆ @sound.DisplayName</pre>
-                    <pre class="sound-meta">  DURATION : @((sound.DurationMs / 1000.0).ToString("F1"))s</pre>
+                <div class="sound-admin-card reveal-in">
+                    <p class="sound-admin-name">@sound.DisplayName</p>
+                    <div class="sound-admin-meta-grid">
+                        <span class="sound-meta-key">ID</span>
+                        <span class="sound-meta-val">@sound.SoundId.ToString()[..8]…</span>
+                        <span class="sound-meta-key">Duration</span>
+                        <span class="sound-meta-val">@((sound.DurationMs / 1000.0).ToString("F2"))s&nbsp;(@sound.DurationMs ms)</span>
+                    </div>
                     @if (sound.ActionVectorTags.Length > 0)
                     {
-                        <pre class="sound-tags">  TAGS     : @string.Join(", ", sound.ActionVectorTags)</pre>
+                        <div class="sound-tag-row">
+                            @foreach (var tag in sound.ActionVectorTags)
+                            {
+                                <button class="sound-tag" @onclick='() => { TagFilter = tag; }' title="Filter by #@tag">#@tag</button>
+                            }
+                        </div>
                     }
-                    <audio controls src="/api/memelibrary/sounds/@sound.SoundId/stream" class="audio-player" preload="metadata"></audio>
+                    <audio controls src="/api/memelibrary/sounds/@sound.SoundId/stream" class="sound-admin-player" preload="none"></audio>
                 </div>
             }
         </div>
@@ -61,64 +85,53 @@
     }
 </div>
 
-<style>
-.library-page {
-    background: #000;
-    color: #00FF41;
-    font-family: 'Courier New', monospace;
-    min-height: 100vh;
-    padding: 0.5rem;
-}
-.page-header { color: #00FF41; margin-bottom: 1rem; }
-.library-controls-row { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
-.search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-.compact-btn { font-size: 0.75rem; padding: 0.25rem 0.6rem; }
-.ascii-input {
-    background: #000;
-    color: #00FF41;
-    border: 1px solid #00FF41;
-    padding: 0.3rem 0.6rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    flex: 1;
-}
-.ascii-input::placeholder { color: #005500; }
-.ascii-btn {
-    background: #000;
-    color: #00FF41;
-    border: 1px solid #00FF41;
-    padding: 0.3rem 0.8rem;
-    font-family: 'Courier New', monospace;
-    cursor: pointer;
-}
-.ascii-btn:hover { background: #00FF41; color: #000; }
-.status { color: #007700; margin-bottom: 1rem; }
-.sound-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 0.75rem;
-}
-.sound-card {
-    border: 1px solid #00FF41;
-    padding: 0.5rem;
-}
-.sound-name { color: #00FF41; margin: 0; }
-.sound-meta, .sound-tags { color: #007700; margin: 0; font-size: 0.8rem; }
-.audio-player { width: 100%; margin-top: 0.5rem; filter: invert(1) hue-rotate(85deg); }
-.page-error { color: #FF4141; border: 1px solid #FF4141; padding: 0.5rem; margin-top: 1rem; }
-</style>
-
 @code {
     private SoundAssetDto[] _sounds = [];
     private int _totalCount;
     private bool _loading;
-    private bool _showAdvancedFilters;
     private string _tagFilter = string.Empty;
     private string? _errorMessage;
+    private CancellationTokenSource? _debounceCts;
+
+    private string TagFilter
+    {
+        get => _tagFilter;
+        set
+        {
+            if (string.Equals(_tagFilter, value, StringComparison.Ordinal))
+                return;
+
+            _tagFilter = value;
+            _ = DebouncedLoadAsync();
+        }
+    }
+
+    private List<string> ActiveTags => _tagFilter
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadSounds();
+    }
+
+    private async Task DebouncedLoadAsync()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+
+        var cts = new CancellationTokenSource();
+        _debounceCts = cts;
+
+        try
+        {
+            await Task.Delay(350, cts.Token);
+            await LoadSounds();
+        }
+        catch (TaskCanceledException)
+        {
+        }
     }
 
     private async Task LoadSounds()
@@ -141,6 +154,7 @@
         {
             _errorMessage = $"LOAD ERROR: {ex.Message}";
             _sounds = [];
+            _totalCount = 0;
         }
         finally
         {
@@ -149,10 +163,22 @@
         }
     }
 
-    private async Task OnTagFilterChanged(KeyboardEventArgs e)
+    private void RemoveTag(string tag)
     {
-        if (e.Key == "Enter")
-            await LoadSounds();
+        var updatedTags = ActiveTags
+            .Where(t => !string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
+        TagFilter = string.Join(", ", updatedTags);
+    }
+
+    private void ClearFilters()
+    {
+        TagFilter = string.Empty;
+    }
+
+    public void Dispose()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
     }
 
     private record SoundsResponse(int TotalCount, SoundAssetDto[] Sounds);

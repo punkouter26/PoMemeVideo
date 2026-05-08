@@ -28,7 +28,18 @@ internal static class EndpointMappingExtensions
 
         app.UseCors();
 
-        app.UseStaticFiles();
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                if (app.Environment.IsDevelopment()
+                    && ctx.Context.Request.Path.StartsWithSegments("/_framework"))
+                {
+                    ctx.Context.Response.Headers["Cache-Control"] = "no-store, no-cache";
+                    ctx.Context.Response.Headers["Pragma"] = "no-cache";
+                }
+            }
+        });
 
         var modelsRoot = ResolveModelsRoot(app.Environment.ContentRootPath);
         if (modelsRoot is not null)
@@ -54,6 +65,28 @@ internal static class EndpointMappingExtensions
             app.UseHttpsRedirection();
 
         app.UseAuthentication();
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.Use(async (context, next) =>
+            {
+                var path = context.Request.Path;
+                var excluded = path.StartsWithSegments("/auth")
+                    || path.StartsWithSegments("/health")
+                    || path.StartsWithSegments("/scalar")
+                    || path.StartsWithSegments("/openapi")
+                    || path.StartsWithSegments("/api/config")
+                    || path.StartsWithSegments("/models")
+                    || path.StartsWithSegments("/_framework")
+                    || Path.HasExtension(path);
+
+                if (!excluded)
+                    await UserIdentityResolution.EnsureDevelopmentAnonymousIdentityAsync(context);
+
+                await next();
+            });
+        }
+
         app.UseAuthorization();
 
         app.UseSerilogRequestLogging(options =>
@@ -62,6 +95,16 @@ internal static class EndpointMappingExtensions
             {
                 diagnosticContext.Set("UserId", httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous");
                 diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
+            };
+            // Demote high-frequency heartbeat polls so they don't drown the log
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                var path = httpContext.Request.Path.Value ?? "";
+                if (ex is null && (path == "/api/auth/me" || path.StartsWith("/api/config/ai-model")))
+                    return Serilog.Events.LogEventLevel.Debug;
+                return ex is not null
+                    ? Serilog.Events.LogEventLevel.Error
+                    : Serilog.Events.LogEventLevel.Information;
             };
         });
 

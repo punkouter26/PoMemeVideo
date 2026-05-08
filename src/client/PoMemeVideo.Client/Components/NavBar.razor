@@ -10,36 +10,38 @@
 @implements IDisposable
 
 <nav class="retro-navbar" role="navigation" aria-label="Site navigation">
-    <a class="brand flicker" href="/">PoMemeVideo</a>
+    <NavLink class="brand flicker" href="/" Match="NavLinkMatch.All">PoMemeVideo</NavLink>
 
     <div class="nav-links">
-        <a href="/">[ SOURCE ]</a>
-        <a href="/library">[ LIBRARY ]</a>
-        <a href="/results">[ RESULTS ]</a>
-        <a href="https://localhost:5001/scalar/" target="_blank" rel="noopener noreferrer">[ API ]</a>
+        <NavLink href="/" Match="NavLinkMatch.All">[ CREATE ]</NavLink>
+        <NavLink href="/admin/sounds">[ SOUNDS ]</NavLink>
+        <NavLink href="/results">[ HISTORY ]</NavLink>
+        <a href="/scalar/" target="_blank" rel="noopener noreferrer" style="opacity:0.55; font-size:0.72rem;">[ API ]</a>
     </div>
 
-    <span class="auth-status">
-        @if (_authDisplay is not null)
-        {
-            @_authDisplay
-        }
-        else
-        {
-            <span style="opacity:0.4;">[ GUEST ]</span>
-        }
-    </span>
+    <div class="status-cluster" aria-label="Runtime status">
+        <span class="auth-status">
+            @if (_authDisplay is not null)
+            {
+                @_authDisplay
+            }
+            else
+            {
+                <span style="opacity:0.4;">[ GUEST ]</span>
+            }
+        </span>
 
-    <span class="auth-status">
-        @if (_aiDisplay is not null)
-        {
-            @_aiDisplay
-        }
-        else
-        {
-            <span style="opacity:0.4;">[ AI: UNKNOWN ]</span>
-        }
-    </span>
+        <span class="auth-status">
+            @if (_aiDisplay is not null)
+            {
+                @_aiDisplay
+            }
+            else
+            {
+                <span style="opacity:0.4;">[ AI: UNKNOWN ]</span>
+            }
+        </span>
+    </div>
 </nav>
 <hr class="retro-navbar-divider" />
 

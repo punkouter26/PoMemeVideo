@@ -1,17 +1,19 @@
 {
-  "prompt": "Po1CleanStrong",
-  "updatedAtUtc": "2026-05-07T18:14:38.1291492Z",
-  "complexityDelta": {
-    "linesOfCode": {
-      "pre": 10511,
-      "post": 10043,
-      "delta": -468
-    },
-    "fileCount": {
-      "pre": 110,
-      "post": 105,
-      "delta": -5
+  "prompt": "Po2LogicRefactor",
+  "updatedAtUtc": "2026-05-07T19:30:00Z",
+  "modernization_status": {
+    "phase": "completed",
+    "dotnet_metrics_status": "fallback_used_dotnet_counters",
+    "baseline": {
+      "process": "PoMemeVideo.Api",
+      "gc_total_allocated_bytes": 23151024,
+      "gc_committed_bytes": 22405120,
+      "gen1_heap_bytes": 5761680
     }
+  },
+  "workflow_state": {
+    "current_step": "completed",
+    "next_recommended_step": "run_end_to_end_smoke_if_desired"
   },
   "execution": {
     "selection": "do all",

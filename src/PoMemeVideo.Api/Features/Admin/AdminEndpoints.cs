@@ -28,7 +28,7 @@ public static class AdminEndpoints
         .WithName("ClearAllData")
         .WithTags("Admin")
         .Produces<object>(200)
-        .AllowAnonymous();
+        .RequireAuthorization();
 
         return app;
     }

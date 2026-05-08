@@ -1,5 +1,6 @@
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
+using PoMemeVideo.Shared;
 using System.Diagnostics;
 using System.Text;
 using System.Threading.Channels;
@@ -79,7 +80,7 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             "Starting FFmpeg render for session {SessionId} with {SoundCount} sound(s)",
             job.SessionId, job.SoundEntries.Count);
 
-        var tempDir = Path.Combine(Path.GetTempPath(), $"pomemevideo-{job.SessionId}");
+        var tempDir = Path.Combine(Path.GetTempPath(), $"{PoMemeVideoNaming.ApplicationSlug}-{job.SessionId}");
         Directory.CreateDirectory(tempDir);
 
         try
@@ -156,34 +157,37 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         foreach (var (_, filePath, _, _) in sounds)
             sb.Append($" -i \"{filePath}\"");
 
-        // ── filter_complex ────────────────────────────────────────────────────
-        var fc = new StringBuilder();
-
-        // Video chain
         var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals);
-        fc.Append($"[0:v]{videoChain}[vout]");
+        var hasVideoFilters = !string.IsNullOrWhiteSpace(videoChain);
+        var hasAudioMix = sounds.Count > 0;
 
-        // Audio: delayed meme sounds mixed together, trimmed to video length via -shortest
-        if (sounds.Count > 0)
+        if (hasVideoFilters || hasAudioMix)
         {
-            // Each sound gets an adelay (delay in ms for left+right channels)
-            for (var i = 0; i < sounds.Count; i++)
+            var fc = new StringBuilder();
+
+            if (hasVideoFilters)
+                fc.Append($"[0:v]{videoChain}[vout]");
+
+            if (hasAudioMix)
             {
-                var delayMs = sounds[i].TimestampMs;
-                fc.Append($";[{i + 1}:a]adelay={delayMs}|{delayMs}[a{i}]");
+                for (var i = 0; i < sounds.Count; i++)
+                {
+                    var delayMs = sounds[i].TimestampMs;
+                    if (fc.Length > 0)
+                        fc.Append(';');
+                    fc.Append($"[{i + 1}:a]adelay={delayMs}|{delayMs}[a{i}]");
+                }
+
+                var mixInputs = string.Concat(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
+                fc.Append($";{mixInputs}amix=inputs={sounds.Count}:normalize=0:duration=longest[aout]");
             }
 
-            // amix: combine all delayed sounds only (no silent base — output length
-            // is controlled by -shortest which trims to the video stream duration)
-            var mixInputs = string.Concat(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
-            fc.Append($";{mixInputs}amix=inputs={sounds.Count}:normalize=0:duration=longest[aout]");
+            sb.Append($" -filter_complex \"{fc}\"");
         }
 
-        sb.Append($" -filter_complex \"{fc}\"");
-
         // Map outputs
-        sb.Append(" -map \"[vout]\"");
-        sb.Append(sounds.Count > 0 ? " -map \"[aout]\"" : " -an");
+        sb.Append(hasVideoFilters ? " -map \"[vout]\"" : " -map 0:v");
+        sb.Append(hasAudioMix ? " -map \"[aout]\"" : " -an");
 
         // Encoding settings: H.264 video + AAC audio, fast encode
         sb.Append(" -c:v libx264 -preset fast -crf 23");
@@ -235,7 +239,7 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             filters.Add("tblend=all_mode=average");
         }
 
-        return filters.Count > 0 ? string.Join(',', filters) : "copy";
+        return filters.Count > 0 ? string.Join(',', filters) : string.Empty;
     }
 
     private async Task<int> RunFFmpegAsync(string args, Guid sessionId, CancellationToken cancellationToken)

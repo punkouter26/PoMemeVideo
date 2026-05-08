@@ -30,15 +30,16 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
     private HttpClient? _client;
 
     private Guid _sessionId = Guid.NewGuid();
-    private Guid _userId = Guid.Empty;
     private SessionStatus _currentStatus = SessionStatus.Ingesting;
 
     public Task InitializeAsync()
     {
+        var sessionUserId = Guid.NewGuid();
+
         var session = new VideoSession
         {
             SessionId = _sessionId,
-            UserId = _userId,
+            UserId = sessionUserId,
             SourceBlobPath = $"sessions/{_sessionId}/source.mp4",
             VideoDurationSeconds = 30.0,
             AggressiveVisuals = false,
@@ -46,12 +47,12 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
         };
 
         // Repository: GetById returns session with current status
-        _sessions.GetByIdAsync(_sessionId, _userId, Arg.Any<CancellationToken>())
+        _sessions.GetByIdAsync(_sessionId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromResult<VideoSession?>(
                 new VideoSession
                 {
                     SessionId = _sessionId,
-                    UserId = _userId,
+                    UserId = sessionUserId,
                     SourceBlobPath = session.SourceBlobPath,
                     VideoDurationSeconds = session.VideoDurationSeconds,
                     AggressiveVisuals = session.AggressiveVisuals,
@@ -83,6 +84,8 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
+
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IVideoSessionRepository>();
@@ -138,7 +141,7 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
     public async Task PostInitiate_UnknownSession_Returns404()
     {
         var unknownId = Guid.NewGuid();
-        _sessions.GetByIdAsync(unknownId, _userId, Arg.Any<CancellationToken>())
+        _sessions.GetByIdAsync(unknownId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<VideoSession?>(null));
 
         var response = await _client!.PostAsync(

@@ -33,9 +33,21 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
             .CreateAsync(Arg.Any<VideoSession>(), Arg.Any<CancellationToken>())
             .Returns(x => Task.FromResult(x.ArgAt<VideoSession>(0)));
 
+        _repository
+            .UpdateMetadataAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<double>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
+
                 builder.ConfigureServices(services =>
                 {
                     // Replace the real repository with our mock
@@ -128,16 +140,6 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
                 UserId = Guid.Empty,
                 SourceBlobPath = $"sessions/{sessionId}/source.mp4",
             }));
-
-        _repository
-            .DeleteAsync(sessionId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        _repository
-            .UpdateStatusAsync(
-                sessionId, Arg.Any<Guid>(), Arg.Any<SessionStatus>(),
-                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
 
         var response = await _client!.PostAsJsonAsync("/api/ingestion/sessions", new
         {

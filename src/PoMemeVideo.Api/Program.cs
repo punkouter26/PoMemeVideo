@@ -4,6 +4,7 @@ using PoMemeVideo.Api.Configuration;
 using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Infrastructure.FFmpeg;
+using PoMemeVideo.Shared;
 using Serilog;
 using Serilog.Events;
 
