@@ -1,0 +1,8 @@
+name: pomemevideo
+metadata:
+  template: pomemevideo-appservice
+services:
+  web:
+    project: ./src/PoMemeVideo.Api
+    language: dotnet
+    host: appservice

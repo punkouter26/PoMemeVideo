@@ -1,4 +1,5 @@
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
+using PoMemeVideo.Infrastructure;
 using Azure.Security.KeyVault.Secrets;
 using PoMemeVideo.Api.Configuration;
 using PoMemeVideo.Api.Features.Admin;
@@ -37,6 +38,8 @@ try
     builder.AddPoMemeVideoServices();
 
     var app = builder.Build();
+
+app.UseExceptionHandler();
 
     // ── Start FFmpeg render worker ───────────────────────────────────────────
     app.Services.GetRequiredService<FFmpegRenderService>().StartWorker();
