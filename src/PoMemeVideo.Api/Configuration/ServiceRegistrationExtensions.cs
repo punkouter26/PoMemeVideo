@@ -4,6 +4,7 @@ using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using PoMemeVideo.Api.Features.Processing;
+using PoMemeVideo.Api.Infrastructure;
 using PoMemeVideo.Application.Ingestion;
 using PoMemeVideo.Application.MemeLibrary;
 using PoMemeVideo.Application.Processing;
@@ -11,10 +12,12 @@ using PoMemeVideo.Application.Rendering;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Api.Hubs;
 using PoMemeVideo.Infrastructure;
+using PoMemeVideo.Infrastructure.AiFoundry;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Infrastructure.BrowserLlm;
 using PoMemeVideo.Infrastructure.FFmpeg;
+using PoMemeVideo.Infrastructure.Ollama;
 
 namespace PoMemeVideo.Api.Configuration;
 
@@ -22,6 +25,9 @@ internal static class ServiceRegistrationExtensions
 {
     public static void AddPoMemeVideoServices(this WebApplicationBuilder builder)
     {
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+        builder.Services.AddProblemDetails();
+
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(r => r.AddService("PoMemeVideo"))
             .WithTracing(tracing =>
@@ -51,6 +57,8 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddHttpClient();
         builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
         builder.Services.AddSingleton<AzureOpenAiDirectorService>();
+        builder.Services.AddSingleton<AiFoundryDirectorService>();
+        builder.Services.AddSingleton<OllamaDirectorService>();
         builder.Services.AddSingleton<BrowserLLMDirectorService>();
         builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 

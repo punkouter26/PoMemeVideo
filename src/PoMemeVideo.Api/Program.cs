@@ -39,7 +39,7 @@ try
 
     var app = builder.Build();
 
-app.UseExceptionHandler();
+    app.UseExceptionHandler();
 
     // ── Start FFmpeg render worker ───────────────────────────────────────────
     app.Services.GetRequiredService<FFmpegRenderService>().StartWorker();

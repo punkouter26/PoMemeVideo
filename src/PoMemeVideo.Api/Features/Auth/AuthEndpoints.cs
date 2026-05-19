@@ -51,7 +51,7 @@ public static class AuthEndpoints
             var identity = new UserIdentity
             {
                 IdentityType = "ANON",
-                DisplayName  = displayName,
+                DisplayName = displayName,
             };
 
             await identityRepository.CreateAsync(identity, ct);
@@ -74,12 +74,12 @@ public static class AuthEndpoints
                 new AuthenticationProperties
                 {
                     IsPersistent = true,
-                    ExpiresUtc   = DateTimeOffset.UtcNow.AddDays(30),
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30),
                 });
 
             return Results.Ok(new
             {
-                identityId  = identity.IdentityId,
+                identityId = identity.IdentityId,
                 displayName = identity.DisplayName,
                 identityType = "ANON",
             });

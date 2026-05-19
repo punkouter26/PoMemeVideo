@@ -179,7 +179,7 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
 
             // Build a lookup: display name → SoundId for resolving cases where LLM echoes the name instead of the GUID
             var byName = topCandidates.ToDictionary(s => s.DisplayName, s => s.SoundId, StringComparer.OrdinalIgnoreCase);
-            var byId   = topCandidates.ToDictionary(s => s.SoundId.ToString(), s => s.SoundId, StringComparer.OrdinalIgnoreCase);
+            var byId = topCandidates.ToDictionary(s => s.SoundId.ToString(), s => s.SoundId, StringComparer.OrdinalIgnoreCase);
 
             Guid ResolveSound(string raw)
             {

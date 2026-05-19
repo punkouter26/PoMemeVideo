@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using PoMemeVideo.Infrastructure;
+using PoMemeVideo.Infrastructure.Ollama;
 
 namespace PoMemeVideo.Api.Features.Config;
 
@@ -25,12 +26,20 @@ public static class ConfigEndpoints
         .AllowAnonymous();
 
         // ── AI model selection ───────────────────────────────────────────────
-        app.MapGet("/api/config/ai-model", ([FromServices] RuntimeAiSettings settings, IWebHostEnvironment env) =>
+        app.MapGet("/api/config/ai-model", async (
+            [FromServices] RuntimeAiSettings settings,
+            [FromServices] OllamaDirectorService ollama,
+            IWebHostEnvironment env) =>
         {
             var localModelIds = GetAvailableLocalModelIds(env);
             var selectedBrowserLLMModel = localModelIds.Contains(settings.BrowserLLMModel, StringComparer.OrdinalIgnoreCase)
                 ? settings.BrowserLLMModel
                 : localModelIds.FirstOrDefault();
+
+            // Probe Ollama only in Development to avoid blocking prod startup.
+            string[]? ollamaModels = null;
+            if (env.IsDevelopment())
+                ollamaModels = await ollama.GetInstalledModelsAsync();
 
             return Results.Ok(new
             {
@@ -39,10 +48,13 @@ public static class ConfigEndpoints
                 localModels = localModelIds.Select(id => new
                 {
                     id,
-                    label = RuntimeAiSettings.LocalModelDisplayNames.TryGetValue(id, out var label)
-                        ? label
-                        : id,
+                    label = RuntimeAiSettings.LocalModelDisplayNames.TryGetValue(id, out var label) ? label : id,
                 }),
+                aiFoundryDeployment = settings.AiFoundryDeployment,
+                aiFoundryDeployments = new[] { "gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano", "Phi-4-mini-instruct" },
+                ollamaAvailable = ollamaModels is not null,
+                ollamaModel = settings.OllamaModel,
+                ollamaModels = ollamaModels ?? [],
                 isDevelopment = env.IsDevelopment(),
             });
         })
@@ -51,31 +63,55 @@ public static class ConfigEndpoints
         .Produces<object>(200)
         .AllowAnonymous();
 
-        app.MapPut("/api/config/ai-model", (AiModelRequest req, [FromServices] RuntimeAiSettings settings, IWebHostEnvironment env) =>
+        app.MapPut("/api/config/ai-model", async (
+            AiModelRequest req,
+            [FromServices] RuntimeAiSettings settings,
+            [FromServices] OllamaDirectorService ollama,
+            IWebHostEnvironment env) =>
         {
-            if (req.Provider != "AzureOpenAI" && req.Provider != "BrowserLLM")
-                return Results.BadRequest("provider must be 'AzureOpenAI' or 'BrowserLLM'.");
+            if (!RuntimeAiSettings.ValidProviders.Contains(req.Provider))
+                return Results.BadRequest($"provider must be one of: {string.Join(", ", RuntimeAiSettings.ValidProviders)}.");
+
+            // Ollama is only allowed in Development.
+            if (req.Provider == "Ollama" && !env.IsDevelopment())
+                return Results.BadRequest("Ollama is only available in Development environments.");
 
             var localModelIds = GetAvailableLocalModelIds(env);
 
-            if (req.Provider == "BrowserLLM")
+            switch (req.Provider)
             {
-                if (localModelIds.Length == 0)
-                    return Results.BadRequest("No local BrowserLLM models are installed. Run 'python tools/download-models.py' first.");
+                case "BrowserLLM":
+                    if (localModelIds.Length == 0)
+                        return Results.BadRequest("No local BrowserLLM models are installed. Run 'python SCRIPTS/download-models.py' first.");
+                    if (string.IsNullOrWhiteSpace(req.BrowserLLMModel))
+                        return Results.BadRequest("browserLLMModel is required when provider is 'BrowserLLM'.");
+                    if (!localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
+                        return Results.BadRequest($"Unknown browserLLMModel '{req.BrowserLLMModel}'.");
+                    settings.BrowserLLMModel = req.BrowserLLMModel;
+                    break;
 
-                if (string.IsNullOrWhiteSpace(req.BrowserLLMModel))
-                    return Results.BadRequest("browserLLMModel is required when provider is 'BrowserLLM'.");
+                case "AiFoundry":
+                    if (!string.IsNullOrWhiteSpace(req.AiFoundryDeployment))
+                        settings.AiFoundryDeployment = req.AiFoundryDeployment;
+                    break;
 
-                if (!localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
-                    return Results.BadRequest($"Unknown browserLLMModel '{req.BrowserLLMModel}'.");
+                case "Ollama":
+                    var installedModels = await ollama.GetInstalledModelsAsync();
+                    if (installedModels is null)
+                        return Results.BadRequest("Ollama is not running. Start Ollama and try again.");
+                    if (!string.IsNullOrWhiteSpace(req.OllamaModel))
+                    {
+                        if (installedModels.Length > 0 && !installedModels.Contains(req.OllamaModel, StringComparer.OrdinalIgnoreCase))
+                            return Results.BadRequest($"Ollama model '{req.OllamaModel}' is not installed. Run: ollama pull {req.OllamaModel}");
+                        settings.OllamaModel = req.OllamaModel;
+                    }
+                    break;
 
-                settings.BrowserLLMModel = req.BrowserLLMModel;
-            }
-            else if (!string.IsNullOrWhiteSpace(req.BrowserLLMModel)
-                     && localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
-            {
-                // Allow pre-selecting a local model while AzureOpenAI is active.
-                settings.BrowserLLMModel = req.BrowserLLMModel;
+                default: // AzureOpenAI — allow pre-selecting a BrowserLLM model while switching
+                    if (!string.IsNullOrWhiteSpace(req.BrowserLLMModel)
+                        && localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
+                        settings.BrowserLLMModel = req.BrowserLLMModel;
+                    break;
             }
 
             settings.Provider = req.Provider;
@@ -84,6 +120,8 @@ public static class ConfigEndpoints
             {
                 provider = settings.Provider,
                 browserLLMModel = settings.BrowserLLMModel,
+                aiFoundryDeployment = settings.AiFoundryDeployment,
+                ollamaModel = settings.OllamaModel,
             });
         })
         .WithName("SetAiModel")
@@ -101,15 +139,13 @@ public static class ConfigEndpoints
         if (modelsRoot is null)
             return [];
 
-        var ids = Directory
+        return Directory
             .GetDirectories(modelsRoot)
             .Select(Path.GetFileName)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Cast<string>()
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-
-        return ids;
     }
 
     private static string? ResolveModelsRoot(string contentRoot)
@@ -124,6 +160,10 @@ public static class ConfigEndpoints
         return candidates.FirstOrDefault(Directory.Exists);
     }
 
-    private sealed record AiModelRequest(string Provider, string? BrowserLLMModel);
+    private sealed record AiModelRequest(
+        string Provider,
+        string? BrowserLLMModel,
+        string? AiFoundryDeployment,
+        string? OllamaModel);
 }
 

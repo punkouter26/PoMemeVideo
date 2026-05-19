@@ -1,28 +1,35 @@
 using PoMemeVideo.Domain.Entities;
 using PoMemeVideo.Domain.Interfaces;
+using PoMemeVideo.Infrastructure.AiFoundry;
 using PoMemeVideo.Infrastructure.AzureOpenAi;
 using PoMemeVideo.Infrastructure.BrowserLlm;
+using PoMemeVideo.Infrastructure.Ollama;
 
 namespace PoMemeVideo.Infrastructure;
 
 /// <summary>
-/// Delegates to AzureOpenAiDirectorService or BrowserLLMDirectorService
-/// based on the current RuntimeAiSettings.
+/// Delegates to the correct AI backend based on the current RuntimeAiSettings.
 /// GoF: Strategy Pattern — swappable AI backend at runtime without restart.
 /// </summary>
 public sealed class SwitchingDirectorService : IDirectorService
 {
     private readonly RuntimeAiSettings _settings;
     private readonly AzureOpenAiDirectorService _azure;
+    private readonly AiFoundryDirectorService _foundry;
+    private readonly OllamaDirectorService _ollama;
     private readonly BrowserLLMDirectorService _browser;
 
     public SwitchingDirectorService(
         RuntimeAiSettings settings,
         AzureOpenAiDirectorService azure,
+        AiFoundryDirectorService foundry,
+        OllamaDirectorService ollama,
         BrowserLLMDirectorService browser)
     {
         _settings = settings;
         _azure = azure;
+        _foundry = foundry;
+        _ollama = ollama;
         _browser = browser;
     }
 
@@ -35,7 +42,9 @@ public sealed class SwitchingDirectorService : IDirectorService
         return _settings.Provider switch
         {
             "AzureOpenAI" => _azure.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
-            _             => _browser.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
+            "AiFoundry" => _foundry.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
+            "Ollama" => _ollama.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
+            _ => _browser.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
         };
     }
 }

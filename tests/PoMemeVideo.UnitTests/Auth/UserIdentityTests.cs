@@ -55,7 +55,7 @@ public sealed class UserIdentityTests
         var identity = new UserIdentity
         {
             IdentityType = "ANON",
-            DisplayName  = "ANON123456",
+            DisplayName = "ANON123456",
         };
 
         Assert.Matches(pattern, identity.DisplayName);
@@ -70,7 +70,7 @@ public sealed class UserIdentityTests
         var identity = new UserIdentity
         {
             IdentityType = "Microsoft",
-            DisplayName  = email,
+            DisplayName = email,
         };
 
         // A valid Microsoft identity display name is an email address
@@ -104,7 +104,7 @@ public sealed class UserIdentityTests
         var identity = new UserIdentity
         {
             IdentityType = identityType,
-            DisplayName  = identityType == "ANON" ? "ANON123456" : "user@example.com",
+            DisplayName = identityType == "ANON" ? "ANON123456" : "user@example.com",
         };
 
         Assert.Equal(identityType, identity.IdentityType);

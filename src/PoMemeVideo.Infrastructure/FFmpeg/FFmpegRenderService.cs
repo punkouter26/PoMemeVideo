@@ -86,7 +86,7 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         try
         {
             // ── 1. Download source video from blob ────────────────────────────
-            var sourceExt  = Path.GetExtension(job.SourceBlobPath).TrimStart('.');
+            var sourceExt = Path.GetExtension(job.SourceBlobPath).TrimStart('.');
             var sourcePath = Path.Combine(tempDir, $"source.{sourceExt}");
             await DownloadBlobToFileAsync(job.SourceBlobPath, sourcePath, cancellationToken);
             _logger.LogInformation("Source video downloaded: {Path}", sourcePath);
@@ -96,7 +96,7 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             for (var i = 0; i < job.SoundEntries.Count; i++)
             {
                 var entry = job.SoundEntries[i];
-                var soundExt  = Path.GetExtension(entry.SoundBlobUrl);
+                var soundExt = Path.GetExtension(entry.SoundBlobUrl);
                 if (string.IsNullOrEmpty(soundExt)) soundExt = ".mp3";
                 var soundPath = Path.Combine(tempDir, $"sound_{i}{soundExt}");
 
@@ -246,12 +246,12 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     {
         var psi = new ProcessStartInfo
         {
-            FileName               = "ffmpeg",
-            Arguments              = args,
+            FileName = "ffmpeg",
+            Arguments = args,
             RedirectStandardOutput = true,
-            RedirectStandardError  = true,
-            UseShellExecute        = false,
-            CreateNoWindow         = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
         };
 
         using var process = new Process { StartInfo = psi };
@@ -295,12 +295,12 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     private async Task UploadFileToBlobAsync(string filePath, string blobPath, CancellationToken ct)
     {
         // blobPath format: "sessions/{sessionId}/output.mp4" → container=sessions, blob={sessionId}/output.mp4
-        var slash     = blobPath.IndexOf('/');
+        var slash = blobPath.IndexOf('/');
         var container = blobPath[..slash];
-        var blobName  = blobPath[(slash + 1)..];
+        var blobName = blobPath[(slash + 1)..];
 
         var containerClient = _blobService.GetContainerClientPublic(container);
-        var blobClient      = containerClient.GetBlobClient(blobName);
+        var blobClient = containerClient.GetBlobClient(blobName);
 
         await using var stream = File.OpenRead(filePath);
         await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: ct);

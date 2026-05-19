@@ -33,9 +33,9 @@ public sealed class UserIdentityTableRepository : IUserIdentityRepository
         var entity = new UserIdentityTableEntity
         {
             PartitionKey = identity.IdentityType,
-            RowKey       = identity.IdentityId.ToString(),
-            DisplayName  = identity.DisplayName,
-            CreatedAt    = identity.CreatedAt,
+            RowKey = identity.IdentityId.ToString(),
+            DisplayName = identity.DisplayName,
+            CreatedAt = identity.CreatedAt,
         };
 
         await _table.UpsertEntityAsync(entity, TableUpdateMode.Replace, cancellationToken);
@@ -54,10 +54,10 @@ public sealed class UserIdentityTableRepository : IUserIdentityRepository
             var entity = response.Value;
             return new UserIdentity
             {
-                IdentityId   = Guid.Parse(entity.RowKey),
+                IdentityId = Guid.Parse(entity.RowKey),
                 IdentityType = entity.PartitionKey,
-                DisplayName  = entity.DisplayName,
-                CreatedAt    = entity.CreatedAt,
+                DisplayName = entity.DisplayName,
+                CreatedAt = entity.CreatedAt,
             };
         }
         catch (RequestFailedException ex) when (ex.Status == 404)

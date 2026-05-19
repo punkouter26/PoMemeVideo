@@ -46,8 +46,15 @@ artifacts/
 *.ldf
 MODEL/
 
+## Downloaded ML models (large binary files)
+models/
+
+## Meme sound MP3s (downloaded locally via SCRIPTS/download-meme-sounds.py, not committed)
+SCRIPTS/meme-sounds/*.mp3
+
 ## Secrets and config (never commit)
-**/appsettings.Development.json
+# appsettings.Development.json intentionally NOT ignored — it contains only the
+# KeyVault URI (not a secret) so the app works on first checkout from a new machine.
 **/appsettings.Local.json
 **/secrets.json
 **/*.pfx
@@ -78,8 +85,8 @@ ehthumbs.db
 Desktop.ini
 .potune-state.json
 
-## Local sample assets
-BODY_Matt_Fight.mp4
+## Local sample assets / test videos
+BODY_*.mp4
 src/client/PoMemeVideo.Client/wwwroot/sample-data/
 
 ## Test results

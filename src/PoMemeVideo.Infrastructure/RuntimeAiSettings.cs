@@ -8,6 +8,12 @@ public sealed class RuntimeAiSettings
 {
     public const string DefaultBrowserLLMModel = "smollm2-360m-instruct-onnx";
 
+    /// <summary>Valid provider identifiers.</summary>
+    public static readonly IReadOnlySet<string> ValidProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "AzureOpenAI", "AiFoundry", "Ollama", "BrowserLLM",
+    };
+
     public static readonly IReadOnlyDictionary<string, string> LocalModelDisplayNames =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -19,11 +25,20 @@ public sealed class RuntimeAiSettings
             ["gemma-4-e2b-it-onnx"] = "Gemma 4 E2B",
         };
 
-    /// <summary>"AzureOpenAI" or "BrowserLLM".</summary>
+    /// <summary>"AzureOpenAI", "AiFoundry", "Ollama", or "BrowserLLM".</summary>
     public string Provider { get; set; } = "BrowserLLM";
 
-    /// <summary>
-    /// Local BrowserLLM model id, mapped to /models/{id} static files.
-    /// </summary>
+    /// <summary>Local BrowserLLM model id, mapped to /models/{id} static files.</summary>
     public string BrowserLLMModel { get; set; } = DefaultBrowserLLMModel;
+
+    /// <summary>
+    /// Azure AI Foundry deployment name (e.g. "gpt-4.1-mini", "gpt-4o").
+    /// Can be changed at runtime without restart.
+    /// </summary>
+    public string AiFoundryDeployment { get; set; } = "gpt-4.1-mini";
+
+    /// <summary>
+    /// Ollama model tag (e.g. "llama3.2", "mistral"). Only used in Development.
+    /// </summary>
+    public string OllamaModel { get; set; } = "llama3.2";
 }

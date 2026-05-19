@@ -30,8 +30,8 @@ public sealed class SemanticMatchingServiceTests
     public async Task GetTopCandidatesAsync_ReturnsHighestScoringFirst()
     {
         var impact = MakeSound("Vine Boom", "impact", "boom", "fail");
-        var laugh  = MakeSound("Laugh Track", "laugh", "funny", "happy");
-        var pop    = MakeSound("Pop Sound", "pop", "soft");
+        var laugh = MakeSound("Laugh Track", "laugh", "funny", "happy");
+        var pop = MakeSound("Pop Sound", "pop", "soft");
 
         _repo.LoadAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<SoundAsset> { impact, laugh, pop }.AsReadOnly());

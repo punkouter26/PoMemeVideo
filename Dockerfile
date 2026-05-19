@@ -11,7 +11,7 @@ COPY src/PoMemeVideo.Shared/PoMemeVideo.Shared.csproj src/PoMemeVideo.Shared/
 COPY src/PoMemeVideo.Api/PoMemeVideo.Api.csproj src/PoMemeVideo.Api/
 COPY src/client/PoMemeVideo.Client/PoMemeVideo.Client.csproj src/client/PoMemeVideo.Client/
 
-RUN dotnet restore PoMemeVideo.sln
+RUN dotnet restore PoMemeVideo.slnx
 
 # Copy full source and publish
 COPY . .

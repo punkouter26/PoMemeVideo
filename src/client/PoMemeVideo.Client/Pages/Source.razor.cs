@@ -28,15 +28,26 @@ public partial class Source
     private string _visionFallbackMessage = "AI VISION: no triggers detected - time-based placement will be used";
     private string _displayActiveModel = "UNKNOWN";
 
+    private bool _isDevelopment;
     private string _activeProvider = "BrowserLLM";
     private string _pendingProvider = "BrowserLLM";
     private string _activeBrowserModelId = "smollm2-360m-instruct-onnx";
     private string _pendingBrowserModelId = "smollm2-360m-instruct-onnx";
     private List<LocalModelInfo> _localModels = [];
+    // AI Foundry
+    private string _activeFoundryDeployment = "gpt-4.1-mini";
+    private string _pendingFoundryDeployment = "gpt-4.1-mini";
+    private List<string> _foundryDeployments = [];
+    // Ollama (dev only)
+    private bool _ollamaAvailable;
+    private string _activeOllamaModel = "llama3.2";
+    private string _pendingOllamaModel = "llama3.2";
+    private List<string> _ollamaModels = [];
     private bool _modelDirty;
     private bool _modelApplying;
     private string? _modelMessage;
     private bool CanSelectBrowserLlm => _localModels.Count > 0;
+    private bool CanSelectOllama => _ollamaAvailable;
     private int CurrentStep => !_uploaded ? 1 : _visionInProgress ? 2 : 3;
 
     private ElementReference _videoRef;
@@ -281,16 +292,21 @@ public partial class Source
 
             _activeProvider = ai.Provider;
             _pendingProvider = ai.Provider;
+            _isDevelopment = ai.IsDevelopment;
             _localModels = ai.LocalModels?.ToList() ?? [];
             _activeBrowserModelId = ai.BrowserLLMModel ?? (_localModels.FirstOrDefault()?.Id ?? _activeBrowserModelId);
             _pendingBrowserModelId = _activeBrowserModelId;
 
-            _displayActiveModel = ai.Provider == "BrowserLLM"
-                ? (_localModels.Count > 0
-                    ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
-                    : "No local models downloaded")
-                : "Azure OpenAI (GPT-4o)";
+            _activeFoundryDeployment = ai.AiFoundryDeployment ?? "gpt-4.1-mini";
+            _pendingFoundryDeployment = _activeFoundryDeployment;
+            _foundryDeployments = ai.AiFoundryDeployments?.ToList() ?? ["gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano", "Phi-4-mini-instruct"];
 
+            _ollamaAvailable = ai.OllamaAvailable;
+            _activeOllamaModel = ai.OllamaModel ?? "llama3.2";
+            _pendingOllamaModel = _activeOllamaModel;
+            _ollamaModels = ai.OllamaModels?.ToList() ?? [];
+
+            _displayActiveModel = ComputeDisplayName(ai.Provider);
             RecomputeModelDirty();
         }
         catch
@@ -299,11 +315,27 @@ public partial class Source
         }
     }
 
+    private string ComputeDisplayName(string provider) => provider switch
+    {
+        "AzureOpenAI" => "Azure OpenAI · GPT-4o",
+        "AiFoundry" => $"AI Foundry · {_activeFoundryDeployment}",
+        "Ollama" => $"Ollama · {_activeOllamaModel}",
+        "BrowserLLM" => _localModels.Count > 0
+                             ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
+                             : "No local models downloaded",
+        _ => provider,
+    };
+
     private void SelectProvider(string provider)
     {
         if (provider == "BrowserLLM" && !CanSelectBrowserLlm)
         {
-            _modelMessage = "LOCAL MODELS NOT FOUND - run: python tools/download-models.py";
+            _modelMessage = "LOCAL MODELS NOT FOUND - run: python SCRIPTS/download-models.py";
+            return;
+        }
+        if (provider == "Ollama" && !CanSelectOllama)
+        {
+            _modelMessage = "OLLAMA NOT RUNNING - start Ollama and refresh";
             return;
         }
 
@@ -315,7 +347,9 @@ public partial class Source
     private void RecomputeModelDirty()
     {
         _modelDirty = _pendingProvider != _activeProvider
-                      || _pendingBrowserModelId != _activeBrowserModelId;
+                      || _pendingBrowserModelId != _activeBrowserModelId
+                      || _pendingFoundryDeployment != _activeFoundryDeployment
+                      || _pendingOllamaModel != _activeOllamaModel;
     }
 
     private async Task ApplyModelAsync()
@@ -326,23 +360,28 @@ public partial class Source
 
         try
         {
-            var body = new { provider = _pendingProvider, browserLLMModel = _pendingBrowserModelId };
+            var body = new
+            {
+                provider = _pendingProvider,
+                browserLLMModel = _pendingBrowserModelId,
+                aiFoundryDeployment = _pendingFoundryDeployment,
+                ollamaModel = _pendingOllamaModel,
+            };
             var response = await Http.PutAsJsonAsync("/api/config/ai-model", body);
 
             if (!response.IsSuccessStatusCode)
             {
-                _modelMessage = $"MODEL SWITCH FAILED: HTTP {(int)response.StatusCode}";
+                var msg = await BuildErrorMessageAsync(response, "MODEL SWITCH FAILED");
+                _modelMessage = msg;
                 return;
             }
 
             _activeProvider = _pendingProvider;
             _activeBrowserModelId = _pendingBrowserModelId;
+            _activeFoundryDeployment = _pendingFoundryDeployment;
+            _activeOllamaModel = _pendingOllamaModel;
             _modelDirty = false;
-            _displayActiveModel = _activeProvider == "BrowserLLM"
-                ? (_localModels.Count > 0
-                    ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
-                    : "No local models downloaded")
-                : "Azure OpenAI (GPT-4o)";
+            _displayActiveModel = ComputeDisplayName(_activeProvider);
             _modelMessage = $"MODEL ACTIVE: {_displayActiveModel}";
         }
         catch (Exception ex)
@@ -372,7 +411,16 @@ public partial class Source
     }
 
     private sealed record VisionLabel(double TimestampSeconds, string Label);
-    private sealed record AiModelResponse(string Provider, string? BrowserLLMModel, LocalModelInfo[]? LocalModels, bool IsDevelopment);
+    private sealed record AiModelResponse(
+        string Provider,
+        string? BrowserLLMModel,
+        LocalModelInfo[]? LocalModels,
+        string? AiFoundryDeployment,
+        string[]? AiFoundryDeployments,
+        bool OllamaAvailable,
+        string? OllamaModel,
+        string[]? OllamaModels,
+        bool IsDevelopment);
     private sealed record LocalModelInfo(string Id, string Label);
     private sealed record FrameUploadResult(int FramesStored, VisionLabelItem[]? VisionLabels, VisionDiagnostics? VisionDiagnostics);
     private sealed record VisionDiagnostics(int FramesReceived, int FramesStored, bool AnalysisAttempted, string? AnalysisError, int LabelsDetected, string PlacementMode);
