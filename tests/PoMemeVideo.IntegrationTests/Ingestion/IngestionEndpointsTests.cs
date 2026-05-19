@@ -23,11 +23,14 @@ namespace PoMemeVideo.IntegrationTests.Ingestion;
 public sealed class IngestionEndpointsTests : IAsyncLifetime
 {
     private readonly IVideoSessionRepository _repository = Substitute.For<IVideoSessionRepository>();
+    private readonly AzuriteContainer _azurite = new AzuriteBuilder().Build();
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
+        await _azurite.StartAsync();
+
         // Arrange: repository returns the session it receives (identity)
         _repository
             .CreateAsync(Arg.Any<VideoSession>(), Arg.Any<CancellationToken>())
@@ -48,6 +51,7 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
             {
                 builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
                 builder.UseSetting("KeyVault:Uri", ""); // skip KV in CI/test
+                builder.UseSetting("ConnectionStrings:AzureBlobStorage", _azurite.GetConnectionString());
 
                 builder.ConfigureServices(services =>
                 {
@@ -62,13 +66,13 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
             });
 
         _client = _factory.CreateClient();
-        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
     {
         if (_factory is not null)
             await _factory.DisposeAsync();
+        await _azurite.DisposeAsync();
     }
 
     // ── POST /api/ingestion/sas ──────────────────────────────────────────
