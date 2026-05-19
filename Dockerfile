@@ -10,10 +10,8 @@ COPY src/PoMemeVideo.Infrastructure/PoMemeVideo.Infrastructure.csproj src/PoMeme
 COPY src/PoMemeVideo.Shared/PoMemeVideo.Shared.csproj src/PoMemeVideo.Shared/
 COPY src/PoMemeVideo.Api/PoMemeVideo.Api.csproj src/PoMemeVideo.Api/
 COPY src/client/PoMemeVideo.Client/PoMemeVideo.Client.csproj src/client/PoMemeVideo.Client/
-COPY tests/PoMemeVideo.IntegrationTests/PoMemeVideo.IntegrationTests.csproj tests/PoMemeVideo.IntegrationTests/
-COPY tests/PoMemeVideo.UnitTests/PoMemeVideo.UnitTests.csproj tests/PoMemeVideo.UnitTests/
 
-RUN dotnet restore PoMemeVideo.slnx
+RUN dotnet restore src/PoMemeVideo.Api/PoMemeVideo.Api.csproj
 
 # Copy full source and publish
 COPY . .
