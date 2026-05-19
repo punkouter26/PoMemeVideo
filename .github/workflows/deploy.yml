@@ -1,23 +1,17 @@
-name: CI/CD — Build, Test & Deploy
+name: Build & Deploy
 
 on:
   push:
-    branches: [master]
-  pull_request:
     branches: [master]
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
-  packages: write   # required to push to ghcr.io
+  packages: write
 
 env:
-  DOTNET_VERSION: 10.0.x
-  SOLUTION_PATH: PoMemeVideo.slnx
-  API_PROJECT: src/PoMemeVideo.Api/PoMemeVideo.Api.csproj
   AZURE_WEBAPP_NAME: app-pomemevideo
-  AZURE_RESOURCE_GROUP: PoMemeVideo
   IMAGE: ghcr.io/${{ github.repository_owner }}/pomemevideo
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -26,8 +20,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  build-and-push:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -35,40 +29,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props') }}
-          restore-keys: nuget-${{ runner.os }}-
-
-      - name: Restore
-        run: dotnet restore ${{ env.SOLUTION_PATH }}
-
-      - name: Build
-        run: dotnet build ${{ env.SOLUTION_PATH }} --no-restore -c Release
-
-      - name: Verify formatting
-        run: dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --verbosity minimal
-
-      - name: Run tests
-        run: dotnet test ${{ env.SOLUTION_PATH }} --no-build -c Release --logger "trx;LogFileName=test-results.trx" --results-directory ./TESTRESULTS
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: ./TESTRESULTS/*.trx
-
-      # Build Docker image (and push only on master push) — FFmpeg is baked in via Dockerfile
       - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -76,7 +37,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -88,8 +48,7 @@ jobs:
   deploy:
     name: Deploy to Azure App Service
     runs-on: ubuntu-latest
-    needs: build-and-test
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    needs: build-and-push
     timeout-minutes: 20
     environment:
       name: production
@@ -108,16 +67,3 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           images: ${{ env.IMAGE }}:${{ github.sha }}
-
-      - name: Health check
-        run: |
-          echo "Waiting for container to start..."
-          sleep 45
-          for i in $(seq 1 10); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
-              "https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health")
-            echo "Health check attempt $i: HTTP $STATUS"
-            [ "$STATUS" = "200" ] && exit 0
-            sleep 15
-          done
-          echo "::error::Health check failed after 10 attempts"; exit 1

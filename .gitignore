@@ -76,7 +76,7 @@ tests/PoMemeVideo.E2ETests/artifacts/
 **/wwwroot/appsettings.Development.json
 
 ## Docker
-.dockerignore
+# .dockerignore is intentionally tracked
 
 ## OS artifacts
 .DS_Store

@@ -17,8 +17,7 @@ RUN dotnet restore src/PoMemeVideo.Api/PoMemeVideo.Api.csproj
 COPY . .
 RUN dotnet publish src/PoMemeVideo.Api/PoMemeVideo.Api.csproj \
     -c Release \
-    -o /app/publish \
-    --no-restore
+    -o /app/publish
 
 # Stage 2: Runtime — install FFmpeg
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
