@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -10,7 +10,6 @@ using PoMemeVideo.Domain.Entities;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Shared.Enums;
-using Testcontainers.Azurite;
 
 namespace PoMemeVideo.IntegrationTests.Ingestion;
 
@@ -23,14 +22,30 @@ namespace PoMemeVideo.IntegrationTests.Ingestion;
 public sealed class IngestionEndpointsTests : IAsyncLifetime
 {
     private readonly IVideoSessionRepository _repository = Substitute.For<IVideoSessionRepository>();
-    private readonly AzuriteContainer _azurite = new AzuriteBuilder().Build();
+    // BlobServiceClientFactory.GenerateUploadSasUriAsync is virtual; ForPartsOf lets us intercept
+    // that single method while the rest of the class behaves normally.  The constructor succeeds
+    // with "UseDevelopmentStorage=true" because BlobServiceClient is created lazily-on-use only.
+    private readonly BlobServiceClientFactory _blobFactory;
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
-    public async Task InitializeAsync()
+    public IngestionEndpointsTests()
     {
-        await _azurite.StartAsync();
+        var cfg = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:AzureBlobStorage"] = "UseDevelopmentStorage=true",
+            })
+            .Build();
 
+        _blobFactory = Substitute.ForPartsOf<BlobServiceClientFactory>(cfg);
+        _blobFactory
+            .GenerateUploadSasUriAsync(Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new Uri("https://fake.blob.core.windows.net/source/video.mp4?sv=2025-07-05&sig=faketoken"));
+    }
+
+    public Task InitializeAsync()
+    {
         // Arrange: repository returns the session it receives (identity)
         _repository
             .CreateAsync(Arg.Any<VideoSession>(), Arg.Any<CancellationToken>())
@@ -51,7 +66,6 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
             {
                 builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
                 builder.UseSetting("KeyVault:Uri", ""); // skip KV in CI/test
-                builder.UseSetting("ConnectionStrings:AzureBlobStorage", _azurite.GetConnectionString());
 
                 builder.ConfigureServices(services =>
                 {
@@ -62,17 +76,23 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
                     // Replace IngestVideoCommand so it uses our mock repository
                     services.RemoveAll<IngestVideoCommand>();
                     services.AddScoped(_ => new IngestVideoCommand(_repository));
+
+                    // Replace BlobServiceClientFactory with our partial mock.
+                    // GenerateUploadSasUriAsync is mocked to return a fake URL,
+                    // so no real Azurite or Azure storage is required.
+                    services.RemoveAll<BlobServiceClientFactory>();
+                    services.AddSingleton(_ => _blobFactory);
                 });
             });
 
         _client = _factory.CreateClient();
+        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
     {
         if (_factory is not null)
             await _factory.DisposeAsync();
-        await _azurite.DisposeAsync();
     }
 
     // ── POST /api/ingestion/sas ──────────────────────────────────────────

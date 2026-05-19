@@ -43,7 +43,7 @@ public class BlobServiceClientFactory
     /// Generates a write-scoped SAS URI for the given blob path.
     /// Works with both connection-string-based (Azurite) and managed-identity-based clients.
     /// </summary>
-    public async Task<Uri> GenerateUploadSasUriAsync(
+    public virtual async Task<Uri> GenerateUploadSasUriAsync(
         string blobPath,
         DateTimeOffset expiresAt,
         CancellationToken cancellationToken = default)
