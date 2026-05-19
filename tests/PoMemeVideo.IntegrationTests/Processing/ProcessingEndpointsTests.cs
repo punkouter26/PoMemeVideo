@@ -85,6 +85,7 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
+                builder.UseSetting("KeyVault:Uri", ""); // skip KV in CI/test
 
                 builder.ConfigureServices(services =>
                 {

@@ -12,15 +12,20 @@ internal static class StartupConfigurationExtensions
 {
     public static void ConfigurePoMemeVideoConfiguration(this WebApplicationBuilder builder)
     {
-        var kvUri = builder.Configuration["KeyVault:Uri"]
-                    ?? PoMemeVideoNaming.FallbackSharedKeyVaultUri;
-        TokenCredential credential = builder.Environment.IsDevelopment()
-            ? new AzureCliCredential()
-            : new DefaultAzureCredential();
+        var kvUri = builder.Configuration["KeyVault:Uri"];
+        if (string.IsNullOrWhiteSpace(kvUri) && !builder.Environment.IsDevelopment())
+            kvUri = PoMemeVideoNaming.FallbackSharedKeyVaultUri;
 
-        builder.Configuration.AddAzureKeyVault(
-            new SecretClient(new Uri(kvUri), credential),
-            new PrefixKeyVaultSecretManager(PoMemeVideoNaming.SecretPrefix));
+        if (!string.IsNullOrWhiteSpace(kvUri))
+        {
+            TokenCredential credential = builder.Environment.IsDevelopment()
+                ? new AzureCliCredential()
+                : new DefaultAzureCredential();
+
+            builder.Configuration.AddAzureKeyVault(
+                new SecretClient(new Uri(kvUri), credential),
+                new PrefixKeyVaultSecretManager(PoMemeVideoNaming.SecretPrefix));
+        }
 
         if (!builder.Environment.IsDevelopment())
             return;
