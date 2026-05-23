@@ -779,6 +779,30 @@ p.login-hint {
     padding: 0.75rem 1rem;
 }
 
+@media (max-width: 480px) {
+    .ai-mode-card {
+        padding: 0.55rem 0.6rem;
+    }
+
+    .ai-mode-options {
+        gap: 0.4rem;
+    }
+
+    .mode-btn {
+        min-width: 0;
+        flex: 1 1 calc(50% - 0.4rem);
+        padding: 0.4rem 0.5rem;
+    }
+
+    .mode-text strong {
+        font-size: 0.75rem;
+    }
+
+    .mode-text small {
+        font-size: 0.65rem;
+    }
+}
+
 .ai-mode-header {
     display: flex;
     align-items: baseline;
@@ -896,6 +920,24 @@ p.login-hint {
 .apply-model-btn {
     margin-top: 0.5rem;
     font-size: 0.78rem;
+}
+
+.ai-mode-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.6rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid var(--term-border);
+}
+
+.ai-mode-admin-btn {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    padding: 0.2rem 0.5rem;
+}
+
+.ai-mode-admin-btn:hover {
+    opacity: 1;
 }
 
 /* ── Primary action (CTA) ────────────────────────────────── */

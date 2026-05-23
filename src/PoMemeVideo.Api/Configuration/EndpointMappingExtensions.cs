@@ -89,11 +89,36 @@ internal static class EndpointMappingExtensions
 
         app.UseAuthorization();
 
+        app.Use(async (context, next) =>
+        {
+            const string sessionCookieName = "pmv-session-id";
+            if (!context.Request.Cookies.ContainsKey(sessionCookieName))
+            {
+                context.Response.Cookies.Append(
+                    sessionCookieName,
+                    Guid.NewGuid().ToString("N"),
+                    new CookieOptions
+                    {
+                        HttpOnly = false,
+                        IsEssential = true,
+                        Secure = context.Request.IsHttps,
+                        SameSite = SameSiteMode.Lax,
+                        Expires = DateTimeOffset.UtcNow.AddDays(14),
+                    });
+            }
+
+            await next();
+        });
+
         app.UseSerilogRequestLogging(options =>
         {
             options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
             {
                 diagnosticContext.Set("UserId", httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous");
+                var sessionId = httpContext.Request.Headers["X-Session-Id"].FirstOrDefault()
+                    ?? httpContext.Request.Cookies["pmv-session-id"]
+                    ?? httpContext.TraceIdentifier;
+                diagnosticContext.Set("SessionId", sessionId);
                 diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
             };
             // Demote high-frequency heartbeat polls so they don't drown the log
@@ -131,7 +156,7 @@ internal static class EndpointMappingExtensions
         app.MapAdminEndpoints();
 
         app.MapAuthEndpoints();
-        app.MapAnonAuthEndpoints(app.Environment);
+        app.MapGuestAuthEndpoints(app.Environment);
 
         app.MapGet("/auth/login/microsoft", async (HttpContext ctx) =>
         {
@@ -179,6 +204,22 @@ internal static class EndpointMappingExtensions
         var allowedOrigins = app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
             ?? ["http://localhost:5000", "https://localhost:5001", "http://127.0.0.1:5000", "http://localhost:5280"];
         await blobFactory.EnsureDevCorsAsync(string.Join(",", allowedOrigins));
+
+        // Ensure SoundAssets table exists and warn if empty so developers know to seed it.
+        var tableFactory = app.Services.GetRequiredService<AzureTableClientFactory>();
+        try
+        {
+            var soundsTable = tableFactory.GetTableClient("SoundAssets");
+            var hasEntries = soundsTable.Query<Azure.Data.Tables.TableEntity>(maxPerPage: 1).Any();
+            if (!hasEntries)
+            {
+                Log.Warning("[DEV] Sound library is empty — run: python SCRIPTS/seed-meme-sounds.py  (or: dotnet run -- seed-sounds)");
+            }
+        }
+        catch
+        {
+            // Non-fatal — storage may not be available at startup
+        }
     }
 
     private static string? ResolveModelsRoot(string contentRoot)

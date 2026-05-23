@@ -11,6 +11,23 @@ Utility scripts for the PoMemeVideo project. Run from the repository root unless
 
 ---
 
+## setup.ps1 ⭐ one-command bootstrap
+
+**Purpose:** Windows-first bootstrap entrypoint that installs prerequisites via winget,
+starts Azurite using docker compose, validates local mock-key readiness, and then
+executes the Python bootstrap pipeline.
+
+**Usage:**
+```powershell
+# Full setup
+pwsh -File SCRIPTS/setup.ps1
+
+# Skip package installation and run only project bootstrap
+pwsh -File SCRIPTS/setup.ps1 -SkipWinget
+```
+
+---
+
 ## setup-new-machine.py ⭐ start here on a new machine
 
 **Purpose:** One-shot bootstrap for a freshly cloned repository. Checks Python, installs Python

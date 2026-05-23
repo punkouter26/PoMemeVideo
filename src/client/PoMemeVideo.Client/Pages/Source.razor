@@ -132,6 +132,10 @@
         {
             <pre class="clear-status">@_modelMessage</pre>
         }
+
+        <div class="ai-mode-footer">
+            <button class="ascii-btn compact-btn ai-mode-admin-btn" @onclick='() => Nav.NavigateTo("/admin/sounds")'>[ Sound Admin ]</button>
+        </div>
     </div>
 
     <div style="display: @(_uploaded ? "none" : "block")">
@@ -209,11 +213,5 @@
     {
         <pre class="page-error">⚠ @_errorMessage</pre>
     }
-
-    <div class="source-quick-controls">
-        <div class="source-quick-actions">
-            <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/admin/sounds")'>Sound Admin</button>
-        </div>
-    </div>
 
 </div>

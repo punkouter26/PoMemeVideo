@@ -8,4 +8,8 @@
     <RootNamespace>$(MSBuildProjectName.Replace("-", "_"))</RootNamespace>
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

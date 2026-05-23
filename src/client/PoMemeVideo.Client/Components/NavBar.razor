@@ -1,12 +1,12 @@
 @* NavBar.razor
    Retro-terminal styled navigation bar displayed on all pages via MainLayout.
    Reads auth identity from GET /api/auth/me and displays:
-     - "ANON LOGGED IN" for ANON identities (ANON\d{6})
+         - "GUEST<random> LOGGED IN" for guest identities (GUEST\d{6})
      - User email for Microsoft OAuth authenticated users
      - "[ GUEST ]" when no session is active
    Styled with retro-terminal.css ASCII horizontal rule separator. *@
 @inject HttpClient Http
-@inject NavigationManager Nav
+@inject IJSRuntime JS
 @implements IDisposable
 
 <nav class="retro-navbar" role="navigation" aria-label="Site navigation">
@@ -41,6 +41,11 @@
                 <span style="opacity:0.4;">[ AI: UNKNOWN ]</span>
             }
         </span>
+
+        @if (_mockDisplay is not null)
+        {
+            <span class="auth-status">@_mockDisplay</span>
+        }
     </div>
 </nav>
 <hr class="retro-navbar-divider" />
@@ -48,23 +53,39 @@
 @code {
     private string? _authDisplay;
     private string? _aiDisplay;
+    private string? _mockDisplay;
     private System.Threading.Timer? _refreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAuthAsync();
         await LoadAiAsync();
+        await LoadMockAsync();
         // Refresh auth state every 30 seconds to pick up logins/logouts.
         _refreshTimer = new System.Threading.Timer(
             async _ =>
             {
                 await LoadAuthAsync();
                 await LoadAiAsync();
+                await LoadMockAsync();
                 await InvokeAsync(StateHasChanged);
             },
             null,
             TimeSpan.FromSeconds(30),
             TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadMockAsync()
+    {
+        try
+        {
+            var config = await Http.GetFromJsonAsync<ConfigResponse>("/api/config");
+            _mockDisplay = config?.UseMockAI == true ? "[ USING MOCK DATA ]" : null;
+        }
+        catch
+        {
+            _mockDisplay = null;
+        }
     }
 
     private async Task LoadAiAsync()
@@ -102,27 +123,35 @@
             var me = await Http.GetFromJsonAsync<AuthMeResponse>("/api/auth/me");
             if (me?.DisplayName is { Length: > 0 } name)
             {
-                // ANON\d{6} pattern — show ANON LOGGED IN
-                if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^ANON\d{6}$"))
-                    _authDisplay = "[ ANON LOGGED IN ]";
+                // GUEST\d{6} pattern — show required explicit guest identity message.
+                if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^GUEST\d{6}$"))
+                    _authDisplay = $"[ {name} LOGGED IN ]";
                 else
                     _authDisplay = $"[ {me.Email ?? name} ]";
+
+                await JS.InvokeVoidAsync("sessionStorage.setItem", "pmv.guestDisplayName", name);
             }
             else
             {
-                _authDisplay = null;
+                var guestName = await JS.InvokeAsync<string?>("sessionStorage.getItem", "pmv.guestDisplayName");
+                _authDisplay = System.Text.RegularExpressions.Regex.IsMatch(guestName ?? string.Empty, @"^GUEST\d{6}$")
+                    ? $"[ {guestName} LOGGED IN ]"
+                    : null;
             }
         }
         catch
         {
-            // Auth endpoint not available — show guest silently.
-            _authDisplay = null;
+            var guestName = await JS.InvokeAsync<string?>("sessionStorage.getItem", "pmv.guestDisplayName");
+            _authDisplay = System.Text.RegularExpressions.Regex.IsMatch(guestName ?? string.Empty, @"^GUEST\d{6}$")
+                ? $"[ {guestName} LOGGED IN ]"
+                : null;
         }
     }
 
     public void Dispose() => _refreshTimer?.Dispose();
 
     private sealed record AuthMeResponse(string? DisplayName, string? Email);
+    private sealed record ConfigResponse(bool UseMockAI, bool IsDevelopment);
     private sealed record AiModelResponse(string Provider, string? BrowserLLMModel, LocalModelInfo[]? LocalModels);
     private sealed record LocalModelInfo(string Id, string Label);
 }

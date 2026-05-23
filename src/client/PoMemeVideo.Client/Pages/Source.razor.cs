@@ -211,6 +211,13 @@ public partial class Source
 
     private async Task OnInitiate()
     {
+        if (_activeProvider == "BrowserLLM" && _localModels.Count == 0)
+        {
+            _errorMessage = "LOCAL AI MODEL FILES ARE MISSING. Select Remote AI or AI Foundry, then click Apply Model before creating a video.";
+            _statusMessage = "READY";
+            return;
+        }
+
         _initiating = true;
         _errorMessage = null;
         StateHasChanged();
@@ -305,6 +312,13 @@ public partial class Source
             _activeOllamaModel = ai.OllamaModel ?? "llama3.2";
             _pendingOllamaModel = _activeOllamaModel;
             _ollamaModels = ai.OllamaModels?.ToList() ?? [];
+
+            if (_activeProvider == "BrowserLLM" && _localModels.Count == 0)
+            {
+                // Keep active provider unchanged until user applies, but preselect a viable option.
+                _pendingProvider = "AzureOpenAI";
+                _modelMessage = "LOCAL MODELS NOT FOUND. Remote AI preselected - click Apply Model to continue.";
+            }
 
             _displayActiveModel = ComputeDisplayName(ai.Provider);
             RecomputeModelDirty();

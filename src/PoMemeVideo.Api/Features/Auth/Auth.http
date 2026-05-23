@@ -5,11 +5,17 @@
 @host = http://localhost:5000
 
 ### ─────────────────────────────────────────────────────
-### POST /auth/anon — Create ANON identity (dev only)
+### POST /auth/guest — Create GUEST identity (dev only)
 ### Returns: { identityId, displayName, identityType }
 ### Sets: .AspNetCore.Cookies session cookie
 ### ─────────────────────────────────────────────────────
 
+POST {{host}}/auth/guest
+Content-Type: application/json
+
+###
+
+### Backward-compatible alias
 POST {{host}}/auth/anon
 Content-Type: application/json
 
@@ -55,7 +61,7 @@ POST {{host}}/auth/logout
 ### ─────────────────────────────────────────────────────
 ### GET /api/config — Feature flags and environment info
 ### Returns: { isDevelopment: bool }
-### Used by Login.razor to conditionally show ANON button
+### Used by Login.razor to conditionally show GUEST button
 ### ─────────────────────────────────────────────────────
 
 GET {{host}}/api/config

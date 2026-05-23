@@ -1,14 +1,15 @@
 @* Login.razor
    Matrix Green ASCII-bordered login panel.
    - Calls GET /api/config on load to detect isDevelopment.
-   - Shows ANON button only when isDevelopment: true (dev-only guard mirrors server-side T077).
+   - Shows GUEST button only when isDevelopment: true (dev-only guard mirrors server-side T077).
    - Shows SIGN IN WITH MICROSOFT always.
-   - After ANON login, navigates to source page. *@
+   - After GUEST login, navigates to source page. *@
 @page "/login"
 @inject HttpClient Http
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<PageTitle>PoMemeVideo — Login</PageTitle>
+<PageTitle>PoMemeVideo - Login</PageTitle>
 
 <div class="login-page">
     <pre class="login-banner">
@@ -32,16 +33,16 @@
             @if (_isDevelopment)
             {
                 <div class="login-section">
-                    <pre class="login-label">── DEV MODE ──────────────────────────</pre>
-                    <button class="ascii-btn anon-btn" @onclick="LoginAnon" disabled="@_busy">
-                        @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ RANDOM ANON ]")
+                    <pre class="login-label">-- DEV MODE --------------------------</pre>
+                    <button class="ascii-btn anon-btn" @onclick="LoginGuest" disabled="@_busy">
+                        @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ RANDOM GUEST ]")
                     </button>
-                    <p class="login-hint">Generates a unique ANON######  identity for this session.</p>
+                    <p class="login-hint">Generates a unique GUEST###### identity for this session.</p>
                 </div>
             }
 
             <div class="login-section">
-                <pre class="login-label">── MICROSOFT ACCOUNT ─────────────────</pre>
+                <pre class="login-label">-- MICROSOFT ACCOUNT -----------------</pre>
                 <a class="ascii-btn ms-btn" href="/auth/login/microsoft">
                     [ SIGN IN WITH MICROSOFT ]
                 </a>
@@ -49,9 +50,9 @@
             </div>
         </div>
 
-        @if (_anonMessage is not null)
+        @if (_guestMessage is not null)
         {
-            <p class="login-status">@_anonMessage</p>
+            <p class="login-status">@_guestMessage</p>
         }
     }
 </div>
@@ -62,7 +63,7 @@
     private bool _signingInAnon;
     private bool _isDevelopment;
     private string? _error;
-    private string? _anonMessage;
+    private string? _guestMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,30 +82,33 @@
         }
     }
 
-    private async Task LoginAnon()
+    private async Task LoginGuest()
     {
         _busy = true;
         _signingInAnon = true;
-        _anonMessage = null;
+        _guestMessage = null;
 
         try
         {
-            var response = await Http.PostAsync("/auth/anon", null);
+            var response = await Http.PostAsync("/auth/guest", null);
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<AnonLoginResponse>();
-                _anonMessage = $"[ IDENTITY ESTABLISHED: {result?.DisplayName} ]";
+                var result = await response.Content.ReadFromJsonAsync<GuestLoginResponse>();
+                if (!string.IsNullOrWhiteSpace(result?.DisplayName))
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "pmv.guestDisplayName", result.DisplayName);
+
+                _guestMessage = $"[ IDENTITY ESTABLISHED: {result?.DisplayName} ]";
                 await Task.Delay(800); // brief visual confirmation
                 Nav.NavigateTo("/");
             }
             else
             {
-                _error = $"[ ANON LOGIN FAILED: {(int)response.StatusCode} ]";
+                _error = $"[ GUEST LOGIN FAILED: {(int)response.StatusCode} ]";
             }
         }
         catch (Exception ex)
         {
-            _error = $"[ ANON LOGIN ERROR: {ex.Message} ]";
+            _error = $"[ GUEST LOGIN ERROR: {ex.Message} ]";
         }
         finally
         {
@@ -114,7 +118,7 @@
     }
 
     private sealed record ConfigResponse(bool IsDevelopment);
-    private sealed record AnonLoginResponse(Guid IdentityId, string DisplayName, string IdentityType);
+    private sealed record GuestLoginResponse(Guid IdentityId, string DisplayName, string IdentityType);
 }
 
 <style>
