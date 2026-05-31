@@ -18,6 +18,7 @@ using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Infrastructure.BrowserLlm;
 using PoMemeVideo.Infrastructure.FFmpeg;
 using PoMemeVideo.Infrastructure.Ollama;
+using Serilog;
 
 namespace PoMemeVideo.Api.Configuration;
 
@@ -73,9 +74,23 @@ internal static class ServiceRegistrationExtensions
 
         var azureAdSection = builder.Configuration.GetSection("AzureAd");
         var hasAzureAd = !string.IsNullOrWhiteSpace(azureAdSection["ClientId"]);
+        var hasTenantId = !string.IsNullOrWhiteSpace(azureAdSection["TenantId"]);
+        var hasClientSecret = !string.IsNullOrWhiteSpace(azureAdSection["ClientSecret"]);
+
+        Log.Information(
+            "Authentication setup. Mode={Mode}, HasAzureAdClientId={HasClientId}, HasAzureAdTenantId={HasTenantId}, HasAzureAdClientSecret={HasClientSecret}",
+            hasAzureAd ? "EntraId-OIDC" : "CookieOnly",
+            hasAzureAd,
+            hasTenantId,
+            hasClientSecret);
 
         if (hasAzureAd)
         {
+            if (!hasTenantId)
+            {
+                Log.Warning("AzureAd:ClientId is set but AzureAd:TenantId is missing. Entra ID sign-in may fail.");
+            }
+
             builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
                 .AddMicrosoftIdentityWebApp(azureAdSection);
         }
