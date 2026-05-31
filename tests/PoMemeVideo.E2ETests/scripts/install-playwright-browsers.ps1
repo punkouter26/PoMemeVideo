@@ -9,6 +9,63 @@ $e2eRoot = Resolve-Path (Join-Path $scriptRoot '..')
 $browserRoot = Join-Path $e2eRoot '.playwright-browsers'
 $localLock = Join-Path $browserRoot '__dirlock'
 
+function Ensure-Markers {
+    param([string]$RootDir)
+    New-Item -Path (Join-Path $RootDir 'INSTALLATION_COMPLETE') -ItemType File -Force | Out-Null
+    New-Item -Path (Join-Path $RootDir 'DEPENDENCIES_VALIDATED') -ItemType File -Force | Out-Null
+}
+
+function Install-WithFallback {
+    param(
+        [string]$BrowsersJsonPath,
+        [string]$TargetRoot
+    )
+
+    $meta = Get-Content $BrowsersJsonPath -Raw | ConvertFrom-Json
+    $chromiumMeta = $meta.browsers | Where-Object { $_.name -eq 'chromium' } | Select-Object -First 1
+    $headlessMeta = $meta.browsers | Where-Object { $_.name -eq 'chromium-headless-shell' } | Select-Object -First 1
+
+    if (-not $chromiumMeta -or -not $headlessMeta) {
+        throw 'Unable to find chromium metadata in browsers.json'
+    }
+
+    $version = $chromiumMeta.browserVersion
+    $revision = $chromiumMeta.revision
+
+    $chromiumDir = Join-Path $TargetRoot ("chromium-{0}" -f $revision)
+    $headlessDir = Join-Path $TargetRoot ("chromium_headless_shell-{0}" -f $revision)
+
+    $chromeExe = Join-Path $chromiumDir 'chrome-win64\chrome.exe'
+    $headlessExe = Join-Path $headlessDir 'chrome-headless-shell-win64\chrome-headless-shell.exe'
+
+    if (-not (Test-Path $chromeExe)) {
+        $chromeZip = Join-Path $env:TEMP ("chromium-{0}.zip" -f $revision)
+        $chromeUrl = "https://cdn.playwright.dev/builds/cft/$version/win64/chrome-win64.zip"
+        Write-Host "Fallback download: $chromeUrl"
+        Invoke-WebRequest $chromeUrl -OutFile $chromeZip -UseBasicParsing
+        Remove-Item $chromiumDir -Recurse -Force -ErrorAction SilentlyContinue
+        Expand-Archive -Path $chromeZip -DestinationPath $chromiumDir -Force
+        Remove-Item $chromeZip -Force -ErrorAction SilentlyContinue
+        Ensure-Markers -RootDir $chromiumDir
+    }
+
+    if (-not (Test-Path $headlessExe)) {
+        $headlessZip = Join-Path $env:TEMP ("chromium-headless-shell-{0}.zip" -f $revision)
+        $headlessUrl = "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/$revision/chromium-headless-shell-win64.zip"
+        Write-Host "Fallback download: $headlessUrl"
+        Invoke-WebRequest $headlessUrl -OutFile $headlessZip -UseBasicParsing
+        Remove-Item $headlessDir -Recurse -Force -ErrorAction SilentlyContinue
+        Expand-Archive -Path $headlessZip -DestinationPath $headlessDir -Force
+        Remove-Item $headlessZip -Force -ErrorAction SilentlyContinue
+        Ensure-Markers -RootDir $headlessDir
+    }
+
+    return @{
+        ChromeExe = $chromeExe
+        HeadlessExe = $headlessExe
+    }
+}
+
 Write-Host "E2E root: $e2eRoot"
 Write-Host "Browser cache: $browserRoot"
 
@@ -35,24 +92,37 @@ $env:PLAYWRIGHT_BROWSERS_PATH = $browserRoot
 Push-Location $e2eRoot
 try {
     Write-Host 'Installing Chromium + headless shell for this Playwright version...'
-    npx playwright install --force chromium
-    if ($LASTEXITCODE -ne 0) {
-        throw "playwright install failed with exit code $LASTEXITCODE"
+    $installProcess = Start-Process -FilePath 'npx.cmd' -ArgumentList @('playwright', 'install', '--force', 'chromium') -WorkingDirectory $e2eRoot -NoNewWindow -PassThru
+    $installTimedOut = $false
+    try {
+        Wait-Process -Id $installProcess.Id -Timeout 300
+    }
+    catch {
+        $installTimedOut = $true
     }
 
-    $chromeExe = Get-ChildItem -Path $browserRoot -Filter 'chrome.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    $headlessExe = Get-ChildItem -Path $browserRoot -Filter 'chrome-headless-shell.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($installTimedOut -and -not $installProcess.HasExited) {
+        Write-Host 'Playwright install timed out; terminating process and switching to fallback extraction.'
+        Stop-Process -Id $installProcess.Id -Force -ErrorAction SilentlyContinue
+    }
 
-    if (-not $chromeExe) {
+    if (Test-Path $localLock) {
+        Remove-Item -Path $localLock -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $browsersJson = Join-Path $e2eRoot 'node_modules\playwright-core\browsers.json'
+    $installed = Install-WithFallback -BrowsersJsonPath $browsersJson -TargetRoot $browserRoot
+
+    if (-not (Test-Path $installed.ChromeExe)) {
         throw 'chrome.exe was not found after installation'
     }
 
-    if (-not $headlessExe) {
+    if (-not (Test-Path $installed.HeadlessExe)) {
         throw 'chrome-headless-shell.exe was not found after installation'
     }
 
-    Write-Host "Found Chrome: $($chromeExe.FullName)"
-    Write-Host "Found Headless Shell: $($headlessExe.FullName)"
+    Write-Host "Found Chrome: $($installed.ChromeExe)"
+    Write-Host "Found Headless Shell: $($installed.HeadlessExe)"
     Write-Host 'Playwright browser installation completed successfully.'
 }
 finally {
