@@ -1,10 +1,11 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Shared;
 using System.Diagnostics;
 using System.Text;
 using System.Threading.Channels;
-using Microsoft.Extensions.Logging;
 
 namespace PoMemeVideo.Infrastructure.FFmpeg;
 
@@ -18,14 +19,18 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     private readonly BlobStorageService _blobService;
     private readonly ILogger<FFmpegRenderService> _logger;
     private readonly Channel<RenderJob> _jobQueue;
+    private readonly string? _ffmpegBinPath;
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
     private int _disposed; // 0 = live, 1 = disposed (Interlocked)
 
-    public FFmpegRenderService(BlobStorageService blobService, ILogger<FFmpegRenderService> logger)
+    public FFmpegRenderService(BlobStorageService blobService, ILogger<FFmpegRenderService> logger, IConfiguration configuration)
     {
         _blobService = blobService;
         _logger = logger;
+        _ffmpegBinPath = configuration["FFmpegBinPath"];
+        if (!string.IsNullOrWhiteSpace(_ffmpegBinPath))
+            _logger.LogInformation("FFmpegRenderService: using FFmpegBinPath = {Path}", _ffmpegBinPath);
         _jobQueue = Channel.CreateBounded<RenderJob>(
             new BoundedChannelOptions(Environment.ProcessorCount)
             {
@@ -124,7 +129,13 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                 throw new InvalidOperationException($"FFmpeg exited with code {exitCode} for session {job.SessionId}.");
 
             _logger.LogInformation("FFmpeg render complete for session {SessionId}", job.SessionId);
-
+            // ── 4b. Probe actual output duration via ffprobe ─────────────────────────────
+            job.ActualDurationSeconds = await ProbeOutputDurationAsync(outputPath, cancellationToken);
+            if (job.ActualDurationSeconds > 0)
+                _logger.LogInformation("ffprobe: session {SessionId} actual output duration = {Duration:F2}s",
+                    job.SessionId, job.ActualDurationSeconds);
+            else
+                _logger.LogWarning("ffprobe duration unavailable for session {SessionId}", job.SessionId);
             // ── 5. Upload output to blob storage ──────────────────────────────
             await UploadFileToBlobAsync(outputPath, job.OutputBlobPath, cancellationToken);
             _logger.LogInformation("Output uploaded: {Path}", job.OutputBlobPath);
@@ -244,15 +255,8 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
     private async Task<int> RunFFmpegAsync(string args, Guid sessionId, CancellationToken cancellationToken)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "ffmpeg",
-            Arguments = args,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
+        var psi = BuildPsi("ffmpeg", args);
+        psi.RedirectStandardError = true;
 
         using var process = new Process { StartInfo = psi };
         var stderr = new StringBuilder();
@@ -283,6 +287,57 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             _logger.LogError("FFmpeg stderr for {SessionId}:\n{Stderr}", sessionId, stderr);
 
         return process.ExitCode;
+    }
+
+    private async Task<double> ProbeOutputDurationAsync(string outputPath, CancellationToken ct)
+    {
+        try
+        {
+            var psi = BuildPsi("ffprobe",
+                $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{outputPath}\"");
+
+            using var probe = Process.Start(psi);
+            if (probe is null) return 0;
+
+            var durText = await probe.StandardOutput.ReadToEndAsync(ct);
+            await probe.WaitForExitAsync(ct);
+
+            if (double.TryParse(durText.Trim(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var dur) && dur > 0)
+                return dur;
+        }
+        catch
+        {
+            // Non-critical — duration will remain 0
+        }
+
+        return 0;
+    }
+
+    /// <summary>Builds a ProcessStartInfo, using the full exe path when FFmpegBinPath is configured.</summary>
+    private ProcessStartInfo BuildPsi(string fileName, string arguments)
+    {
+        // When FFmpegBinPath is configured, resolve the full path to the executable so that
+        // Windows can find it regardless of the current process's PATH environment variable.
+        string resolvedFileName = fileName;
+        if (!string.IsNullOrWhiteSpace(_ffmpegBinPath))
+        {
+            var exeName = OperatingSystem.IsWindows() ? fileName + ".exe" : fileName;
+            var fullPath = Path.Combine(_ffmpegBinPath, exeName);
+            if (File.Exists(fullPath))
+                resolvedFileName = fullPath;
+        }
+
+        return new ProcessStartInfo
+        {
+            FileName = resolvedFileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
     }
 
     private async Task DownloadBlobToFileAsync(string blobPath, string destPath, CancellationToken ct)

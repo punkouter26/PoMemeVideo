@@ -37,7 +37,7 @@
                     <button class="ascii-btn anon-btn" @onclick="LoginGuest" disabled="@_busy">
                         @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ RANDOM GUEST ]")
                     </button>
-                    <p class="login-hint">Generates a unique GUEST###### identity for this session.</p>
+                    <p class="login-hint">Generates a unique GUEST######## identity for this session.</p>
                 </div>
             }
 
@@ -95,7 +95,7 @@
             {
                 var result = await response.Content.ReadFromJsonAsync<GuestLoginResponse>();
                 if (!string.IsNullOrWhiteSpace(result?.DisplayName))
-                    await JS.InvokeVoidAsync("sessionStorage.setItem", "pmv.guestDisplayName", result.DisplayName);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "pmv.guestDisplayName", result.DisplayName);
 
                 _guestMessage = $"[ IDENTITY ESTABLISHED: {result?.DisplayName} ]";
                 await Task.Delay(800); // brief visual confirmation

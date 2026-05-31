@@ -55,7 +55,6 @@ internal static class StartupConfigurationExtensions
                 .Enrich.WithEnvironmentName()
                 .Enrich.WithThreadId()
                 .Enrich.WithProperty("Application", PoMemeVideoNaming.ApplicationName)
-                .WriteTo.Console()
                 .WriteTo.File(
                     path: $"logs/{PoMemeVideoNaming.ApplicationSlug}-.log",
                     rollingInterval: RollingInterval.Day,

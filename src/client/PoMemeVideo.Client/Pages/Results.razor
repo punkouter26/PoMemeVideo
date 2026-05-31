@@ -14,8 +14,8 @@
     </div>
 
     <div class="results-top-actions">
-        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>+ New Video</button>
-        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/admin/sounds")'>Sound Library</button>
+        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[  + New Video ]</button>
+        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/admin/sounds")'>[  Sound Library ]</button>
     </div>
 
     @if (_loading)
@@ -32,20 +32,20 @@
             <pre class="status">[ No completed videos yet ]</pre>
             <p class="result-meta" style="font-family: var(--font-ui); font-size:0.82rem; padding: 0.25rem 0;">Your renders will appear here once processing completes.</p>
             <div class="empty-actions">
-                <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>Create a Video</button>
+                <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>[ Create a Video ]</button>
             </div>
         </div>
     }
     else
     {
-        <pre class="status">[ @_sessions.Count completed video(s) ]</pre>
+        <pre class="status">[ @_sessions.Count completed video@(_sessions.Count == 1 ? "" : "s") ]</pre>
 
         <div class="history-grid">
             @foreach (var session in _sessions)
             {
                 <div class="history-card reveal-in">
                     <p class="history-card-title">Completed @(session.CompletedAt?.ToLocalTime().ToString("ddd, MMM d yyyy  HH:mm") ?? "—")</p>
-                    <p class="history-card-id">@session.SessionId</p>
+                    <p class="history-card-id">SESSION: @session.SessionId.ToString()[..8]…</p>
 
                     <div class="history-card-meta">
                         <span class="history-meta-item">Duration: <span>@(session.VideoDurationSeconds.ToString("F1"))s</span></span>
@@ -55,12 +55,12 @@
                     @if (!string.IsNullOrEmpty(session.OutputBlobPath))
                     {
                         <div class="history-card-actions">
-                            <button class="ascii-btn action-primary" @onclick='() => Nav.NavigateTo($"/reveal/{session.SessionId}")'>Open &amp; Review</button>
-                            <button class="ascii-btn action-secondary" @onclick="() => DownloadVideo(session.SessionId)">⬇ Download</button>
+                            <button class="ascii-btn action-primary" @onclick='() => Nav.NavigateTo($"/reveal/{session.SessionId}")'> [ Open &amp; Review ]</button>
+                            <button class="ascii-btn action-secondary" @onclick="() => DownloadVideo(session.SessionId)">[ ⬇ Download ]</button>
                         </div>
 
                             <div class="history-card-preview">
-                                <video muted preload="metadata" loop
+                                <video muted preload="none" loop
                                        onmouseenter="this.play()" onmouseleave="this.pause(); this.currentTime=0;">
                                     <source src="/api/output/sessions/@session.SessionId/stream/video" type="video/mp4" />
                                 </video>
@@ -71,11 +71,11 @@
                             {
                                 <pre class="clear-warning" style="font-size:0.72rem;">⚠ This will permanently delete the video and script.</pre>
                                 <button class="ascii-btn wipe-btn compact-btn" @onclick="() => DeleteSession(session)">[ Confirm Delete ]</button>
-                                <button class="ascii-btn compact-btn" @onclick="CancelDelete">Cancel</button>
+                                <button class="ascii-btn compact-btn" @onclick="CancelDelete">[ Cancel ]</button>
                             }
                             else
                             {
-                                <button class="ascii-btn wipe-btn compact-btn" @onclick="() => RequestDelete(session.SessionId)">Delete</button>
+                                <button class="ascii-btn wipe-btn compact-btn" @onclick="() => RequestDelete(session.SessionId)">[ Delete ]</button>
                             }
                         </div>
                     }

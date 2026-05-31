@@ -50,7 +50,7 @@ public class RenderVideoCommand
             _logger.LogInformation("Starting render for session {SessionId}", sessionId);
 
             // Parse script entries from JSON
-            _logger.LogInformation("EntriesJson for session {SessionId}: {Json}", sessionId, script.EntriesJson);
+            _logger.LogDebug("EntriesJson for session {SessionId}: {Json}", sessionId, script.EntriesJson);
             var soundEntries = new List<RenderSoundEntry>();
             try
             {
@@ -112,6 +112,7 @@ public class RenderVideoCommand
                 userId,
                 SessionStatus.Complete,
                 outputBlobPath: job.OutputBlobPath,
+                videoDurationSeconds: job.ActualDurationSeconds > 0 ? job.ActualDurationSeconds : null,
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation(
@@ -123,7 +124,10 @@ public class RenderVideoCommand
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Render command failed for session {SessionId}", sessionId);
+            if (ex is OperationCanceledException)
+                _logger.LogWarning("Render cancelled for session {SessionId} (host shutdown or test teardown).", sessionId);
+            else
+                _logger.LogError(ex, "Render command failed for session {SessionId}", sessionId);
 
             // Update session with error status
             session.Status = SessionStatus.Error;

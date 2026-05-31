@@ -178,8 +178,13 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
             }
 
             // Build a lookup: display name → SoundId for resolving cases where LLM echoes the name instead of the GUID
-            var byName = topCandidates.ToDictionary(s => s.DisplayName, s => s.SoundId, StringComparer.OrdinalIgnoreCase);
-            var byId = topCandidates.ToDictionary(s => s.SoundId.ToString(), s => s.SoundId, StringComparer.OrdinalIgnoreCase);
+            // Use GroupBy+First to tolerate duplicate names in topCandidates (shouldn't happen, but LLM can hallucinate)
+            var byName = topCandidates
+                .GroupBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase);
+            var byId = topCandidates
+                .GroupBy(s => s.SoundId.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase);
 
             Guid ResolveSound(string raw)
             {

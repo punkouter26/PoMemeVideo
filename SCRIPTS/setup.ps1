@@ -30,8 +30,28 @@ function Ensure-WingetPackage {
     winget install --id $Id --exact --accept-source-agreements --accept-package-agreements
 }
 
+function Clear-Port {
+    param([Parameter(Mandatory = $true)][int]$Port)
+    $pids = netstat -ano 2>$null |
+        Select-String -Pattern "0\.0\.0\.0:$Port\s|127\.0\.0\.1:$Port\s|\[::\]:$Port\s" |
+        ForEach-Object { ($_ -split '\s+')[-1] } |
+        Where-Object { $_ -match '^\d+$' } |
+        Select-Object -Unique
+    foreach ($p in $pids) {
+        try {
+            Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+            Write-Host "Killed process $p holding port $Port."
+        } catch { }
+    }
+}
+
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
+    # ── Kill any orphaned dotnet processes on ports 5000/5001 (rule 4) ────────
+    Write-Host 'Clearing ports 5000 and 5001...'
+    Clear-Port -Port 5000
+    Clear-Port -Port 5001
+
     if (-not $SkipWinget) {
         if (-not (Test-Command -Name 'winget')) {
             throw 'winget is required for first-run bootstrap. Install App Installer from Microsoft Store.'
@@ -69,6 +89,23 @@ try {
 
         Write-Host 'Running Python bootstrap (models/sounds/seeding)...'
         python SCRIPTS/setup-new-machine.py
+    }
+
+    # ── az login check — ensures Key Vault access matches Production (rule 9) ─
+    Write-Host 'Checking Azure CLI login status...'
+    if (-not (Test-Command -Name 'az')) {
+        Write-Warning 'Azure CLI (az) not found. Install it via: winget install Microsoft.AzureCLI'
+        Write-Warning 'Without az login, the app will fall back to appsettings.Development.json secrets instead of Key Vault.'
+    }
+    else {
+        $azAccount = az account show 2>&1 | Out-String
+        if ($azAccount -match '"state":\s*"Enabled"') {
+            Write-Host 'Azure CLI: logged in. Key Vault access available.'
+        }
+        else {
+            Write-Warning 'Azure CLI: not logged in. Run "az login" to enable Key Vault secret resolution.'
+            Write-Warning 'Falling back to appsettings.Development.json for local secrets.'
+        }
     }
 
     Write-Host 'Setup completed.'

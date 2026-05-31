@@ -125,7 +125,10 @@ internal static class EndpointMappingExtensions
             options.GetLevel = (httpContext, elapsed, ex) =>
             {
                 var path = httpContext.Request.Path.Value ?? "";
-                if (ex is null && (path == "/api/auth/me" || path.StartsWith("/api/config/ai-model")))
+                if (ex is null &&
+                    (path == "/api/auth/me" ||
+                     path == "/api/config" ||
+                     path.StartsWith("/api/config/ai-model")))
                     return Serilog.Events.LogEventLevel.Debug;
                 return ex is not null
                     ? Serilog.Events.LogEventLevel.Error

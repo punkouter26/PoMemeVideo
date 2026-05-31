@@ -213,9 +213,24 @@ public partial class Source
     {
         if (_activeProvider == "BrowserLLM" && _localModels.Count == 0)
         {
-            _errorMessage = "LOCAL AI MODEL FILES ARE MISSING. Select Remote AI or AI Foundry, then click Apply Model before creating a video.";
-            _statusMessage = "READY";
-            return;
+            if (_pendingProvider != "BrowserLLM")
+            {
+                // User has selected a valid provider but hasn't applied it yet — apply automatically.
+                await ApplyModelAsync();
+                if (_activeProvider == "BrowserLLM")
+                {
+                    // Apply failed; error already set by ApplyModelAsync via _modelMessage, surface it here too.
+                    _errorMessage = _modelMessage ?? "MODEL SWITCH FAILED. Please try again.";
+                    _statusMessage = "READY";
+                    return;
+                }
+            }
+            else
+            {
+                _errorMessage = "LOCAL AI MODEL FILES ARE MISSING. Select Remote AI or AI Foundry, then click Apply Model before creating a video.";
+                _statusMessage = "READY";
+                return;
+            }
         }
 
         _initiating = true;
@@ -397,6 +412,7 @@ public partial class Source
             _modelDirty = false;
             _displayActiveModel = ComputeDisplayName(_activeProvider);
             _modelMessage = $"MODEL ACTIVE: {_displayActiveModel}";
+            await NavRefresh.NotifyAiChangedAsync();
         }
         catch (Exception ex)
         {

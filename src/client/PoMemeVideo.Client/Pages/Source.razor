@@ -4,6 +4,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject BlobUploadService BlobUpload
+@inject NavRefreshService NavRefresh
 @using Microsoft.AspNetCore.Components.Forms
 @using PoMemeVideo.Client.Services
 @using PoMemeVideo.Client.Components
@@ -125,7 +126,7 @@
         @if (_modelDirty)
         {
             <button class="ascii-btn apply-model-btn" @onclick="ApplyModelAsync" disabled="@_modelApplying">
-                @(_modelApplying ? "Applying…" : "Apply Model")
+                @(_modelApplying ? "[ Applying… ]" : "[ Apply Model ]")
             </button>
         }
         @if (!string.IsNullOrWhiteSpace(_modelMessage))
@@ -197,15 +198,15 @@
                     disabled="@(_initiating || _visionInProgress)">
                 @if (_visionInProgress)
                 {
-                    <span>Analysing… please wait</span>
+                    <span>[ Analysing… please wait ]</span>
                 }
                 else
                 {
-                    <span>@(_initiating ? "Starting…" : "Create Meme Video")</span>
+                    <span>@(_initiating ? "[ Starting… ]" : "[ Create Meme Video ]")</span>
                 }
             </button>
 
-            <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>View History</button>
+            <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
         </div>
     }
 

@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "pw:install:ci": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-playwright-browsers.ps1",
+    "test:ci": "pwsh -NoProfile -Command \"$env:PLAYWRIGHT_BROWSERS_PATH=(Resolve-Path ./.playwright-browsers); npx playwright test --reporter=json,list\""
   },
   "keywords": [],
   "author": "",

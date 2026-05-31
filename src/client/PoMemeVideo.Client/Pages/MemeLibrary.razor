@@ -73,7 +73,12 @@
     else
     {
         <div class="admin-count-bar">
-            <pre class="status">[ @_totalCount sounds total — showing @_sounds.Length ]</pre>
+            <pre class="status">[ @_totalCount sounds total — showing @(_page * PageSize + 1)–@(_page * PageSize + _sounds.Length) ]</pre>
+            <div class="pagination-controls">
+                <button class="ascii-btn compact-btn" @onclick="PrevPage" disabled="@(_page == 0 || _loading)">[ ◀ PREV ]</button>
+                <span style="font-size:0.78rem; color:var(--term-secondary);">page @(_page + 1) / @TotalPages</span>
+                <button class="ascii-btn compact-btn" @onclick="NextPage" disabled="@(_page >= TotalPages - 1 || _loading)">[ NEXT ▶ ]</button>
+            </div>
         </div>
         <div class="sound-admin-grid">
             @foreach (var sound in _sounds)
@@ -95,7 +100,19 @@
                             }
                         </div>
                     }
-                    <audio controls src="/api/memelibrary/sounds/@sound.SoundId/stream" class="sound-admin-player" preload="none"></audio>
+                    <div class="retro-audio-player">
+                        <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
+                        <button class="ascii-btn"
+                                onclick="(function(btn){
+                                    var audio = document.getElementById('audio-@sound.SoundId');
+                                    if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ \u25B6 ]'; return; }
+                                    document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                    document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ \u25B6 ]'; });
+                                    audio.play();
+                                    btn.textContent = '[ \u25A0 ]';
+                                    audio.onended = function(){ btn.textContent = '[ \u25B6 ]'; };
+                                })(this)">[ &#9654; ]</button>
+                    </div>
                 </div>
             }
         </div>
@@ -117,6 +134,9 @@
     private bool _clearing;
     private string? _clearMessage;
     private CancellationTokenSource? _debounceCts;
+    private int _page;
+    private const int PageSize = 20;
+    private int TotalPages => _totalCount == 0 ? 1 : (int)Math.Ceiling(_totalCount / (double)PageSize);
 
     private string TagFilter
     {
@@ -127,6 +147,7 @@
                 return;
 
             _tagFilter = value;
+            _page = 0;
             _ = DebouncedLoadAsync();
         }
     }
@@ -159,6 +180,16 @@
         }
     }
 
+    private async Task PrevPage()
+    {
+        if (_page > 0) { _page--; await LoadSounds(); }
+    }
+
+    private async Task NextPage()
+    {
+        if (_page < TotalPages - 1) { _page++; await LoadSounds(); }
+    }
+
     private async Task LoadSounds()
     {
         _loading = true;
@@ -167,9 +198,10 @@
 
         try
         {
+            var offset = _page * PageSize;
             var url = string.IsNullOrWhiteSpace(_tagFilter)
-                ? "/api/memelibrary/sounds"
-                : $"/api/memelibrary/sounds?tags={Uri.EscapeDataString(_tagFilter)}";
+                ? $"/api/memelibrary/sounds?offset={offset}&limit={PageSize}"
+                : $"/api/memelibrary/sounds?tags={Uri.EscapeDataString(_tagFilter)}&offset={offset}&limit={PageSize}";
 
             var response = await Http.GetFromJsonAsync<SoundsResponse>(url);
             _sounds = response?.Sounds ?? [];
@@ -197,6 +229,7 @@
 
     private void ClearFilters()
     {
+        _page = 0;
         TagFilter = string.Empty;
     }
 

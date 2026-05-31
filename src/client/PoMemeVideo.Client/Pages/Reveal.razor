@@ -10,6 +10,13 @@
 <div class="reveal-page">
     <MockDataBanner />
 
+    @if (_showCompleteFlash)
+    {
+        <div class="render-complete-flash reveal-in">
+            <pre>[ ✓ RENDER COMPLETE — YOUR MEME VIDEO IS READY ]</pre>
+        </div>
+    }
+
     <div class="page-hero">
         <h1 class="hero-title">Review Your Video</h1>
         <p class="hero-sub">Session: @SessionId</p>
@@ -73,7 +80,20 @@
                             <div style="border: 1px solid #00ff41; margin-bottom: 0.75rem; padding: 0.5rem; font-family: monospace; font-size: 0.75rem; line-height: 1.5;">
                                 <pre style="color:#00ff41; margin:0;">┌─ CUT @idx ── @((entry.TimestampMs / 1000.0).ToString("F1"))s ─────────────────────────┐</pre>
                                 <pre style="color:#aaffaa; margin:0; white-space:pre-wrap;">  SCENE   : @(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</pre>
-                                <pre style="color:#ffff00; margin:0;">  SOUND   : @(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</pre>
+                                <div style="display:flex; align-items:center; gap:0.4rem; color:#ffff00; font-family:monospace; font-size:0.75rem; line-height:1.5; margin:0;">
+                                    <span>  SOUND   : @(string.IsNullOrWhiteSpace(entry.SoundName) || entry.SoundName.Length < 2 ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
+                                    <audio id="reveal-audio-@entry.SoundId-@idx" src="/api/memelibrary/sounds/@entry.SoundId/stream" preload="none"></audio>
+                                    <button class="ascii-btn reveal-play-btn" style="font-size:0.7rem; padding:0 0.35rem; min-width:3rem;"
+                                            onclick="(function(btn){
+                                                var audio = document.getElementById('reveal-audio-@entry.SoundId-@idx');
+                                                if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ \u25B6 ]'; return; }
+                                                document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                                document.querySelectorAll('.reveal-play-btn').forEach(function(b){ b.textContent = '[ \u25B6 ]'; });
+                                                audio.play();
+                                                btn.textContent = '[ \u25A0 ]';
+                                                audio.onended = function(){ btn.textContent = '[ \u25B6 ]'; };
+                                            })(this)">[ &#9654; ]</button>
+                                </div>
                                 <pre style="color:#ff9900; margin:0; white-space:pre-wrap;">  WHY     : @(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</pre>
                                 <pre style="color:#888; margin:0;">  EFFECT  : @(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</pre>
                                 <pre style="color:#00ff41; margin:0;">└──────────────────────────────────────────────────────────┘</pre>
@@ -107,8 +127,8 @@
             <!-- Actions Panel -->
             <div class="controls-panel">
                 <div class="reveal-actions-primary">
-                    <button class="ascii-btn download-btn" @onclick="DownloadVideo">⬇ Download Video</button>
-                    <button class="ascii-btn compact-btn" @onclick="DownloadScript">Download Script</button>
+                    <button class="ascii-btn download-btn" @onclick="DownloadVideo">[ ⬇ Download Video ]</button>
+                    <button class="ascii-btn compact-btn" @onclick="DownloadScript">[ Download Script ]</button>
                 </div>
                 <div class="reveal-actions-secondary">
                     @if (_confirmWipe)
@@ -118,10 +138,10 @@
                     }
                     else
                     {
-                        <button class="ascii-btn wipe-btn compact-btn" @onclick='() => _confirmWipe = true'>Delete Session</button>
+                        <button class="ascii-btn wipe-btn compact-btn" @onclick='() => _confirmWipe = true'>[ Delete Session ]</button>
                     }
-                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>View History</button>
-                        <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>+ Create Another</button>
+                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
+                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[ + Create Another ]</button>
                 </div>
                 @if (!string.IsNullOrWhiteSpace(_statusMessage))
                 {
@@ -150,6 +170,7 @@
     private bool _videoLoadFailed;
     private bool _confirmWipe;
     private IJSObjectReference? _revealJs;
+    private bool _showCompleteFlash;
 
     protected override async Task OnInitializedAsync()
     {
@@ -205,6 +226,15 @@
         finally
         {
             _loading = false;
+            if (_session?.Status == SessionStatus.Complete)
+            {
+                _showCompleteFlash = true;
+                _ = Task.Delay(3500).ContinueWith(_ => InvokeAsync(() =>
+                {
+                    _showCompleteFlash = false;
+                    StateHasChanged();
+                }));
+            }
         }
     }
 

@@ -17,6 +17,8 @@ public record RenderJob(
 {
     /// <summary>Internal completion signal set by FFmpegRenderService when done.</summary>
     public TaskCompletionSource Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    /// <summary>Set by FFmpegRenderService after render via ffprobe. 0 if unavailable.</summary>
+    public double ActualDurationSeconds { get; set; }
 };
 
 public record RenderSoundEntry(

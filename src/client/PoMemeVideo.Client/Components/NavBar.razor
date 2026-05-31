@@ -1,12 +1,13 @@
 @* NavBar.razor
    Retro-terminal styled navigation bar displayed on all pages via MainLayout.
    Reads auth identity from GET /api/auth/me and displays:
-         - "GUEST<random> LOGGED IN" for guest identities (GUEST\d{6})
-     - User email for Microsoft OAuth authenticated users
+         - "GUEST<random> LOGGED IN" for guest identities (GUEST\d{8})
+     - User email for Microsoft OAuth authenticated users + LOG OUT button
      - "[ GUEST ]" when no session is active
    Styled with retro-terminal.css ASCII horizontal rule separator. *@
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavRefreshService NavRefresh
 @implements IDisposable
 
 <nav class="retro-navbar" role="navigation" aria-label="Site navigation">
@@ -16,7 +17,7 @@
         <NavLink href="/" Match="NavLinkMatch.All">[ CREATE ]</NavLink>
         <NavLink href="/admin/sounds">[ SOUNDS ]</NavLink>
         <NavLink href="/results">[ HISTORY ]</NavLink>
-        <a href="/scalar/" target="_blank" rel="noopener noreferrer" style="opacity:0.55; font-size:0.72rem;">[ API ]</a>
+        <a href="/scalar/" target="_blank" rel="noopener noreferrer" style="font-size:0.72rem;">[ API ]</a>
     </div>
 
     <div class="status-cluster" aria-label="Runtime status">
@@ -46,6 +47,13 @@
         {
             <span class="auth-status">@_mockDisplay</span>
         }
+
+        @if (_isAuthenticated)
+        {
+            <form method="post" action="/auth/logout" style="display:inline;">
+                <button type="submit" class="ascii-btn logout-btn" aria-label="Log out">[ LOG OUT ]</button>
+            </form>
+        }
     </div>
 </nav>
 <hr class="retro-navbar-divider" />
@@ -54,6 +62,7 @@
     private string? _authDisplay;
     private string? _aiDisplay;
     private string? _mockDisplay;
+    private bool _isAuthenticated;
     private System.Threading.Timer? _refreshTimer;
 
     protected override async Task OnInitializedAsync()
@@ -61,18 +70,25 @@
         await LoadAuthAsync();
         await LoadAiAsync();
         await LoadMockAsync();
-        // Refresh auth state every 30 seconds to pick up logins/logouts.
+        NavRefresh.Subscribe(OnAiChangedAsync);
+        // Refresh auth state periodically to pick up logins/logouts.
+        // Keep this slower to reduce background polling across many open tabs.
         _refreshTimer = new System.Threading.Timer(
             async _ =>
             {
                 await LoadAuthAsync();
-                await LoadAiAsync();
-                await LoadMockAsync();
                 await InvokeAsync(StateHasChanged);
             },
             null,
-            TimeSpan.FromSeconds(30),
-            TimeSpan.FromSeconds(30));
+            TimeSpan.FromSeconds(45),
+            TimeSpan.FromSeconds(90));
+    }
+
+    private async Task OnAiChangedAsync()
+    {
+        await LoadAiAsync();
+        await LoadMockAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadMockAsync()
@@ -123,32 +139,47 @@
             var me = await Http.GetFromJsonAsync<AuthMeResponse>("/api/auth/me");
             if (me?.DisplayName is { Length: > 0 } name)
             {
-                // GUEST\d{6} pattern — show required explicit guest identity message.
-                if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^GUEST\d{6}$"))
-                    _authDisplay = $"[ {name} LOGGED IN ]";
+                // GUEST\d{8} pattern — show required explicit guest identity message.
+                if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^GUEST\d{8}$"))
+                {
+                    _authDisplay = $"[ {name} ]";
+                }
                 else
-                    _authDisplay = $"[ {me.Email ?? name} ]";
+                {
+                    // For email addresses, show only the part before @
+                    var displayEmail = me.Email ?? name;
+                    var atIdx = displayEmail.IndexOf('@');
+                    var shortName = atIdx > 0 ? displayEmail[..atIdx] : displayEmail;
+                    _authDisplay = $"[ {shortName} ]";
+                }
 
-                await JS.InvokeVoidAsync("sessionStorage.setItem", "pmv.guestDisplayName", name);
+                _isAuthenticated = true;
+                await JS.InvokeVoidAsync("localStorage.setItem", "pmv.guestDisplayName", name);
             }
             else
             {
-                var guestName = await JS.InvokeAsync<string?>("sessionStorage.getItem", "pmv.guestDisplayName");
-                _authDisplay = System.Text.RegularExpressions.Regex.IsMatch(guestName ?? string.Empty, @"^GUEST\d{6}$")
-                    ? $"[ {guestName} LOGGED IN ]"
+                var guestName = await JS.InvokeAsync<string?>("localStorage.getItem", "pmv.guestDisplayName");
+                _authDisplay = System.Text.RegularExpressions.Regex.IsMatch(guestName ?? string.Empty, @"^GUEST\d{8}$")
+                    ? $"[ {guestName} ]"
                     : null;
+                _isAuthenticated = _authDisplay is not null;
             }
         }
         catch
         {
-            var guestName = await JS.InvokeAsync<string?>("sessionStorage.getItem", "pmv.guestDisplayName");
-            _authDisplay = System.Text.RegularExpressions.Regex.IsMatch(guestName ?? string.Empty, @"^GUEST\d{6}$")
-                ? $"[ {guestName} LOGGED IN ]"
+            var guestName = await JS.InvokeAsync<string?>("localStorage.getItem", "pmv.guestDisplayName");
+            _authDisplay = System.Text.RegularExpressions.Regex.IsMatch(guestName ?? string.Empty, @"^GUEST\d{8}$")
+                ? $"[ {guestName} ]"
                 : null;
+            _isAuthenticated = _authDisplay is not null;
         }
     }
 
-    public void Dispose() => _refreshTimer?.Dispose();
+    public void Dispose()
+    {
+        NavRefresh.Unsubscribe();
+        _refreshTimer?.Dispose();
+    }
 
     private sealed record AuthMeResponse(string? DisplayName, string? Email);
     private sealed record ConfigResponse(bool UseMockAI, bool IsDevelopment);

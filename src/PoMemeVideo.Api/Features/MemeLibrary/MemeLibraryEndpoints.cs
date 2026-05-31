@@ -15,6 +15,7 @@ public static class MemeLibraryEndpoints
             ISoundAssetRepository repository,
             string? tags,
             int limit = 20,
+            int offset = 0,
             CancellationToken cancellationToken = default) =>
         {
             var allSounds = await repository.LoadAllAsync(cancellationToken);
@@ -28,7 +29,7 @@ public static class MemeLibraryEndpoints
                 }).ToList();
 
             var totalCount = filtered.Count;
-            var page = filtered.Take(Math.Min(limit, 100)).Select(s => new SoundAssetDto
+            var page = filtered.Skip(Math.Max(0, offset)).Take(Math.Min(limit, 100)).Select(s => new SoundAssetDto
             {
                 SoundId = s.SoundId,
                 DisplayName = s.DisplayName,

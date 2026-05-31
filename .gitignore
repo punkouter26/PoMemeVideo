@@ -7,6 +7,7 @@
 
 ## VS Code
 .vscode/
+.history/
 
 ## Build outputs
 [Bb]in/
@@ -77,6 +78,17 @@ tests/PoMemeVideo.E2ETests/artifacts/
 
 ## Docker
 # .dockerignore is intentionally tracked
+
+## Azure / deployment local state
+.azd/
+
+## Environment files
+.env
+.env.*
+!.env.example
+
+## IDE extras
+.idea/
 
 ## OS artifacts
 .DS_Store

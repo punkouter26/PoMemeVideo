@@ -12,7 +12,7 @@ namespace PoMemeVideo.IntegrationTests.Auth;
 
 /// <summary>
 /// T081 — Integration tests for POST /auth/anon.
-/// Verifies: response sets session cookie, displayName matches ANON\d{6}, UserIdentity persisted.
+/// Verifies: response sets session cookie, displayName matches GUEST\d{8}, UserIdentity persisted.
 /// </summary>
 [Collection("Integration")]
 public sealed class AnonAuthTests : IAsyncLifetime
@@ -69,8 +69,8 @@ public sealed class AnonAuthTests : IAsyncLifetime
         var body = await response.Content.ReadFromJsonAsync<AnonLoginResponse>();
         Assert.NotNull(body);
         Assert.NotEqual(Guid.Empty, body.IdentityId);
-        Assert.Matches(@"^ANON\d{6}$", body.DisplayName);
-        Assert.Equal("ANON", body.IdentityType);
+        Assert.Matches(@"^GUEST\d{8}$", body.DisplayName);
+        Assert.Equal("GUEST", body.IdentityType);
     }
 
     [Fact]
@@ -91,13 +91,13 @@ public sealed class AnonAuthTests : IAsyncLifetime
     {
         await _client!.PostAsync("/auth/anon", null);
 
-        // Verify repository CreateAsync was called exactly once with an ANON identity
+        // Verify repository CreateAsync was called exactly once with a GUEST identity
         await _identityRepository
             .Received(1)
             .CreateAsync(
                 Arg.Is<UserIdentity>(u =>
-                    u.IdentityType == "ANON" &&
-                    Regex.IsMatch(u.DisplayName, @"^ANON\d{6}$")),
+                    u.IdentityType == "GUEST" &&
+                    Regex.IsMatch(u.DisplayName, @"^GUEST\d{8}$")),
                 Arg.Any<CancellationToken>());
     }
 
@@ -110,7 +110,7 @@ public sealed class AnonAuthTests : IAsyncLifetime
         var body1 = await response1.Content.ReadFromJsonAsync<AnonLoginResponse>();
         var body2 = await response2.Content.ReadFromJsonAsync<AnonLoginResponse>();
 
-        // Extremely unlikely to collide with 900,000 possible suffixes
+        // Extremely unlikely to collide with 90,000,000 possible suffixes
         Assert.NotEqual(body1?.DisplayName, body2?.DisplayName);
     }
 
@@ -125,7 +125,7 @@ public sealed class AnonAuthTests : IAsyncLifetime
 
         Assert.NotNull(me);
         Assert.NotNull(me.DisplayName);
-        Assert.Matches(@"^ANON\d{6}$", me.DisplayName);
+        Assert.Matches(@"^GUEST\d{8}$", me.DisplayName);
     }
 
     private sealed record AnonLoginResponse(Guid IdentityId, string DisplayName, string IdentityType);

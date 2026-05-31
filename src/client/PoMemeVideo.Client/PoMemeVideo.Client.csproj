@@ -2,9 +2,7 @@
 
   <PropertyGroup>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
-    <RunAOTCompilation Condition="'$(Configuration)' == 'Release'">true</RunAOTCompilation>
-    <WasmEnableSIMD Condition="'$(Configuration)' == 'Release'">true</WasmEnableSIMD>
-    <!-- Reduce WASM download / container image size -->
+    <!-- AOT disabled: smaller build size and faster CI/CD (rule 2) -->
     <PublishTrimmed Condition="'$(Configuration)' == 'Release'">true</PublishTrimmed>
     <InvariantGlobalization Condition="'$(Configuration)' == 'Release'">true</InvariantGlobalization>
     <BlazorWebAssemblyPreserveCollationData>false</BlazorWebAssemblyPreserveCollationData>

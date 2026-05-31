@@ -157,7 +157,11 @@ public sealed class RunEngineCommand
 
                 for (var i = 0; i < times.Count; i++)
                 {
-                    var sound = allSounds[Random.Shared.Next(allSounds.Count)];
+                    // Deduplicate: prefer sounds not already in this session
+                    var usedSoundIds = placementRequests.Select(p => p.SelectedSound.SoundId).ToHashSet();
+                    var available = allSounds.Where(s => !usedSoundIds.Contains(s.SoundId)).ToList();
+                    if (available.Count == 0) available = allSounds.ToList(); // all used — allow repeats
+                    var sound = available[Random.Shared.Next(available.Count)];
                     placementRequests.Add(new(times[i], sound, 0.5f));
                 }
 
@@ -184,13 +188,20 @@ public sealed class RunEngineCommand
             }
 
             // Build approved vision labels for the Director
+            var videoDurSec = session.VideoDurationSeconds > 0 ? session.VideoDurationSeconds : 1.0;
             var approvedLabels = decisions.Select(d =>
             {
                 var original = visionLabels
                     .OrderBy(v => Math.Abs(v.TimestampSeconds - d.ApprovedTimestampMs / 1000.0))
                     .FirstOrDefault();
-                return (TimestampSeconds: d.ApprovedTimestampMs / 1000.0,
-                        Label: original.Label ?? "unknown");
+                var label = original.Label;
+                if (string.IsNullOrWhiteSpace(label) || label == "unknown")
+                {
+                    // Replace "unknown" with a positional description so the AI director can reason about timing.
+                    var relPos = d.ApprovedTimestampMs / 1000.0 / videoDurSec;
+                    label = relPos < 0.25 ? "opening scene" : relPos < 0.6 ? "mid-video action" : "final moments";
+                }
+                return (TimestampSeconds: d.ApprovedTimestampMs / 1000.0, Label: label);
             }).ToArray();
 
             var approvedSounds = decisions.Select(d => d.SelectedSound).ToList();
@@ -231,7 +242,9 @@ public sealed class RunEngineCommand
                     SoundId = d.SelectedSound.SoundId,
                     SoundName = d.SelectedSound.DisplayName,
                     ActionVectorTags = d.SelectedSound.ActionVectorTags,
-                    SelectionRationale = $"[FALLBACK] Direct semantic match for '{(i < approvedLabels.Length ? approvedLabels[i].Label : d.SelectedSound.DisplayName)}'.",
+                    SelectionRationale = i < approvedLabels.Length && approvedLabels[i].Label == "unknown"
+                        ? "[FALLBACK] No scene context detected — time-based placement."
+                        : $"[FALLBACK] Direct semantic match for '{(i < approvedLabels.Length ? approvedLabels[i].Label : d.SelectedSound.DisplayName)}'.",
                     SceneDescription = i < approvedLabels.Length ? approvedLabels[i].Label : string.Empty,
                     PlacementType = d.PlacementType,
                 }).ToArray();

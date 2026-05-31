@@ -5,6 +5,10 @@
 ║  DIRECTOR'S SCRIPT  ▓            ║
 ╚═══════════════════════════════════╝</pre>
     <div class="script-feed">
+        @if (_entries.Count == 0)
+        {
+            <pre class="director-thinking">[ DIRECTOR THINKING… ]</pre>
+        }
         @foreach (var entry in _entries)
         {
             <pre class="script-entry-block">@FormatEntry(entry)</pre>
@@ -28,6 +32,17 @@
     margin-bottom: 0.5rem;
     animation: typeIn 0.3s steps(40, end);
     white-space: pre-wrap;
+}
+.director-thinking {
+    color: #00FF41;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    margin: 0;
+    animation: blink-cursor 1.1s step-end infinite;
+}
+@@keyframes blink-cursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
 }
 @@keyframes typeIn {
     from { opacity: 0; }

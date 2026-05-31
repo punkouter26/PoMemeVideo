@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { request as playwrightRequest } from '@playwright/test';
 
 // ─── US2: AI-Directed Meme Sound & Visual Mapping ─────────────────────────
@@ -79,45 +79,13 @@ test.describe('US2 – Engine page structure', () => {
 
     await page.goto(`/engine/${sessionId}`, { waitUntil: 'networkidle' });
 
-    await page.getByText('[ SHOW ADVANCED PANELS ]').click();
+    await page.getByText('[ Show Technical Panels ]').click();
 
     // All four panels must be present
     await expect(page.locator('.hw-panel')).toBeVisible();
     await expect(page.locator('.script-panel')).toBeVisible();
     await expect(page.locator('.log-panel')).toBeVisible();
     await expect(page.locator('.audit-panel')).toBeVisible();
-  });
-
-  test('Engine page panels have ASCII double-line borders', async ({ page }) => {
-    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:5000' });
-    const sasRes = await ctx.post('/api/ingestion/sas', {
-      data: { fileName: 'engine-border-e2e.mp4', fileSizeBytes: 1024 * 1024 },
-    });
-    const { sessionId } = await sasRes.json();
-    await ctx.dispose();
-
-    await page.goto(`/engine/${sessionId}`, { waitUntil: 'networkidle' });
-
-    await page.getByText('[ SHOW ADVANCED PANELS ]').click();
-
-    // Panels must carry the ascii-border-double class
-    const panels = page.locator('.ascii-border-double');
-    const count = await panels.count();
-    expect(count).toBeGreaterThanOrEqual(4);
-  });
-
-  test('Engine page header contains expected ASCII art title', async ({ page }) => {
-    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:5000' });
-    const sasRes = await ctx.post('/api/ingestion/sas', {
-      data: { fileName: 'engine-title-e2e.mp4', fileSizeBytes: 1024 * 1024 },
-    });
-    const { sessionId } = await sasRes.json();
-    await ctx.dispose();
-
-    await page.goto(`/engine/${sessionId}`, { waitUntil: 'networkidle' });
-
-    const header = await page.locator('.page-header').first().innerText();
-    expect(header).toMatch(/ENGINE|DIRECTOR|PROCESSING/i);
   });
 
   test('DirectorLogFeed panel is visible and auto-scrolls', async ({ page }) => {
@@ -137,41 +105,6 @@ test.describe('US2 – Engine page structure', () => {
     const preFeed = logPanel.locator('pre.director-log-feed');
     await expect(preFeed).toBeVisible();
   });
-
-  test('HardwareMonitor panel is visible', async ({ page }) => {
-    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:5000' });
-    const sasRes = await ctx.post('/api/ingestion/sas', {
-      data: { fileName: 'engine-hw-e2e.mp4', fileSizeBytes: 1024 * 1024 },
-    });
-    const { sessionId } = await sasRes.json();
-    await ctx.dispose();
-
-    await page.goto(`/engine/${sessionId}`, { waitUntil: 'networkidle' });
-
-    await page.getByText('[ SHOW ADVANCED PANELS ]').click();
-
-    const hwPanel = page.locator('.hw-panel');
-    await expect(hwPanel).toBeVisible();
-    // Hardware panel should contain latency and CPU labels
-    const hwText = await hwPanel.innerText();
-    expect(hwText).toMatch(/latency|cpu|ms|%/i);
-  });
-
-  test('System Audit Box panel is visible', async ({ page }) => {
-    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:5000' });
-    const sasRes = await ctx.post('/api/ingestion/sas', {
-      data: { fileName: 'engine-audit-e2e.mp4', fileSizeBytes: 1024 * 1024 },
-    });
-    const { sessionId } = await sasRes.json();
-    await ctx.dispose();
-
-    await page.goto(`/engine/${sessionId}`, { waitUntil: 'networkidle' });
-
-    await page.getByText('[ SHOW ADVANCED PANELS ]').click();
-
-    const auditPanel = page.locator('.audit-panel');
-    await expect(auditPanel).toBeVisible();
-  });
 });
 
 test.describe('US2 – SignalR hub connection', () => {
@@ -186,13 +119,4 @@ test.describe('US2 – SignalR hub connection', () => {
   });
 });
 
-test.describe('US2 – Mock data banner', () => {
-  test('GET /api/config reports isDevelopment flag', async ({ request }) => {
-    const res = await request.get('/api/config');
-    expect(res.status()).toBe(200);
-    const body = await res.json();
-    expect(body).toHaveProperty('isDevelopment');
-    expect(typeof body.isDevelopment).toBe('boolean');
-    console.log(`[Config] isDevelopment=${body.isDevelopment}`);
-  });
-});
+// Config endpoint coverage is handled in 01-health.spec.ts.

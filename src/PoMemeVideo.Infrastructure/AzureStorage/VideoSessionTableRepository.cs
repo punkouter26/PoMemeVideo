@@ -97,6 +97,7 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         SessionStatus status,
         string? errorMessage = null,
         string? outputBlobPath = null,
+        double? videoDurationSeconds = null,
         CancellationToken cancellationToken = default)
     {
         var response = await _table.GetEntityAsync<VideoSessionTableEntity>(
@@ -110,6 +111,9 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
 
         if (outputBlobPath is not null)
             entity.OutputBlobPath = outputBlobPath;
+
+        if (videoDurationSeconds is > 0)
+            entity.VideoDurationSeconds = videoDurationSeconds.Value;
 
         if (status is SessionStatus.Complete or SessionStatus.Error)
         {

@@ -222,7 +222,6 @@ pre {
     padding: 0.4rem 1rem;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 0.8rem;
     flex-wrap: wrap;
     font-family: 'Courier New', Courier, monospace;
@@ -249,6 +248,7 @@ pre {
     gap: 1rem;
     align-items: center;
     flex-wrap: wrap;
+    margin-left: auto;
 }
 
 .retro-navbar .nav-links a {
@@ -267,7 +267,9 @@ pre {
 .retro-navbar .status-cluster {
     display: inline-flex;
     gap: 0.45rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 .retro-navbar .auth-status {
@@ -321,6 +323,28 @@ pre {
     font-family: 'Courier New', Courier, monospace;
     min-height: 100vh;
     padding: 0.75rem;
+}
+
+.render-complete-flash {
+    border: 2px solid #00FF41;
+    background: rgba(0, 30, 10, 0.95);
+    color: #00FF41;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.75rem;
+    animation: fadeOutFlash 3.5s ease forwards;
+}
+
+.render-complete-flash pre {
+    margin: 0;
+    font-size: 0.9rem;
+    text-shadow: 0 0 8px rgba(0, 255, 65, 0.7);
+}
+
+@keyframes fadeOutFlash {
+    0%   { opacity: 1; }
+    70%  { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 .source-page,
@@ -383,8 +407,13 @@ pre {
     gap: 1rem;
     align-items: center;
     margin-top: 1rem;
-    padding: 0.5rem 0;
+    padding: 0.65rem 0.75rem;
     border-top: 1px solid #00FF41;
+    position: sticky;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.96);
+    z-index: 50;
+    backdrop-filter: blur(4px);
 }
 
 /* ── Vision labels ───────────────────────────────────────── */
@@ -1312,10 +1341,16 @@ details[open] .advanced-toggle::before {
     border-color: var(--term-border-strong);
 }
 
-.sound-admin-player {
-    width: 100%;
+.retro-audio-player {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-top: 0.4rem;
-    filter: invert(1) hue-rotate(80deg) saturate(0.8);
+}
+
+.retro-audio-player .ascii-btn {
+    min-width: 4.5rem;
+    font-size: 0.85rem;
 }
 
 .admin-count-bar {
@@ -1325,6 +1360,12 @@ details[open] .advanced-toggle::before {
     flex-wrap: wrap;
     gap: 0.5rem;
     margin-bottom: 0.25rem;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
 }
 
 @media (max-width: 820px) {

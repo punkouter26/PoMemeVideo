@@ -13,6 +13,10 @@ internal static class DirectorPrompt
         "create a DirectorScript that maps meme sounds to moments in the video.\n\n" +
         $"Action labels (JSON): {labelsJson}\n" +
         $"Available sounds (JSON): {soundsJson}\n\n" +
+        "IMPORTANT: If a label is generic (e.g. 'opening scene', 'mid-video action', 'final moments', 'unknown'), " +
+        "choose a sound based purely on comedic timing and energy. Still write a creative sceneDescription " +
+        "imagining what might be happening, and explain the sound choice with a specific rationale (tone, irony, cultural reference). " +
+        "Always return an entry for every label provided — never return an empty array.\n\n" +
         "Return ONLY a JSON array of script entries. Each entry MUST include:\n" +
         "- sceneDescription: a vivid 1-2 sentence description of what is happening in the scene at that moment\n" +
         "- selectionRationale: explain specifically why this meme sound fits the scene (tone, timing, irony, cultural reference)\n" +
@@ -44,10 +48,14 @@ internal static class DirectorPrompt
         if (dtos.Length == 0)
             return [];
 
-        var byName = topCandidates?.ToDictionary(s => s.DisplayName, s => s.SoundId, StringComparer.OrdinalIgnoreCase)
+        var byName = topCandidates?
+                         .GroupBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase)
+                         .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase)
                      ?? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
-        var byId = topCandidates?.ToDictionary(s => s.SoundId.ToString(), s => s.SoundId, StringComparer.OrdinalIgnoreCase)
-                     ?? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        var byId = topCandidates?
+                       .GroupBy(s => s.SoundId.ToString(), StringComparer.OrdinalIgnoreCase)
+                       .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase)
+                   ?? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
 
         Guid ResolveSound(string raw)
         {

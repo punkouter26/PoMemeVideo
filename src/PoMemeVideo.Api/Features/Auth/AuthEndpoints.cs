@@ -47,8 +47,8 @@ public static class AuthEndpoints
             HttpContext httpContext,
             CancellationToken ct)
         {
-            // Generate unique GUEST display name: GUEST + 6-digit suffix
-            var suffix = Random.Shared.Next(100_000, 999_999);
+            // Generate unique GUEST display name: GUEST + 8-digit suffix (rule 6)
+            var suffix = Random.Shared.Next(10_000_000, 99_999_999);
             var displayName = $"GUEST{suffix}";
 
             var identity = new UserIdentity
