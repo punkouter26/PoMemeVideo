@@ -59,3 +59,33 @@ jobs:
               --container-registry-url https://ghcr.io \
               --container-registry-user punkouter26 \
               --container-registry-password ${{ secrets.GHCR_PULL_TOKEN }}
+
+      - name: Restart Web App
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp restart \
+              --resource-group PoMemeVideo \
+              --name ${{ env.WEBAPP_NAME }}
+
+      - name: Health Check Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEALTH_URL="https://${WEBAPP_NAME}.azurewebsites.net/health"
+          echo "Checking ${HEALTH_URL} for HTTP 200"
+
+          for attempt in {1..20}; do
+            status_code="$(curl -sS -o /dev/null -w "%{http_code}" "${HEALTH_URL}" || true)"
+            echo "Attempt ${attempt}/20: HTTP ${status_code}"
+
+            if [ "${status_code}" = "200" ]; then
+              echo "Health check passed."
+              exit 0
+            fi
+
+            sleep 15
+          done
+
+          echo "Health check failed after 20 attempts."
+          exit 1
