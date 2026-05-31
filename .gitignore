@@ -72,6 +72,7 @@ build/
 tests/PoMemeVideo.E2ETests/playwright-report/
 tests/PoMemeVideo.E2ETests/test-results/
 tests/PoMemeVideo.E2ETests/artifacts/
+tests/PoMemeVideo.E2ETests/.playwright-browsers/
 
 ## Blazor WASM output
 **/wwwroot/appsettings.Development.json
