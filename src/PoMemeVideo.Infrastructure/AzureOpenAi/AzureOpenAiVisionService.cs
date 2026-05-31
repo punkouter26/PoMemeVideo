@@ -15,6 +15,10 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true,
+        AllowDuplicateProperties = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
     private readonly ChatClient _chatClient;

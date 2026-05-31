@@ -20,6 +20,10 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
     {
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
+        AllowDuplicateProperties = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
     private readonly ChatClient _chatClient;

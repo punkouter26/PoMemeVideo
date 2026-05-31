@@ -19,6 +19,10 @@ public sealed class BrowserLLMDirectorService : IDirectorService
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        AllowDuplicateProperties = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
     // Keyed by sessionId; resolved by the POST endpoint when the browser responds.

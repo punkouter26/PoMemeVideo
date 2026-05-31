@@ -19,6 +19,10 @@ public sealed class AiFoundryDirectorService : IDirectorService
     {
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
+        AllowDuplicateProperties = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
     private readonly AzureOpenAIClient _client;

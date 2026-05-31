@@ -18,6 +18,10 @@ public sealed class RunEngineCommand
     {
         Converters = { new JsonStringEnumConverter() },
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        AllowDuplicateProperties = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
     private readonly IVideoSessionRepository _sessions;
@@ -221,7 +225,23 @@ public sealed class RunEngineCommand
                 diagPrefix,
                 cancellationToken.IsCancellationRequested);
             var directorStopwatch = Stopwatch.StartNew();
-            var scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
+            ScriptEntry[] scriptEntries;
+            try
+            {
+                scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
+            }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // BrowserLLM can time out if the client page disconnects or misses the SignalR request.
+                // Degrade gracefully to deterministic fallback entries instead of failing the entire session.
+                _logger.LogWarning(ex,
+                    "{DiagPrefix} Director call timed out; continuing with deterministic fallback entries.",
+                    diagPrefix);
+                await _notifier.DirectorLogAsync(sessionId,
+                    "DIRECTOR TIMEOUT — CONTINUING WITH FALLBACK SCRIPT.",
+                    cancellationToken);
+                scriptEntries = [];
+            }
             directorStopwatch.Stop();
             _logger.LogInformation(
                 "{DiagPrefix} IDirectorService.DirectAsync returned {EntryCount} entry/entries in {ElapsedMs} ms.",
