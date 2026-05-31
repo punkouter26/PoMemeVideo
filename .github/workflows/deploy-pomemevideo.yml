@@ -68,6 +68,27 @@ jobs:
               --resource-group PoMemeVideo \
               --name ${{ env.WEBAPP_NAME }}
 
+      - name: Dump Azure Runtime Diagnostics
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            echo "== Web App =="
+            az webapp show \
+              --resource-group PoMemeVideo \
+              --name ${{ env.WEBAPP_NAME }} \
+              --query '{state:state, defaultHostName:defaultHostName, linuxFxVersion:siteConfig.linuxFxVersion, lastModifiedTimeUtc:lastModifiedTimeUtc}'
+
+            echo "== Container Config =="
+            az webapp config container show \
+              --resource-group PoMemeVideo \
+              --name ${{ env.WEBAPP_NAME }}
+
+            echo "== App Settings (selected) =="
+            az webapp config appsettings list \
+              --resource-group PoMemeVideo \
+              --name ${{ env.WEBAPP_NAME }} \
+              --query "[?name=='WEBSITES_PORT' || name=='ASPNETCORE_ENVIRONMENT' || name=='DOCKER_REGISTRY_SERVER_URL' || name=='DOCKER_REGISTRY_SERVER_USERNAME' || name=='DOCKER_REGISTRY_SERVER_PASSWORD' || name=='KeyVault__Uri']"
+
       - name: Health Check Gate
         shell: bash
         run: |
