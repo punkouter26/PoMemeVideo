@@ -55,4 +55,7 @@ jobs:
             az webapp config container set \
               --resource-group PoMemeVideo \
               --name ${{ env.WEBAPP_NAME }} \
-              --container-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+              --container-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --container-registry-url https://ghcr.io \
+              --container-registry-user punkouter26 \
+              --container-registry-password ${{ secrets.GHCR_PULL_TOKEN }}

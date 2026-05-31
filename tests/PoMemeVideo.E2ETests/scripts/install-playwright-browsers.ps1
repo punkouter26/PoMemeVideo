@@ -40,7 +40,7 @@ function Install-WithFallback {
 
     if (-not (Test-Path $chromeExe)) {
         $chromeZip = Join-Path $env:TEMP ("chromium-{0}.zip" -f $revision)
-        $chromeUrl = "https://cdn.playwright.dev/builds/cft/$version/win64/chrome-win64.zip"
+        $chromeUrl = "https://storage.googleapis.com/chrome-for-testing-public/$version/win64/chrome-win64.zip"
         Write-Host "Fallback download: $chromeUrl"
         Invoke-WebRequest $chromeUrl -OutFile $chromeZip -UseBasicParsing
         Remove-Item $chromiumDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -51,7 +51,7 @@ function Install-WithFallback {
 
     if (-not (Test-Path $headlessExe)) {
         $headlessZip = Join-Path $env:TEMP ("chromium-headless-shell-{0}.zip" -f $revision)
-        $headlessUrl = "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/$revision/chromium-headless-shell-win64.zip"
+        $headlessUrl = "https://storage.googleapis.com/chrome-for-testing-public/$version/win64/chrome-headless-shell-win64.zip"
         Write-Host "Fallback download: $headlessUrl"
         Invoke-WebRequest $headlessUrl -OutFile $headlessZip -UseBasicParsing
         Remove-Item $headlessDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -91,21 +91,7 @@ $env:PLAYWRIGHT_BROWSERS_PATH = $browserRoot
 
 Push-Location $e2eRoot
 try {
-    Write-Host 'Installing Chromium + headless shell for this Playwright version...'
-    $installProcess = Start-Process -FilePath 'npx.cmd' -ArgumentList @('playwright', 'install', '--force', 'chromium') -WorkingDirectory $e2eRoot -NoNewWindow -PassThru
-    $installTimedOut = $false
-    try {
-        Wait-Process -Id $installProcess.Id -Timeout 300
-    }
-    catch {
-        $installTimedOut = $true
-    }
-
-    if ($installTimedOut -and -not $installProcess.HasExited) {
-        Write-Host 'Playwright install timed out; terminating process and switching to fallback extraction.'
-        Stop-Process -Id $installProcess.Id -Force -ErrorAction SilentlyContinue
-    }
-
+    Write-Host 'Installing Chromium + headless shell for this Playwright version (deterministic extraction)...'
     if (Test-Path $localLock) {
         Remove-Item -Path $localLock -Recurse -Force -ErrorAction SilentlyContinue
     }
