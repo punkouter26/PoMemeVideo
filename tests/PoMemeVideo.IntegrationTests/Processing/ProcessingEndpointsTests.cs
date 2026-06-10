@@ -62,7 +62,7 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
         // Track status updates
         _sessions.UpdateStatusAsync(
                 Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<SessionStatus>(),
-                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
             .Returns(x =>
             {
                 _currentStatus = x.ArgAt<SessionStatus>(2);
