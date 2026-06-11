@@ -105,7 +105,20 @@ public sealed class RunEngineCommand
             {
                 // Fallback: run vision analysis now (no pre-computed labels)
                 await _notifier.DirectorLogAsync(sessionId, "RUNNING AI VISION ANALYSIS...", cancellationToken);
-                visionLabels = await _aiVision.AnalyseAsync(keyframeImages, cancellationToken);
+                try
+                {
+                    visionLabels = await _aiVision.AnalyseAsync(keyframeImages, cancellationToken);
+                }
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning(ex,
+                        "Session {SessionId}: AI vision analysis failed; continuing with time-based placement fallback.",
+                        sessionId);
+                    await _notifier.DirectorLogAsync(sessionId,
+                        $"AI VISION UNAVAILABLE ({GetExternalAiErrorSummary(ex)}) — USING TIME-BASED FALLBACK.",
+                        cancellationToken);
+                    visionLabels = [];
+                }
             }
             else
             {
@@ -240,6 +253,16 @@ public sealed class RunEngineCommand
                     diagPrefix);
                 await _notifier.DirectorLogAsync(sessionId,
                     "DIRECTOR TIMEOUT — CONTINUING WITH FALLBACK SCRIPT.",
+                    cancellationToken);
+                scriptEntries = [];
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex,
+                    "{DiagPrefix} Director call failed; continuing with deterministic fallback entries.",
+                    diagPrefix);
+                await _notifier.DirectorLogAsync(sessionId,
+                    $"DIRECTOR AI UNAVAILABLE ({GetExternalAiErrorSummary(ex)}) — CONTINUING WITH FALLBACK SCRIPT.",
                     cancellationToken);
                 scriptEntries = [];
             }
@@ -399,6 +422,19 @@ public sealed class RunEngineCommand
     private sealed record VisionLabelItem(
         [property: System.Text.Json.Serialization.JsonPropertyName("timestamp_seconds")] double TimestampSeconds,
         [property: System.Text.Json.Serialization.JsonPropertyName("label")] string Label);
+
+    private static string GetExternalAiErrorSummary(Exception ex)
+    {
+        var message = ex.Message;
+        if (message.Contains("429", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("too_many_requests", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
+        {
+            return "rate limited";
+        }
+
+        return ex.GetType().Name;
+    }
 
     private static ScriptEntryDto MapToDto(ScriptEntry entry) => new()
     {

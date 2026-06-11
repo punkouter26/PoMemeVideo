@@ -211,7 +211,7 @@ internal static class EndpointMappingExtensions
 
         var blobFactory = app.Services.GetRequiredService<BlobServiceClientFactory>();
         var allowedOrigins = app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? ["http://localhost:5000", "https://localhost:5001", "http://127.0.0.1:5000", "http://localhost:5280"];
+            ?? ["http://localhost:7000", "http://127.0.0.1:7000", "http://localhost:5000", "https://localhost:5001", "http://127.0.0.1:5000", "http://localhost:5280"];
         await blobFactory.EnsureDevCorsAsync(string.Join(",", allowedOrigins));
 
         // Ensure SoundAssets table exists and warn if empty so developers know to seed it.
