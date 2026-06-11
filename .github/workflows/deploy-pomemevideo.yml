@@ -13,11 +13,13 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: punkouter26/pomemevideo
-  WEBAPP_NAME: app-pomemevideo
+  IMAGE_NAME: ${{ github.repository_owner }}/pomemevideo
+  WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME || 'app-pomemevideo' }}
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'PoMemeVideo' }}
 
 jobs:
   build:
@@ -33,12 +35,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
@@ -47,53 +54,46 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      # Secretless OIDC login via the federated credential on the
+      # PoShared deployment app registration (subject: refs/heads/master).
       - name: Azure login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Point Web App to new image
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            az webapp config container set \
-              --resource-group PoMemeVideo \
-              --name ${{ env.WEBAPP_NAME }} \
-              --container-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-              --container-registry-url https://ghcr.io \
-              --container-registry-user punkouter26 \
-              --container-registry-password ${{ secrets.GHCR_PULL_TOKEN }}
+      # `az webapp config container set` does not reliably persist
+      # DOCKER_REGISTRY_SERVER_PASSWORD (observed null after set), which causes
+      # ImagePullUnauthorizedFailure at runtime. Write the registry credentials
+      # as explicit app settings instead, then point linuxFxVersion at the new
+      # image. --query suppresses setting values from the job log.
+      - name: Configure container image and registry credentials
+        shell: bash
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          az webapp config appsettings set \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${WEBAPP_NAME}" \
+            --settings \
+              DOCKER_REGISTRY_SERVER_URL=https://ghcr.io \
+              DOCKER_REGISTRY_SERVER_USERNAME=${{ github.repository_owner }} \
+              DOCKER_REGISTRY_SERVER_PASSWORD="${GHCR_PULL_TOKEN}" \
+            --query "[].name" -o tsv
 
-      - name: Restart Web App
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            az webapp restart \
-              --resource-group PoMemeVideo \
-              --name ${{ env.WEBAPP_NAME }}
+          az webapp config set \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${WEBAPP_NAME}" \
+            --linux-fx-version "DOCKER|${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}" \
+            --query "linuxFxVersion" -o tsv
 
-      - name: Dump Azure Runtime Diagnostics
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            echo "== Web App =="
-            az webapp show \
-              --resource-group PoMemeVideo \
-              --name ${{ env.WEBAPP_NAME }} \
-              --query '{state:state, defaultHostName:defaultHostName, linuxFxVersion:siteConfig.linuxFxVersion, lastModifiedTimeUtc:lastModifiedTimeUtc}'
+          az webapp restart \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${WEBAPP_NAME}"
 
-            echo "== Container Config =="
-            az webapp config container show \
-              --resource-group PoMemeVideo \
-              --name ${{ env.WEBAPP_NAME }}
-
-            echo "== App Settings (selected) =="
-            az webapp config appsettings list \
-              --resource-group PoMemeVideo \
-              --name ${{ env.WEBAPP_NAME }} \
-              --query "[?name=='WEBSITES_PORT' || name=='ASPNETCORE_ENVIRONMENT' || name=='DOCKER_REGISTRY_SERVER_URL' || name=='DOCKER_REGISTRY_SERVER_USERNAME' || name=='DOCKER_REGISTRY_SERVER_PASSWORD' || name=='KeyVault__Uri']"
-
-      - name: Health Check Gate
+      - name: Health check gate
         shell: bash
         run: |
           set -euo pipefail
@@ -112,5 +112,23 @@ jobs:
             sleep 15
           done
 
-          echo "Health check failed after 20 attempts."
+          echo "Health check failed after 20 attempts. Dumping container state:"
+          az webapp show \
+            --resource-group "${RESOURCE_GROUP}" \
+            --name "${WEBAPP_NAME}" \
+            --query '{state:state, linuxFxVersion:siteConfig.linuxFxVersion}'
           exit 1
+
+      - name: Smoke test frontend and /diag
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_URL="https://${WEBAPP_NAME}.azurewebsites.net"
+
+          home_status="$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/")"
+          echo "GET / -> HTTP ${home_status}"
+
+          diag_status="$(curl -sS -o /dev/null -w "%{http_code}" "${BASE_URL}/diag")"
+          echo "GET /diag -> HTTP ${diag_status}"
+
+          [ "${home_status}" = "200" ] && [ "${diag_status}" = "200" ]
