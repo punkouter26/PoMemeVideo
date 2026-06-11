@@ -12,7 +12,7 @@ public sealed class SoundAssetTableRepository : ISoundAssetRepository
     private const string TableName = "SoundAssets";
     private const string PartitionKey = "library";
     private static readonly object CacheKey = new();
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(24);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
     private readonly AzureTableClientFactory _factory;
     private readonly IMemoryCache _cache;
@@ -56,6 +56,8 @@ public sealed class SoundAssetTableRepository : ISoundAssetRepository
         _cache.Set(CacheKey, result, new MemoryCacheEntryOptions { SlidingExpiration = CacheDuration });
         return result;
     }
+
+    public void InvalidateCache() => _cache.Remove(CacheKey);
 }
 
 public static class SoundAssetTableRepositoryExtensions

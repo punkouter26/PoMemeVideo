@@ -22,9 +22,17 @@ public static class SeedSoundsCommand
 
     public static async Task<int> RunAsync(string[] args, IConfiguration config)
     {
-        // --seeds-dir override; defaults to tools/meme-sounds relative to cwd
+        // --seeds-dir override; try several candidate paths when not specified
+        var cwd = Directory.GetCurrentDirectory();
         var seedsDir = GetArg(args, "--seeds-dir")
-                    ?? Path.Combine(Directory.GetCurrentDirectory(), "tools", "meme-sounds");
+                    ?? new[]
+                    {
+                        Path.Combine(cwd, "tools", "meme-sounds"),
+                        Path.Combine(cwd, "SCRIPTS", "meme-sounds"),
+                        Path.GetFullPath(Path.Combine(cwd, "..", "..", "SCRIPTS", "meme-sounds")),
+                        Path.GetFullPath(Path.Combine(cwd, "..", "..", "tools", "meme-sounds")),
+                    }.FirstOrDefault(d => File.Exists(Path.Combine(d, "sounds-metadata.json")))
+                    ?? Path.Combine(cwd, "tools", "meme-sounds");
 
         var metaFile = Path.Combine(seedsDir, "sounds-metadata.json");
 

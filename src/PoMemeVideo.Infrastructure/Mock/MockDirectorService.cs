@@ -24,6 +24,7 @@ public sealed class MockDirectorService : IDirectorService
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
         Guid sessionId,
+        bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
         var results = new List<ScriptEntry>();

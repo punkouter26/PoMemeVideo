@@ -210,6 +210,12 @@
         </div>
     }
 
+    @if (_soundLibraryEmpty)
+    {
+        <pre class="page-error">⚠ SOUND LIBRARY IS EMPTY — run: dotnet run -- seed-sounds  (or: python SCRIPTS/seed-meme-sounds.py)
+  Videos will be created without meme sounds until the library is seeded.</pre>
+    }
+
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <pre class="page-error">⚠ @_errorMessage</pre>

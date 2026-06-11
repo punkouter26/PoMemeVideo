@@ -204,9 +204,8 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         sb.Append(" -c:v libx264 -preset fast -crf 23");
         if (sounds.Count > 0)
             sb.Append(" -c:a aac -b:a 192k");
-        // -shortest: trim output to the video stream length so audio doesn't extend past video end
-        if (sounds.Count > 0)
-            sb.Append(" -shortest");
+        // No -shortest: let the video track govern duration. amix duration=longest already pads silence
+        // after the last sound clip, so the output always matches the full source video length.
         sb.Append(" -movflags +faststart");
         sb.Append($" -y \"{outputPath}\"");
 

@@ -48,6 +48,7 @@ public sealed class OllamaDirectorService : IDirectorService
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
         Guid sessionId,
+        bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
         var model = _settings.OllamaModel;
@@ -57,8 +58,8 @@ public sealed class OllamaDirectorService : IDirectorService
             topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }), JsonOpts);
 
         _logger.LogInformation(
-            "Session {SessionId}: Ollama director start. Model={Model}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}",
-            sessionId, model, visionLabels.Length, topCandidates.Count);
+            "Session {SessionId}: Ollama director start. Model={Model}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, HasRealVision={HasRealVision}",
+            sessionId, model, visionLabels.Length, topCandidates.Count, hasRealVisionData);
 
         var requestBody = new
         {
@@ -66,7 +67,7 @@ public sealed class OllamaDirectorService : IDirectorService
             messages = new object[]
             {
                 new { role = "system", content = "You are an expert meme video director. Respond only with valid JSON." },
-                new { role = "user",   content = DirectorPrompt.Build(labelsJson, soundsJson) },
+                new { role = "user",   content = DirectorPrompt.Build(labelsJson, soundsJson, hasRealVisionData) },
             },
             stream = false,
         };

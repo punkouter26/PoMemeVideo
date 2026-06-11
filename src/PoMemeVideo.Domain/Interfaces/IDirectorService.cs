@@ -12,5 +12,6 @@ public interface IDirectorService
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
         Guid sessionId,
+        bool hasRealVisionData = false,
         CancellationToken cancellationToken = default);
 }

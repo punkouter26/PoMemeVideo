@@ -37,14 +37,15 @@ public sealed class SwitchingDirectorService : IDirectorService
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
         Guid sessionId,
+        bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
         return _settings.Provider switch
         {
-            "AzureOpenAI" => _azure.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
-            "AiFoundry" => _foundry.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
-            "Ollama" => _ollama.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
-            _ => _browser.DirectAsync(visionLabels, topCandidates, sessionId, cancellationToken),
+            "AzureOpenAI" => _azure.DirectAsync(visionLabels, topCandidates, sessionId, hasRealVisionData, cancellationToken),
+            "AiFoundry" => _foundry.DirectAsync(visionLabels, topCandidates, sessionId, hasRealVisionData, cancellationToken),
+            "Ollama" => _ollama.DirectAsync(visionLabels, topCandidates, sessionId, hasRealVisionData, cancellationToken),
+            _ => _browser.DirectAsync(visionLabels, topCandidates, sessionId, hasRealVisionData, cancellationToken),
         };
     }
 }

@@ -1,4 +1,5 @@
 using Azure.Data.Tables;
+using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Infrastructure.AzureStorage;
 
 namespace PoMemeVideo.Api.Features.Admin;
@@ -12,6 +13,7 @@ public static class AdminEndpoints
         app.MapDelete("/api/admin/data", async (
             BlobStorageService blobs,
             AzureTableClientFactory tableFactory,
+            ISoundAssetRepository soundRepo,
             CancellationToken ct) =>
         {
             // 1. Delete every blob in the sessions container
@@ -23,12 +25,27 @@ public static class AdminEndpoints
             // 3. Delete all rows from DirectorScripts table
             await ClearTableAsync(tableFactory.GetTableClient("DirectorScripts"), ct);
 
+            // 4. Invalidate the sound cache so any subsequent re-seed is visible immediately
+            soundRepo.InvalidateCache();
+
             return Results.Ok(new { cleared = true, message = "All session data wiped. Sound library intact." });
         })
         .WithName("ClearAllData")
         .WithTags("Admin")
         .Produces<object>(200)
         .RequireAuthorization();
+
+        // POST /api/admin/sounds/invalidate-cache — evict the in-memory sound library cache.
+        // Useful after seeding from an external tool without restarting the API.
+        app.MapPost("/api/admin/sounds/invalidate-cache", (ISoundAssetRepository soundRepo) =>
+        {
+            soundRepo.InvalidateCache();
+            return Results.Ok(new { invalidated = true, message = "Sound library cache evicted. Next load will re-read from storage." });
+        })
+        .WithName("InvalidateSoundCache")
+        .WithTags("Admin")
+        .Produces<object>(200)
+        .AllowAnonymous();
 
         return app;
     }

@@ -192,6 +192,7 @@ public sealed class RunEngineCommand
             }
 
             // Build approved vision labels for the Director
+            var hasRealVision = visionLabels.Length > 0;
             var videoDurSec = session.VideoDurationSeconds > 0 ? session.VideoDurationSeconds : 1.0;
             var approvedLabels = decisions.Select(d =>
             {
@@ -228,7 +229,7 @@ public sealed class RunEngineCommand
             ScriptEntry[] scriptEntries;
             try
             {
-                scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, cancellationToken);
+                scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, hasRealVision, cancellationToken);
             }
             catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {

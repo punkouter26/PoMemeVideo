@@ -1,0 +1,52 @@
+- generic [ref=e6]:
+  - navigation "Site navigation" [ref=e7]:
+    - link "PoMemeVideo" [ref=e8] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e9]:
+      - link "[ CREATE ]" [ref=e10] [cursor=pointer]:
+        - /url: /
+      - link "[ SOUNDS ]" [ref=e11] [cursor=pointer]:
+        - /url: /admin/sounds
+      - link "[ HISTORY ]" [ref=e12] [cursor=pointer]:
+        - /url: /results
+      - link "[ API ]" [ref=e13] [cursor=pointer]:
+        - /url: /scalar/
+    - generic "Runtime status" [ref=e14]:
+      - generic [ref=e15]: "[ anon522714 ]"
+      - generic [ref=e16]: "[ AI: OPENAI ]"
+      - button "Log out" [ref=e18] [cursor=pointer]: "[ LOG OUT ]"
+  - separator [ref=e19]
+  - article [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - heading "Video History" [active] [level=1] [ref=e23]
+        - paragraph [ref=e24]: Your completed meme videos — open to review, or download directly
+      - generic [ref=e25]:
+        - button "[ + New Video ]" [ref=e26] [cursor=pointer]
+        - button "[ Sound Library ]" [ref=e27] [cursor=pointer]
+      - generic [ref=e28]: "[ 2 completed videos ]"
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - paragraph [ref=e31]: Completed Thu, Jun 11 2026 10:32
+          - paragraph [ref=e32]: "SESSION: 44a52456…"
+          - generic [ref=e33]:
+            - generic [ref=e34]:
+              - text: "Duration:"
+              - generic [ref=e35]: 7.0s
+            - generic [ref=e36]: "Aggressive: No"
+          - generic [ref=e37]:
+            - button "[ Open & Review ]" [ref=e38] [cursor=pointer]
+            - button "[ ⬇ Download ]" [ref=e39] [cursor=pointer]
+          - button "[ Delete ]" [ref=e42] [cursor=pointer]
+        - generic [ref=e43]:
+          - paragraph [ref=e44]: Completed Thu, Jun 11 2026 10:24
+          - paragraph [ref=e45]: "SESSION: 44ef9b34…"
+          - generic [ref=e46]:
+            - generic [ref=e47]:
+              - text: "Duration:"
+              - generic [ref=e48]: 9.6s
+            - generic [ref=e49]: "Aggressive: No"
+          - generic [ref=e50]:
+            - button "[ Open & Review ]" [ref=e51] [cursor=pointer]
+            - button "[ ⬇ Download ]" [ref=e52] [cursor=pointer]
+          - button "[ Delete ]" [ref=e55] [cursor=pointer]

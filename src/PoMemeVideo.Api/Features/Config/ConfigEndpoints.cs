@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Infrastructure.Ollama;
+using System.Text.Json;
 
 namespace PoMemeVideo.Api.Features.Config;
 
@@ -115,6 +116,7 @@ public static class ConfigEndpoints
             }
 
             settings.Provider = req.Provider;
+            PersistSettings(settings);
 
             return Results.Ok(new
             {
@@ -165,5 +167,56 @@ public static class ConfigEndpoints
         string? BrowserLLMModel,
         string? AiFoundryDeployment,
         string? OllamaModel);
+
+    private static readonly string SettingsFilePath =
+        Path.Combine(Path.GetTempPath(), "pomemevideo-ai-settings.json");
+
+    private static void PersistSettings(RuntimeAiSettings settings)
+    {
+        try
+        {
+            var data = new
+            {
+                provider = settings.Provider,
+                browserLLMModel = settings.BrowserLLMModel,
+                aiFoundryDeployment = settings.AiFoundryDeployment,
+                ollamaModel = settings.OllamaModel,
+            };
+            File.WriteAllText(SettingsFilePath, JsonSerializer.Serialize(data));
+        }
+        catch
+        {
+            // Non-fatal — settings are still active in-memory for this run
+        }
+    }
+
+    public static void RestoreSettings(RuntimeAiSettings settings)
+    {
+        try
+        {
+            if (!File.Exists(SettingsFilePath))
+                return;
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsFilePath));
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("provider", out var p) && p.GetString() is { } provider
+                && RuntimeAiSettings.ValidProviders.Contains(provider))
+                settings.Provider = provider;
+
+            if (root.TryGetProperty("browserLLMModel", out var b) && b.GetString() is { } browserModel)
+                settings.BrowserLLMModel = browserModel;
+
+            if (root.TryGetProperty("aiFoundryDeployment", out var f) && f.GetString() is { } foundry)
+                settings.AiFoundryDeployment = foundry;
+
+            if (root.TryGetProperty("ollamaModel", out var o) && o.GetString() is { } ollama)
+                settings.OllamaModel = ollama;
+        }
+        catch
+        {
+            // Non-fatal — defaults remain active
+        }
+    }
 }
 

@@ -1,0 +1,53 @@
+- generic [ref=e6]:
+  - navigation "Site navigation" [ref=e7]:
+    - link "PoMemeVideo" [ref=e8] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e9]:
+      - link "[ CREATE ]" [ref=e10] [cursor=pointer]:
+        - /url: /
+      - link "[ SOUNDS ]" [ref=e11] [cursor=pointer]:
+        - /url: /admin/sounds
+      - link "[ HISTORY ]" [ref=e12] [cursor=pointer]:
+        - /url: /results
+      - link "[ API ]" [ref=e13] [cursor=pointer]:
+        - /url: /scalar/
+    - generic "Runtime status" [ref=e14]:
+      - generic [ref=e15]: "[ anon522714 ]"
+      - generic [ref=e16]: "[ AI: LOCAL ]"
+      - button "Log out" [ref=e18] [cursor=pointer]: "[ LOG OUT ]"
+  - separator [ref=e19]
+  - article [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - heading "Sound Admin ADMIN" [level=1] [ref=e23]:
+          - text: Sound Admin
+          - generic [ref=e24]: ADMIN
+        - paragraph [ref=e25]: Browse, preview, and explore the full meme sound library
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - textbox "Filter by tag (comma-separated)…" [ref=e28]: boom
+          - button "Search" [ref=e29] [cursor=pointer]
+          - button "Clear" [ref=e30] [cursor=pointer]
+        - generic "Active filters" [ref=e175]:
+          - button "#boom ×" [ref=e176] [cursor=pointer]
+      - generic [ref=e31]:
+        - generic [ref=e32]: "[ Maintenance zone ]"
+        - button "[ CLEAR ALL DATA ]" [ref=e34] [cursor=pointer]
+      - generic [ref=e197]:
+        - generic [ref=e198]: "[ 1 sounds total — showing 1–1 ]"
+        - generic [ref=e199]:
+          - button "[ ◀ PREV ]" [disabled] [ref=e200]
+          - generic [ref=e201]: page 1 / 1
+          - button "[ NEXT ▶ ]" [disabled] [ref=e202]
+      - generic [ref=e204]:
+        - paragraph [ref=e205]: VINE BOOM SOUND
+        - generic [ref=e206]:
+          - generic [ref=e207]: ID
+          - generic [ref=e208]: 6ecbfa13…
+          - generic [ref=e209]: Duration
+          - generic [ref=e210]: 1.00s (1000 ms)
+        - generic [ref=e211]:
+          - button "#boom" [ref=e212] [cursor=pointer]
+          - button "#impact" [ref=e213] [cursor=pointer]
+          - button "#sudden" [ref=e214] [cursor=pointer]
+        - button "[ ■ ]" [active] [ref=e217] [cursor=pointer]

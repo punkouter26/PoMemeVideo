@@ -65,6 +65,7 @@ public sealed class AiFoundryDirectorService : IDirectorService
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
         Guid sessionId,
+        bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
         var deployment = _settings.AiFoundryDeployment;
@@ -74,13 +75,13 @@ public sealed class AiFoundryDirectorService : IDirectorService
             topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }), JsonOpts);
 
         _logger.LogInformation(
-            "Session {SessionId}: AI Foundry director start. Deployment={Deployment}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}",
-            sessionId, deployment, visionLabels.Length, topCandidates.Count);
+            "Session {SessionId}: AI Foundry director start. Deployment={Deployment}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, HasRealVision={HasRealVision}",
+            sessionId, deployment, visionLabels.Length, topCandidates.Count, hasRealVisionData);
 
         var messages = new List<ChatMessage>
         {
             new SystemChatMessage("You are an expert meme video director. Respond only with valid JSON."),
-            new UserChatMessage(DirectorPrompt.Build(labelsJson, soundsJson)),
+            new UserChatMessage(DirectorPrompt.Build(labelsJson, soundsJson, hasRealVisionData)),
         };
 
         using var timeoutCts = _timeoutSeconds > 0

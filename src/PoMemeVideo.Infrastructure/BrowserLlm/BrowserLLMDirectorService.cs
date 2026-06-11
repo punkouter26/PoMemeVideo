@@ -41,6 +41,7 @@ public sealed class BrowserLLMDirectorService : IDirectorService
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
         Guid sessionId,
+        bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
         var tcs = new TaskCompletionSource<ScriptEntry[]>(TaskCreationOptions.RunContinuationsAsynchronously);

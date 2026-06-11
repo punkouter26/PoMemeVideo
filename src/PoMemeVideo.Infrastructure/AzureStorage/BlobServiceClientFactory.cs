@@ -4,15 +4,18 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Sas;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace PoMemeVideo.Infrastructure.AzureStorage;
 
 public class BlobServiceClientFactory
 {
     private readonly BlobServiceClient _client;
+    private readonly ILogger<BlobServiceClientFactory> _logger;
 
-    public BlobServiceClientFactory(IConfiguration configuration)
+    public BlobServiceClientFactory(IConfiguration configuration, ILogger<BlobServiceClientFactory> logger)
     {
+        _logger = logger;
         var connectionString = configuration.GetConnectionString("AzureBlobStorage");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
@@ -88,27 +91,43 @@ public class BlobServiceClientFactory
 
     /// <summary>
     /// Configures CORS on the blob service to allow browser direct-upload from the given origin.
-    /// Safe to call on Azurite; no-ops gracefully on managed-identity clients without CORS support.
+    /// Safe to call on Azurite; retries up to 3 times so startup ordering (API before Azurite) is tolerated.
     /// </summary>
     public async Task EnsureDevCorsAsync(string allowedOrigin, CancellationToken cancellationToken = default)
     {
-        try
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var props = await _client.GetPropertiesAsync(cancellationToken);
-            props.Value.Cors.Clear();
-            props.Value.Cors.Add(new Azure.Storage.Blobs.Models.BlobCorsRule
+            try
             {
-                AllowedOrigins = allowedOrigin,
-                AllowedMethods = "PUT,GET,HEAD,DELETE,OPTIONS",
-                AllowedHeaders = "*",
-                ExposedHeaders = "ETag,x-ms-request-id,x-ms-version",
-                MaxAgeInSeconds = 3600
-            });
-            await _client.SetPropertiesAsync(props.Value, cancellationToken);
-        }
-        catch
-        {
-            // Non-fatal in dev — log and continue
+                var props = await _client.GetPropertiesAsync(cancellationToken);
+                props.Value.Cors.Clear();
+                props.Value.Cors.Add(new Azure.Storage.Blobs.Models.BlobCorsRule
+                {
+                    AllowedOrigins = allowedOrigin,
+                    AllowedMethods = "PUT,GET,HEAD,DELETE,OPTIONS",
+                    AllowedHeaders = "*",
+                    ExposedHeaders = "ETag,x-ms-request-id,x-ms-version",
+                    MaxAgeInSeconds = 3600
+                });
+                await _client.SetPropertiesAsync(props.Value, cancellationToken);
+                _logger.LogInformation("Blob CORS configured for origins: {Origins}", allowedOrigin);
+                return;
+            }
+            catch (Exception ex)
+            {
+                if (attempt == maxAttempts)
+                {
+                    _logger.LogWarning(ex,
+                        "Blob CORS configuration failed after {Attempts} attempt(s). " +
+                        "Direct browser uploads will fail until the API is restarted with storage already running. " +
+                        "Ensure Azurite/Azure Blob Storage is reachable before starting the API.",
+                        maxAttempts);
+                    return;
+                }
+                _logger.LogDebug(ex, "Blob CORS attempt {Attempt}/{Max} failed, retrying in 2s…", attempt, maxAttempts);
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            }
         }
     }
 }

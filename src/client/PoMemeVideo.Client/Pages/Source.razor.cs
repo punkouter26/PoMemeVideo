@@ -29,6 +29,7 @@ public partial class Source
     private string _displayActiveModel = "UNKNOWN";
 
     private bool _isDevelopment;
+    private bool _soundLibraryEmpty;
     private string _activeProvider = "BrowserLLM";
     private string _pendingProvider = "BrowserLLM";
     private string _activeBrowserModelId = "smollm2-360m-instruct-onnx";
@@ -55,7 +56,24 @@ public partial class Source
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAiModelStateAsync();
+        await Task.WhenAll(LoadAiModelStateAsync(), CheckSoundLibraryAsync());
+    }
+
+    private async Task CheckSoundLibraryAsync()
+    {
+        try
+        {
+            var resp = await Http.GetAsync("/api/memelibrary/sounds?limit=1");
+            if (resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadFromJsonAsync<SoundLibraryPageResponse>();
+                _soundLibraryEmpty = body is null || body.TotalCount == 0;
+            }
+        }
+        catch
+        {
+            // Non-critical — page still works without the warning
+        }
     }
 
     private async Task OnFileAccepted(IBrowserFile file)
@@ -183,7 +201,11 @@ public partial class Source
         }
         catch (Exception ex)
         {
-            _errorMessage = $"ERROR: {ex.Message}";
+            var msg = ex.Message;
+            _errorMessage = IsNetworkOrCorsError(msg)
+                ? "UPLOAD FAILED — CORS not configured. Ensure Azurite is running, then restart the API. " +
+                  $"(Detail: {msg})"
+                : $"ERROR: {msg}";
             _statusMessage = "FAILED";
         }
         finally
@@ -457,4 +479,12 @@ public partial class Source
     private sealed record VisionLabelItem(double TimestampSeconds, string Label);
     private sealed record SasTokenResponse(Guid SessionId, string SasUrl, DateTimeOffset ExpiresAt);
     private sealed record ErrorResponse(string Error, string Message);
+    private sealed record SoundLibraryPageResponse(int TotalCount);
+
+    private static bool IsNetworkOrCorsError(string message) =>
+        message.Contains("fetch", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("NetworkError", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("CORS", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("network", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("Failed to", StringComparison.OrdinalIgnoreCase);
 }

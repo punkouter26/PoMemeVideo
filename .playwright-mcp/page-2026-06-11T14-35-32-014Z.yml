@@ -1,0 +1,21 @@
+- generic [ref=e6]:
+  - navigation "Site navigation" [ref=e7]:
+    - link "PoMemeVideo" [ref=e8] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e9]:
+      - link "[ CREATE ]" [ref=e10] [cursor=pointer]:
+        - /url: /
+      - link "[ SOUNDS ]" [ref=e11] [cursor=pointer]:
+        - /url: /admin/sounds
+      - link "[ HISTORY ]" [ref=e12] [cursor=pointer]:
+        - /url: /results
+      - link "[ API ]" [ref=e13] [cursor=pointer]:
+        - /url: /scalar/
+    - generic "Runtime status" [ref=e14]:
+      - generic [ref=e15]: "[ anon522714 ]"
+      - generic [ref=e16]: "[ AI: OPENAI ]"
+      - button "Log out" [ref=e18] [cursor=pointer]: "[ LOG OUT ]"
+  - separator [ref=e19]
+  - article [ref=e20]:
+    - heading "Not Found" [level=3] [ref=e21]
+    - paragraph [ref=e22]: Sorry, the content you are looking for does not exist.

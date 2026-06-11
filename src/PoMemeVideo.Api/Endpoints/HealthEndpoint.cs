@@ -12,6 +12,7 @@ public static class HealthEndpoint
             AzureTableClientFactory tableFactory,
             BlobServiceClientFactory blobFactory,
             IConfiguration configuration,
+            IHostEnvironment environment,
             CancellationToken ct) =>
         {
             var checks = new Dictionary<string, object>();
@@ -46,6 +47,23 @@ public static class HealthEndpoint
             {
                 checks["blobStorage"] = $"Degraded: {ex.Message}";
                 isHealthy = false;
+            }
+
+            // Blob CORS check (Development only) — missing CORS rules mean direct browser uploads will fail.
+            if (environment.IsDevelopment())
+            {
+                try
+                {
+                    var blobClient = blobFactory.GetClient();
+                    var props = await blobClient.GetPropertiesAsync(ct);
+                    checks["blobCors"] = props.Value.Cors.Count > 0
+                        ? "Healthy"
+                        : "Degraded: no CORS rules configured — browser uploads will fail. Restart the API after Azurite is running.";
+                }
+                catch (Exception ex)
+                {
+                    checks["blobCors"] = $"Degraded: {ex.Message}";
+                }
             }
 
             // Azure AI Vision

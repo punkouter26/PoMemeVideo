@@ -7,6 +7,7 @@ using PoMemeVideo.Api.Endpoints;
 using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
+using PoMemeVideo.Infrastructure;
 using PoMemeVideo.Api.Features.Ingestion;
 using PoMemeVideo.Api.Features.MemeLibrary;
 using PoMemeVideo.Api.Features.Output;
@@ -182,7 +183,7 @@ internal static class EndpointMappingExtensions
         app.MapGet("/auth/callback", () => Results.Redirect("/"))
             .AllowAnonymous();
 
-        app.MapPost("/auth/logout", async (HttpContext ctx) =>
+        app.MapPost("/auth/logout", async (HttpContext ctx, IHostEnvironment env) =>
         {
             var provider = ctx.RequestServices.GetRequiredService<IAuthenticationSchemeProvider>();
             var hasOidc = await provider.GetSchemeAsync(OpenIdConnectDefaults.AuthenticationScheme) is not null;
@@ -191,7 +192,8 @@ internal static class EndpointMappingExtensions
                 await ctx.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
 
             await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Results.Redirect("/");
+            // In Development, go back to the login page so GUEST button is available again.
+            return Results.Redirect(env.IsDevelopment() ? "/login" : "/");
         }).AllowAnonymous();
 
         app.MapStaticAssets();
@@ -202,6 +204,10 @@ internal static class EndpointMappingExtensions
     {
         if (!app.Environment.IsDevelopment())
             return;
+
+        // Restore previously-selected AI provider so users don't have to re-click "Apply Model" after restart.
+        var aiSettings = app.Services.GetRequiredService<RuntimeAiSettings>();
+        ConfigEndpoints.RestoreSettings(aiSettings);
 
         var blobFactory = app.Services.GetRequiredService<BlobServiceClientFactory>();
         var allowedOrigins = app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
