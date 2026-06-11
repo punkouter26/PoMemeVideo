@@ -3,7 +3,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'http://localhost:5000';
+const BASE = 'http://localhost:7000';
 const SHOTS = path.join(__dirname, 'validation-shots');
 fs.mkdirSync(SHOTS, { recursive: true });
 

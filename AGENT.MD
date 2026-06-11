@@ -30,7 +30,7 @@ src/
   PoMemeVideo.Infrastructure/ ← Azure Storage, AI providers, FFmpeg, Mock services
   PoMemeVideo.Api/            ← ASP.NET Core host; serves Blazor WASM; all endpoints
   PoMemeVideo.Shared/         ← DTOs + enums shared between WASM and API
-  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 5000/5001)
+  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 7000/5001)
 
 tests/
   PoMemeVideo.UnitTests/          ← xUnit, pure unit tests, no I/O
@@ -102,7 +102,7 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
 
 ## 7. API Surface
 
-- **Ports:** HTTP `5000`, HTTPS `5001` (fixed, see `launchSettings.json`)
+- **Ports:** HTTP `7000`, HTTPS `5001` (fixed, see `launchSettings.json`)
 - **OpenAPI:** Scalar UI at `/scalar`
 - **Health check:** `GET /health` → JSON
 - **Diagnostics:** `GET /diag` → masked keys + connection status (dev + prod, hidden from nav)
@@ -136,7 +136,7 @@ Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
 
 ## 10. Front-End (Blazor WASM)
 
-- Hosted by `PoMemeVideo.Api` (same origin, ports 5000/5001)
+- Hosted by `PoMemeVideo.Api` (same origin, ports 7000/5001)
 - UI library: **Radzen** for complex controls
 - Pages: `Login`, `Source`, `Engine`, `Results`, `Reveal`, `MemeLibrary`, `NotFound`
 - AI model selector on Home/Engine page — grouped by: **Remote** (Azure OpenAI / AI Foundry) | **Browser** (WebGPU) | **Local** (Ollama)

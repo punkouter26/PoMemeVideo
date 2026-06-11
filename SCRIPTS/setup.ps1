@@ -47,9 +47,9 @@ function Clear-Port {
 
 Push-Location (Split-Path -Parent $PSScriptRoot)
 try {
-    # ── Kill any orphaned dotnet processes on ports 5000/5001 (rule 4) ────────
-    Write-Host 'Clearing ports 5000 and 5001...'
-    Clear-Port -Port 5000
+    # ── Kill any orphaned dotnet processes on ports 7000/5001 (rule 4) ────────
+    Write-Host 'Clearing ports 7000 and 5001...'
+    Clear-Port -Port 7000
     Clear-Port -Port 5001
 
     if (-not $SkipWinget) {

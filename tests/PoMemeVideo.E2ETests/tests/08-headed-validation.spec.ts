@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Headed Validation — Core Features', () => {
   test.describe.configure({ mode: 'serial' });
 
-  const baseUrl = 'http://127.0.0.1:5000';
+  const baseUrl = 'http://127.0.0.1:7000';
   const screenshots = 'artifacts/headed-validation';
 
   test('01 — Health & Config endpoints alive', async ({ request }) => {

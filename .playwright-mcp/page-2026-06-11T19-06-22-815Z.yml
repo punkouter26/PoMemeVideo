@@ -1,0 +1,90 @@
+- generic [ref=e6]:
+  - navigation "Site navigation" [ref=e7]:
+    - link "PoMemeVideo" [ref=e8] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e9]:
+      - link "[ CREATE ]" [ref=e10] [cursor=pointer]:
+        - /url: /
+      - link "[ SOUNDS ]" [ref=e11] [cursor=pointer]:
+        - /url: /admin/sounds
+      - link "[ HISTORY ]" [ref=e12] [cursor=pointer]:
+        - /url: /results
+      - link "[ API ]" [ref=e13] [cursor=pointer]:
+        - /url: /scalar/
+    - generic "Runtime status" [ref=e14]:
+      - generic [ref=e15]: "[ anon667803 ]"
+      - generic [ref=e16]: "[ AI: OPENAI ]"
+      - button "Log out" [ref=e18] [cursor=pointer]: "[ LOG OUT ]"
+  - separator [ref=e19]
+  - article [ref=e20]:
+    - generic [ref=e117]:
+      - generic [ref=e118]:
+        - heading "Review Your Video" [active] [level=1] [ref=e119]
+        - paragraph [ref=e120]: "Session: 0e8b1090-d26f-485b-af67-342a4121adb8"
+      - generic [ref=e121]:
+        - generic [ref=e123]:
+          - generic [ref=e124]: "[ OUTPUT VIDEO ]"
+          - img
+          - generic [ref=e126]: Your browser does not support the video tag.
+          - generic [ref=e127]:
+            - generic [ref=e128]: "STATUS : Complete"
+            - generic [ref=e129]: "DURATION : 9.6s"
+            - generic [ref=e130]: "GENERATED : 2026-06-11 15:06:04"
+            - generic [ref=e131]: "SOUNDS : 5"
+        - generic [ref=e132]:
+          - generic [ref=e133]: "[ AI DIRECTOR'S SCRIPT ]"
+          - paragraph [ref=e134]: What was added to your video and why
+          - generic [ref=e135]:
+            - generic [ref=e136]:
+              - generic [ref=e137]: ┌─ CUT 1 ── 0.0s ─────────────────────────┐
+              - generic [ref=e138]: "SCENE : [Time-based placement at 0]"
+              - generic [ref=e139]:
+                - generic [ref=e140]: "SOUND : Apple Pay"
+                - button "[ ▶ ]" [ref=e141] [cursor=pointer]
+              - generic [ref=e142]: "WHY : Using a crisp 'reaction' sound right on the opening beat helps establish immediate comedic energy—like an instant punchline before the action ramps up."
+              - generic [ref=e143]: "EFFECT : SnapZoom · IRONIC: NO · Triggered"
+              - generic [ref=e144]: └──────────────────────────────────────────────────────────┘
+            - generic [ref=e145]:
+              - generic [ref=e146]: ┌─ CUT 2 ── 2.0s ─────────────────────────┐
+              - generic [ref=e147]: "SCENE : [Time-based placement at 2]"
+              - generic [ref=e148]:
+                - generic [ref=e149]: "SOUND : Anime Wow"
+                - button "[ ▶ ]" [ref=e150] [cursor=pointer]
+              - generic [ref=e151]: "WHY : A mid-opening surprise jab fits timing around the early rhythm shift—'Anime Wow' reads as an over-the-top reaction that heightens meme pacing without needing visual analysis."
+              - generic [ref=e152]: "EFFECT : Overlay · IRONIC: NO · Triggered"
+              - generic [ref=e153]: └──────────────────────────────────────────────────────────┘
+            - generic [ref=e154]:
+              - generic [ref=e155]: ┌─ CUT 3 ── 4.0s ─────────────────────────┐
+              - generic [ref=e156]: "SCENE : [Time-based placement at 4]"
+              - generic [ref=e157]:
+                - generic [ref=e158]: "SOUND : Jogo do botão"
+                - button "[ ▶ ]" [ref=e159] [cursor=pointer]
+              - generic [ref=e160]: "WHY : Placing a playful, high-energy reaction sound on the mid-video action helps tag the moment as chaotic/fun—'Jogo do botão' works like a meme catalyst during the peak of activity."
+              - generic [ref=e161]: "EFFECT : MotionBlur · IRONIC: NO · Triggered"
+              - generic [ref=e162]: └──────────────────────────────────────────────────────────┘
+            - generic [ref=e163]:
+              - generic [ref=e164]: ┌─ CUT 4 ── 6.0s ─────────────────────────┐
+              - generic [ref=e165]: "SCENE : [Time-based placement at 6]"
+              - generic [ref=e166]:
+                - generic [ref=e167]: "SOUND : Sad Violin (the meme one)"
+                - button "[ ▶ ]" [ref=e168] [cursor=pointer]
+              - generic [ref=e169]: "WHY : A dramatic 'Sad Violin' is perfect for final moments when things feel like they should resolve—its classic trolling tone makes the ending feel ironically over-emotional for whatever the video is doing."
+              - generic [ref=e170]: "EFFECT : Overlay · IRONIC: YES · Triggered"
+              - generic [ref=e171]: └──────────────────────────────────────────────────────────┘
+            - generic [ref=e172]:
+              - generic [ref=e173]: ┌─ CUT 5 ── 8.0s ─────────────────────────┐
+              - generic [ref=e174]: "SCENE : [Time-based placement at 8]"
+              - generic [ref=e175]:
+                - generic [ref=e176]: "SOUND : Fart"
+                - button "[ ▶ ]" [ref=e177] [cursor=pointer]
+              - generic [ref=e178]: "WHY : Ending with an intentionally gross 'Fart' sound functions as a comedic button—subverting any lingering seriousness from the final beat with a lowbrow, meme-style drop."
+              - generic [ref=e179]: "EFFECT : SnapZoom · IRONIC: YES · Triggered"
+              - generic [ref=e180]: └──────────────────────────────────────────────────────────┘
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - button "[ ⬇ Download Video ]" [ref=e183] [cursor=pointer]
+            - button "[ Download Script ]" [ref=e184] [cursor=pointer]
+          - generic [ref=e185]:
+            - button "[ Delete Session ]" [ref=e186] [cursor=pointer]
+            - button "[ View History ]" [ref=e187] [cursor=pointer]
+            - button "[ + Create Another ]" [ref=e188] [cursor=pointer]

@@ -12,7 +12,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { outputFolder: 'artifacts/playwright-report', open: 'never' }]],
 
   use: {
-    baseURL: 'http://127.0.0.1:5000',
+    baseURL: 'http://127.0.0.1:7000',
     headless: !!process.env.CI,
     viewport: { width: 1280, height: 800 },
     // Capture JS console errors for reporting
@@ -23,12 +23,12 @@ export default defineConfig({
 
   webServer: {
     command: 'dotnet run --project ../../src/PoMemeVideo.Api/PoMemeVideo.Api.csproj --no-build',
-    url: 'http://127.0.0.1:5000/health',
+    url: 'http://127.0.0.1:7000/health',
     reuseExistingServer: true,
     timeout: 60_000,
     env: {
       ASPNETCORE_ENVIRONMENT: 'Development',
-      ASPNETCORE_URLS: 'https://127.0.0.1:5001;http://127.0.0.1:5000',
+      ASPNETCORE_URLS: 'https://127.0.0.1:5001;http://127.0.0.1:7000',
     },
   },
 

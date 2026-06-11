@@ -4,7 +4,7 @@ const { chromium } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
-const BASE = process.env.PORUN_BASE || 'http://127.0.0.1:5000';
+const BASE = process.env.PORUN_BASE || 'http://127.0.0.1:7000';
 const OUT = path.join(__dirname, 'artifacts', process.env.PORUN_OUT || 'porun');
 fs.mkdirSync(OUT, { recursive: true });
 

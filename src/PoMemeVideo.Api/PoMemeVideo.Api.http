@@ -1,4 +1,4 @@
-@PoMemeVideo.Api_HostAddress = http://localhost:5000
+@PoMemeVideo.Api_HostAddress = http://localhost:7000
 
 GET {{PoMemeVideo.Api_HostAddress}}/weatherforecast/
 Accept: application/json

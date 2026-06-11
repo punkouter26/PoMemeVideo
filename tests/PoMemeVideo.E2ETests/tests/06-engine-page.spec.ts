@@ -70,7 +70,7 @@ test.describe('US2 – Engine page structure', () => {
 
   test('Engine page renders four panels with ASCII borders', async ({ page }) => {
     // Create a session so the engine page has something to load
-    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:5000' });
+    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:7000' });
     const sasRes = await ctx.post('/api/ingestion/sas', {
       data: { fileName: 'engine-e2e.mp4', fileSizeBytes: 1024 * 1024 },
     });
@@ -89,7 +89,7 @@ test.describe('US2 – Engine page structure', () => {
   });
 
   test('DirectorLogFeed panel is visible and auto-scrolls', async ({ page }) => {
-    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:5000' });
+    const ctx = await playwrightRequest.newContext({ baseURL: 'http://127.0.0.1:7000' });
     const sasRes = await ctx.post('/api/ingestion/sas', {
       data: { fileName: 'engine-log-e2e.mp4', fileSizeBytes: 1024 * 1024 },
     });
