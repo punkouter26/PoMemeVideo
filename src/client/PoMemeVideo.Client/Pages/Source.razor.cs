@@ -36,8 +36,8 @@ public partial class Source
     private string _pendingBrowserModelId = "smollm2-360m-instruct-onnx";
     private List<LocalModelInfo> _localModels = [];
     // AI Foundry
-    private string _activeFoundryDeployment = "gpt-4.1-mini";
-    private string _pendingFoundryDeployment = "gpt-4.1-mini";
+    private string _activeFoundryDeployment = "gpt-5.4-nano";
+    private string _pendingFoundryDeployment = "gpt-5.4-nano";
     private List<string> _foundryDeployments = [];
     // Ollama (dev only)
     private bool _ollamaAvailable;
@@ -341,9 +341,9 @@ public partial class Source
             _activeBrowserModelId = ai.BrowserLLMModel ?? (_localModels.FirstOrDefault()?.Id ?? _activeBrowserModelId);
             _pendingBrowserModelId = _activeBrowserModelId;
 
-            _activeFoundryDeployment = ai.AiFoundryDeployment ?? "gpt-4.1-mini";
+            _activeFoundryDeployment = ai.AiFoundryDeployment ?? "gpt-5.4-nano";
             _pendingFoundryDeployment = _activeFoundryDeployment;
-            _foundryDeployments = ai.AiFoundryDeployments?.ToList() ?? ["gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano", "Phi-4-mini-instruct"];
+            _foundryDeployments = ai.AiFoundryDeployments?.ToList() ?? ["gpt-5.4-nano"];
 
             _ollamaAvailable = ai.OllamaAvailable;
             _activeOllamaModel = ai.OllamaModel ?? "llama3.2";
@@ -368,7 +368,7 @@ public partial class Source
 
     private string ComputeDisplayName(string provider) => provider switch
     {
-        "AzureOpenAI" => "Azure OpenAI · GPT-4o",
+        "AzureOpenAI" => "Azure OpenAI · GPT-5.4 Nano",
         "AiFoundry" => $"AI Foundry · {_activeFoundryDeployment}",
         "Ollama" => $"Ollama · {_activeOllamaModel}",
         "BrowserLLM" => _localModels.Count > 0
