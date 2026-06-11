@@ -32,10 +32,10 @@ public sealed class RuntimeAiSettings
     public string BrowserLLMModel { get; set; } = DefaultBrowserLLMModel;
 
     /// <summary>
-    /// Azure AI Foundry deployment name (e.g. "gpt-4.1-mini", "gpt-4o").
+    /// Azure AI Foundry deployment name (e.g. "gpt-5.4-nano").
     /// Can be changed at runtime without restart.
     /// </summary>
-    public string AiFoundryDeployment { get; set; } = "gpt-4.1-mini";
+    public string AiFoundryDeployment { get; set; } = "gpt-5.4-nano";
 
     /// <summary>
     /// Ollama model tag (e.g. "llama3.2", "mistral"). Only used in Development.

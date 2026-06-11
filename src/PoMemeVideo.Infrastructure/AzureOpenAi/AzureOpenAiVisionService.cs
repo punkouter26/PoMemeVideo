@@ -35,7 +35,7 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
             ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential())
             : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
 
-        _chatClient = client.GetChatClient("gpt-4o");
+        _chatClient = client.GetChatClient("gpt-5.4-nano");
     }
 
     private const int VisionBatchSize = 8;
@@ -58,7 +58,7 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
             allResults.AddRange(batchResults);
         }
 
-        _logger.LogInformation("GPT-4o Vision total: {Count} label(s) from {Batches} batch(es): {Labels}",
+        _logger.LogInformation("GPT-5.4 Nano Vision total: {Count} label(s) from {Batches} batch(es): {Labels}",
             allResults.Count,
             (int)Math.Ceiling(keyframeBase64Images.Length / (double)VisionBatchSize),
             string.Join(", ", allResults.Select(x => $"t={x.TimestampSeconds:F1}s→{x.Label}")));
@@ -99,7 +99,7 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
 
         var response = await _chatClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
         var text = response.Value.Content[0].Text.Trim();
-        _logger.LogInformation("GPT-4o Vision raw response (offset={Offset}s): {Response}", startOffsetSeconds, text);
+        _logger.LogInformation("GPT-5.4 Nano Vision raw response (offset={Offset}s): {Response}", startOffsetSeconds, text);
 
         var json = text;
         if (json.StartsWith("```"))
@@ -117,7 +117,7 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "GPT-4o Vision JSON parse failed for batch at offset {Offset}s. Raw: {Text}", startOffsetSeconds, text);
+            _logger.LogWarning(ex, "GPT-5.4 Nano Vision JSON parse failed for batch at offset {Offset}s. Raw: {Text}", startOffsetSeconds, text);
             return [];
         }
     }

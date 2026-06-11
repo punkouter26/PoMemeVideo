@@ -52,7 +52,7 @@ public static class ConfigEndpoints
                     label = RuntimeAiSettings.LocalModelDisplayNames.TryGetValue(id, out var label) ? label : id,
                 }),
                 aiFoundryDeployment = settings.AiFoundryDeployment,
-                aiFoundryDeployments = new[] { "gpt-4o", "gpt-4.1-mini", "gpt-4.1-nano", "Phi-4-mini-instruct" },
+                aiFoundryDeployments = new[] { "gpt-5.4-nano" },
                 ollamaAvailable = ollamaModels is not null,
                 ollamaModel = settings.OllamaModel,
                 ollamaModels = ollamaModels ?? [],

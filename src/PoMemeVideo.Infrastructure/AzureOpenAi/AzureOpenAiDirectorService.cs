@@ -44,7 +44,7 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
         var endpoint = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured.");
         _endpoint = endpoint;
-        _deployment = config["AzureOpenAI:DirectorDeployment"] ?? "gpt-4o";
+        _deployment = config["AzureOpenAI:DirectorDeployment"] ?? "gpt-5.4-nano";
         _directorTimeoutSeconds = config.GetValue<int?>("AzureOpenAI:DirectorTimeoutSeconds")
             ?? (_isDevelopment ? 45 : 0);
 
