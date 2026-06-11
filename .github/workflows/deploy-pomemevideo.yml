@@ -68,6 +68,9 @@ jobs:
       # ImagePullUnauthorizedFailure at runtime. Write the registry credentials
       # as explicit app settings instead, then point linuxFxVersion at the new
       # image. --query suppresses setting values from the job log.
+      # AZURE_CLIENT_ID tells DefaultAzureCredential which user-assigned managed
+      # identity to use (the app has no system-assigned identity); without it
+      # Key Vault auth fails and startup crashes on missing configuration.
       - name: Configure container image and registry credentials
         shell: bash
         env:
@@ -81,6 +84,7 @@ jobs:
               DOCKER_REGISTRY_SERVER_URL=https://ghcr.io \
               DOCKER_REGISTRY_SERVER_USERNAME=${{ github.repository_owner }} \
               DOCKER_REGISTRY_SERVER_PASSWORD="${GHCR_PULL_TOKEN}" \
+              AZURE_CLIENT_ID=${{ vars.AZURE_UAMI_CLIENT_ID }} \
             --query "[].name" -o tsv
 
           az webapp config set \
