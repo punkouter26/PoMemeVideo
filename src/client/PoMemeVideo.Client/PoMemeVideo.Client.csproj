@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
-    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- Hosted by PoMemeVideo.Api: the API's publish does not run the WASM SDK's
+         index.html placeholder substitution, so fingerprinted framework file
+         names would 404. Keep plain names and reference them directly. -->
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
     <!-- AOT disabled: smaller build size and faster CI/CD (rule 2) -->
     <PublishTrimmed Condition="'$(Configuration)' == 'Release'">true</PublishTrimmed>
     <InvariantGlobalization Condition="'$(Configuration)' == 'Release'">true</InvariantGlobalization>
