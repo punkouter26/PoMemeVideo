@@ -19,7 +19,7 @@ Core user flow:
 ## 2. Solution Structure
 
 ```
-PoMemeVideo.slnx          ← Solution root
+PoMemeVideo.slnx          ← Solution root (new .NET 10 .slnx XML format; tools that consume .sln must be updated)
 global.json               ← Pins .NET 10 SDK
 Directory.Build.props     ← Nullable + TreatWarningsAsErrors + MinVer versioning
 Directory.Packages.props  ← Centralized Package Management (CPM)

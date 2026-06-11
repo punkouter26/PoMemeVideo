@@ -19,6 +19,7 @@ public class RenderVideoCommand
     private readonly IVideoSessionRepository _sessionRepository;
     private readonly ISoundAssetRepository _sounds;
     private readonly IEngineNotifier _notifier;
+    private readonly IBlobStorageService _blobs;
     private readonly ILogger<RenderVideoCommand> _logger;
 
     public RenderVideoCommand(
@@ -26,12 +27,14 @@ public class RenderVideoCommand
         IVideoSessionRepository sessionRepository,
         ISoundAssetRepository sounds,
         IEngineNotifier notifier,
+        IBlobStorageService blobs,
         ILogger<RenderVideoCommand> logger)
     {
         _renderService = renderService;
         _sessionRepository = sessionRepository;
         _sounds = sounds;
         _notifier = notifier;
+        _blobs = blobs;
         _logger = logger;
     }
 
@@ -48,6 +51,12 @@ public class RenderVideoCommand
         try
         {
             _logger.LogInformation("Starting render for session {SessionId}", sessionId);
+
+            if (string.IsNullOrEmpty(session.SourceBlobPath))
+                throw new InvalidOperationException($"Session {sessionId} has no source video — upload a video before initiating rendering.");
+
+            if (!await _blobs.BlobExistsAsync(session.SourceBlobPath, cancellationToken))
+                throw new InvalidOperationException($"Source video blob not found for session {sessionId}. The video file may have been deleted or the upload did not complete.");
 
             // Parse script entries from JSON
             _logger.LogDebug("EntriesJson for session {SessionId}: {Json}", sessionId, script.EntriesJson);

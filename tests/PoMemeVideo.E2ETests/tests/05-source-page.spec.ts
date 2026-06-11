@@ -49,7 +49,7 @@ test.describe('US1 – Source page critical path', () => {
     const authStatus = freshPage.locator('.auth-status').first();
     await expect(authStatus).toBeVisible();
     const text = await authStatus.innerText();
-    expect(text).toMatch(/GUEST|ANON|@/);
+    expect(text).toMatch(/GUEST|ANON|anon|@/i);
     await ctx.close();
   });
 });

@@ -223,6 +223,37 @@ internal static class EndpointMappingExtensions
             if (!hasEntries)
             {
                 Log.Warning("[DEV] Sound library is empty — run: python SCRIPTS/seed-meme-sounds.py  (or: dotnet run -- seed-sounds)");
+                // Attempt auto-seed in Development so the app is immediately usable.
+                try
+                {
+                    var seedScript = Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "SCRIPTS", "seed-meme-sounds.py");
+                    if (File.Exists(seedScript))
+                    {
+                        Log.Information("[DEV] Auto-seeding sound library from {Script}...", seedScript);
+                        var psi = new System.Diagnostics.ProcessStartInfo("python", $"\"{seedScript}\"")
+                        {
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            CreateNoWindow = true,
+                        };
+                        using var proc = System.Diagnostics.Process.Start(psi);
+                        if (proc is not null)
+                        {
+                            var stdout = await proc.StandardOutput.ReadToEndAsync();
+                            var stderr = await proc.StandardError.ReadToEndAsync();
+                            await proc.WaitForExitAsync();
+                            if (proc.ExitCode == 0)
+                                Log.Information("[DEV] Sound library seeded successfully.");
+                            else
+                                Log.Warning("[DEV] Sound library seeding failed (exit {Code}): {Stderr}", proc.ExitCode, stderr);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[DEV] Auto-seed attempt failed — seed manually.");
+                }
             }
         }
         catch

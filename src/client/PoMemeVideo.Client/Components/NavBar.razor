@@ -17,6 +17,10 @@
         <NavLink href="/" Match="NavLinkMatch.All">[ CREATE ]</NavLink>
         <NavLink href="/admin/sounds">[ SOUNDS ]</NavLink>
         <NavLink href="/results">[ HISTORY ]</NavLink>
+        @if (!_isAuthenticated)
+        {
+            <NavLink href="/login">[ LOGIN ]</NavLink>
+        }
         <a href="/scalar/" target="_blank" rel="noopener noreferrer" style="font-size:0.72rem;">[ API ]</a>
     </div>
 

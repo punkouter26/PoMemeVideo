@@ -24,18 +24,32 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        _logger.LogError(exception, "Unhandled exception {ExceptionType}: {Message}",
-            exception.GetType().Name, exception.Message);
+        // ASP.NET Core parameter-binding failures (e.g. invalid JSON body) throw
+        // BadHttpRequestException with a proper StatusCode; map to that instead of 500.
+        var statusCode = exception is Microsoft.AspNetCore.Http.BadHttpRequestException badReq
+            ? badReq.StatusCode
+            : StatusCodes.Status500InternalServerError;
 
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        var logLevel = statusCode is >= 400 and < 500 ? LogLevel.Warning : LogLevel.Error;
+        _logger.Log(logLevel, exception, "{ExceptionType} ({StatusCode}): {Message}",
+            exception.GetType().Name, statusCode, exception.Message);
+
+        httpContext.Response.StatusCode = statusCode;
         httpContext.Response.ContentType = "application/problem+json";
+
+        var rfcType = statusCode switch
+        {
+            400 => "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+            404 => "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+            _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+        };
 
         object problem = _environment.IsDevelopment()
             ? new
             {
-                type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
-                title = "Internal Server Error",
-                status = StatusCodes.Status500InternalServerError,
+                type = rfcType,
+                title = GetTitle(statusCode),
+                status = statusCode,
                 detail = exception.Message,
                 exceptionType = exception.GetType().FullName,
                 stackTrace = exception.StackTrace,
@@ -43,10 +57,12 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
             }
             : new
             {
-                type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
-                title = "Internal Server Error",
-                status = StatusCodes.Status500InternalServerError,
-                detail = "An unexpected error occurred. Check logs for details.",
+                type = rfcType,
+                title = GetTitle(statusCode),
+                status = statusCode,
+                detail = statusCode >= 500
+                    ? "An unexpected error occurred. Check logs for details."
+                    : exception.Message,
                 exceptionType = (string?)null,
                 stackTrace = (string?)null,
                 traceId = httpContext.TraceIdentifier,
@@ -55,4 +71,11 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
         return true;
     }
+
+    private static string GetTitle(int statusCode) => statusCode switch
+    {
+        400 => "Bad Request",
+        404 => "Not Found",
+        _ => "Internal Server Error",
+    };
 }

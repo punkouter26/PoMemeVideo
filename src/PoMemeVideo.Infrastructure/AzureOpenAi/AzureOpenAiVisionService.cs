@@ -76,9 +76,12 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
             ChatMessageContentPart.CreateTextPart(
                 $"Analyse these {batchImages.Length} video keyframe(s) taken at {FrameIntervalSeconds}-second intervals " +
                 $"starting at t={startOffsetSeconds:F1}s. " +
-                "Identify semantic action labels ONLY for genuinely meme-worthy moments (do not force labels on boring frames). " +
+                "For EVERY frame, you MUST return at least one label describing what is visible — at minimum the broad scene type. " +
+                "Even 'static room', 'person standing', or 'text on screen' counts. " +
+                "Identify meme-worthy moments if present, but NEVER return an empty array. " +
                 "Return ONLY a JSON array like: [{\"timestamp_seconds\": " + (startOffsetSeconds + FrameIntervalSeconds).ToString("F1") + ", \"label\": \"explosion\"}]. " +
-                "Return [] if there are no interesting moments. No other text."),
+                "If truly nothing is happening, return [{\"timestamp_seconds\": " + (startOffsetSeconds + FrameIntervalSeconds).ToString("F1") + ", \"label\": \"static scene\"}]. " +
+                "No other text."),
         };
 
         for (var i = 0; i < batchImages.Length; i++)

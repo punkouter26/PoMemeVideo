@@ -4,7 +4,7 @@ body {
     padding: 0;
     background: radial-gradient(circle at top right, #112018 0%, var(--term-bg) 35%, #010302 100%);
     color: var(--term-primary);
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'Courier New', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
     min-height: 100vh;
 }
 

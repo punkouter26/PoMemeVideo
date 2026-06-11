@@ -23,6 +23,13 @@ public class BlobStorageService : IBlobStorageService
         return response.Value.Content;
     }
 
+    public async Task<bool> BlobExistsAsync(string path, CancellationToken cancellationToken = default)
+    {
+        var (containerName, blobName) = SplitPath(path);
+        var blobClient = _factory.GetContainerClient(containerName).GetBlobClient(blobName);
+        return await blobClient.ExistsAsync(cancellationToken);
+    }
+
     public async Task UploadBlobAsync(string path, Stream content, string contentType, CancellationToken cancellationToken = default)
     {
         var (containerName, blobName) = SplitPath(path);

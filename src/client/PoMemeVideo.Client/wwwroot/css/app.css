@@ -86,3 +86,38 @@ h1:focus {
 code {
     color: #c02d76;
 }
+
+@media (max-width: 768px) {
+    :root {
+        font-size: 14px;
+    }
+
+    .content {
+        padding: 0.5rem;
+    }
+
+    pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        font-size: 0.75rem;
+    }
+
+    .loading-progress {
+        width: 5rem;
+        height: 5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        font-size: 12px;
+    }
+
+    .content {
+        padding: 0.25rem;
+    }
+
+    pre {
+        font-size: 0.65rem;
+    }
+}
