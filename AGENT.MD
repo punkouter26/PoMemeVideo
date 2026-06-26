@@ -25,24 +25,31 @@ Directory.Build.props     ← Nullable + TreatWarningsAsErrors + MinVer versioni
 Directory.Packages.props  ← Centralized Package Management (CPM)
 
 src/
-  PoMemeVideo.Domain/         ← Entities, interfaces, value objects (no dependencies)
-  PoMemeVideo.Application/    ← Use-cases: Ingestion, Processing, Rendering, MemeLibrary
-  PoMemeVideo.Infrastructure/ ← Azure Storage, AI providers, FFmpeg, Mock services
-  PoMemeVideo.Api/            ← ASP.NET Core host; serves Blazor WASM; all endpoints
-  PoMemeVideo.Shared/         ← DTOs + enums shared between WASM and API
-  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 7000/5001)
+  PoMemeVideo.Api/            ← Single server project (VSA). Hosts Blazor WASM + all slices.
+    Features/<Slice>/         ← One folder per slice: endpoint + command/handler + entity
+                                + interface + repository + services co-located.
+                                Slices: Admin, Auth, Config, Ingestion, MemeLibrary,
+                                Output (rendering), Processing (AI director + providers).
+    Common/                   ← Cross-cutting kernel: storage client factories,
+                                GlobalExceptionHandler.
+    Configuration/, Endpoints/, Hubs/, Pages/  ← host wiring, health, SignalR, Diag.
+  PoMemeVideo.Shared/         ← DTOs + enums shared between WASM and API.
+  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 7000/5001).
 
 tests/
   PoMemeVideo.UnitTests/          ← xUnit, pure unit tests, no I/O
   PoMemeVideo.IntegrationTests/   ← Testcontainers (Azurite), real storage
-  PoMemeVideo.E2ETests/           ← Playwright (TypeScript)
+  PoMemeVideo.E2EAPI/             ← C# pure-API emulation (Test env, GUEST bypass)
+  PoMemeVideo.E2EUI/              ← C# Playwright browser tests (E2E_BASE_URL-driven)
 
-SCRIPTS/                    ← setup.ps1, seed scripts, model download helpers
-infra/                      ← Azure Bicep / azd deployment
+SCRIPTS/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool clones), seed/model helpers
 ```
 
-**Onion Architecture rule:** dependencies point inward only.
-`Api → Application → Domain`. `Infrastructure → Application/Domain`. `Shared` is referenced by all.
+**Vertical Slice Architecture:** the layer projects (Domain/Application/Infrastructure)
+were collapsed into `PoMemeVideo.Api`. Code is organized by feature slice, not by
+technical layer. Slice types live in `PoMemeVideo.Api.Features.<Slice>`; cross-cutting
+types in `PoMemeVideo.Api.Common`. Cross-slice access is via global usings.
+Three projects only: **Api / Client / Shared.**
 
 ---
 
@@ -204,7 +211,7 @@ Local dev uses `dev` environment (real AI calls).
 - Do **not** hardcode connection strings — always use config/Key Vault
 - Do **not** add navigation links to `/health` or `/diag`
 - Do **not** show the GUEST login button when `ASPNETCORE_ENVIRONMENT == Production`
-- Do **not** break the Onion Architecture dependency direction
+- Do **not** reintroduce technical-layer projects/folders — keep code in feature slices (VSA)
 - Do **not** add NuGet package versions directly in `.csproj` files (use CPM)
 
 ---
