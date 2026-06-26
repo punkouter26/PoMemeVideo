@@ -116,32 +116,38 @@
 
         await _hubClient.JoinSessionAsync(SessionId);
 
-        // Verify session exists before firing initiate (pre-flight check).
+        // Kick off the engine pipeline. The server generates the Director's Script
+        // and renders the video; progress streams back over SignalR.
         _ = Task.Run(async () =>
         {
             try
             {
-                // Pre-flight: check session existence to avoid noisy 404 errors.
-                var checkResponse = await Http.GetAsync(
-                    $"/api/output/sessions/{SessionId}/script");
-                if (!checkResponse.IsSuccessStatusCode)
-                {
-                    var body = await checkResponse.Content.ReadAsStringAsync();
-                    _errorMessage = $"Session {SessionId} not found or not yet complete.";
-                    await InvokeAsync(StateHasChanged);
-                    return;
-                }
-
                 var response = await Http.PostAsync(
                     $"/api/processing/sessions/{SessionId}/initiate",
                     null);
 
-                if (!response.IsSuccessStatusCode)
+                if (response.IsSuccessStatusCode)
+                    return; // 202 Accepted — processing started; await hub events.
+
+                // 409 Conflict means the session is already queued/running, or has
+                // already moved past Ingesting (e.g. revisiting a finished session).
+                // If a script already exists, the render is done — jump to the reveal.
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
                 {
-                    var body = await response.Content.ReadAsStringAsync();
-                    _errorMessage = $"HTTP {(int)response.StatusCode}: {body}";
-                    await InvokeAsync(StateHasChanged);
+                    var scriptResponse = await Http.GetAsync(
+                        $"/api/output/sessions/{SessionId}/script");
+                    if (scriptResponse.IsSuccessStatusCode)
+                    {
+                        await InvokeAsync(() => Nav.NavigateTo($"/reveal/{SessionId}"));
+                        return;
+                    }
+                    // Otherwise it's still running — the hub will deliver completion.
+                    return;
                 }
+
+                var body = await response.Content.ReadAsStringAsync();
+                _errorMessage = $"HTTP {(int)response.StatusCode}: {body}";
+                await InvokeAsync(StateHasChanged);
             }
             catch (Exception ex)
             {

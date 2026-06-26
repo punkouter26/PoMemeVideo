@@ -103,6 +103,10 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             await DownloadBlobToFileAsync(job.SourceBlobPath, sourcePath, cancellationToken);
             _logger.LogInformation("Source video downloaded: {Path}", sourcePath);
 
+            // Probe the true source duration so the render can be hard-trimmed to match it
+            // (prevents trailing meme audio from extending the output past the video).
+            var sourceDurationSeconds = await ProbeOutputDurationAsync(sourcePath, cancellationToken);
+
             // ── 2. Download each sound file from blob ─────────────────────────
             var soundPaths = new List<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)>();
             for (var i = 0; i < job.SoundEntries.Count; i++)
@@ -126,7 +130,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
             // ── 3. Build FFmpeg command ───────────────────────────────────────
             var outputPath = Path.Combine(tempDir, "output.mp4");
-            var args = BuildFFmpegArgs(sourcePath, soundPaths, outputPath, job.AggressiveVisuals);
+            var args = BuildFFmpegArgs(sourcePath, soundPaths, outputPath, job.AggressiveVisuals, sourceDurationSeconds);
 
             _logger.LogDebug("FFmpeg args: {Args}", args);
 
@@ -163,7 +167,8 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         string sourcePath,
         IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
         string outputPath,
-        bool aggressiveVisuals)
+        bool aggressiveVisuals,
+        double sourceDurationSeconds)
     {
         var sb = new StringBuilder();
 
@@ -210,8 +215,13 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         sb.Append(" -c:v libx264 -preset fast -crf 23");
         if (sounds.Count > 0)
             sb.Append(" -c:a aac -b:a 192k");
-        // No -shortest: let the video track govern duration. amix duration=longest already pads silence
-        // after the last sound clip, so the output always matches the full source video length.
+        // Cap the output to the source video's duration. amix=duration=longest stretches the
+        // mixed audio to the longest *sound clip* (after its adelay), so a meme sound placed
+        // near the end can run past the video — leaving the output longer than the source with
+        // audio still playing after the picture ends. -t hard-trims both streams to the source
+        // length; audio shorter than the video simply ends in silence (the video governs).
+        if (sourceDurationSeconds > 0)
+            sb.Append($" -t {sourceDurationSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}");
         sb.Append(" -movflags +faststart");
         sb.Append($" -y \"{outputPath}\"");
 

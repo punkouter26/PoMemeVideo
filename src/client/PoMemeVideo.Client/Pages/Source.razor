@@ -41,14 +41,6 @@
                     <small>Azure OpenAI · GPT-5.4 Nano</small>
                 </span>
             </label>
-            <label class="mode-btn @(_pendingProvider == "AiFoundry" ? "mode-btn-active" : "")">
-                <input type="radio" name="ai-provider" value="AiFoundry" checked="@(_pendingProvider == "AiFoundry")" @onchange='() => SelectProvider("AiFoundry")' />
-                <span class="mode-icon">🔷</span>
-                <span class="mode-text">
-                    <strong>AI Foundry</strong>
-                    <small>Azure AI · @_pendingFoundryDeployment</small>
-                </span>
-            </label>
             @if (_isDevelopment)
             {
                 <label class="mode-btn @(_pendingProvider == "Ollama" ? "mode-btn-active" : "") @(!CanSelectOllama ? "is-disabled" : "")">
@@ -69,19 +61,6 @@
                 </span>
             </label>
         </div>
-
-        @if (_pendingProvider == "AiFoundry" && _foundryDeployments.Count > 0)
-        {
-            <div class="local-model-row">
-                <label class="local-model-label">Deployment</label>
-                <select class="home-ai-model-select" @bind="_pendingFoundryDeployment" @bind:after="RecomputeModelDirty">
-                    @foreach (var dep in _foundryDeployments)
-                    {
-                        <option value="@dep">@dep</option>
-                    }
-                </select>
-            </div>
-        }
 
         @if (_pendingProvider == "Ollama")
         {

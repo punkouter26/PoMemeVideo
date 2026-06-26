@@ -1,8 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <RazorLangVersion>latest</RazorLangVersion>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <UserSecretsId>22016808-42a2-44d4-988b-e2c23a66ab5c</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

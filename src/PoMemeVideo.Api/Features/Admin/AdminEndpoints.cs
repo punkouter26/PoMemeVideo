@@ -69,6 +69,7 @@ public static class AdminEndpoints
             AzureTableClientFactory tableFactory,
             BlobServiceClientFactory blobFactory,
             ISoundAssetRepository soundRepo,
+            IHttpClientFactory httpClientFactory,
             CancellationToken ct) =>
         {
             // Parse metadata from request body
@@ -99,27 +100,38 @@ public static class AdminEndpoints
                 .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
+            var http = httpClientFactory.CreateClient();
+            http.Timeout = TimeSpan.FromSeconds(30);
+
             int seeded = 0, skipped = 0, failed = 0;
 
             foreach (var entry in meta.Sounds)
             {
                 var soundId = DeriveStableGuid(entry.Id ?? entry.Filename);
 
-                // Idempotency check — skip if already in table
-                try
+                // Self-healing idempotency: skip only when BOTH the table row AND its
+                // backing blob already exist. A row whose blob is missing (e.g. seeded
+                // earlier with an external sourceUrl and never uploaded) is re-healed.
+                var rowExists = await TableRowExistsAsync(tableClient, soundId, ct);
+                var blobExists = !string.IsNullOrWhiteSpace(entry.Filename)
+                    && await blobContainer.GetBlobClient(entry.Filename).ExistsAsync(ct);
+                if (rowExists && blobExists)
                 {
-                    await tableClient.GetEntityAsync<TableEntity>(
-                        SoundPartition, soundId.ToString(), cancellationToken: ct);
                     skipped++;
                     continue;
                 }
-                catch (Azure.RequestFailedException ex) when (ex.Status == 404)
-                {
-                    // Not found — proceed
-                }
 
-                // Use sourceUrl as blob reference (no local filesystem in prod)
-                var blobUrl = entry.SourceUrl ?? $"https://placeholder/sounds/{entry.Filename}";
+                // Self-host the asset: download from the source URL and upload to our
+                // blob container, then store OUR blob URL. The render and stream
+                // pipelines read sounds from blob storage, so an external sourceUrl
+                // alone would leave them unplayable (BlobNotFound).
+                var blobUrl = await DownloadAndStoreSoundAsync(
+                    http, blobContainer, entry, ct);
+                if (blobUrl is null)
+                {
+                    failed++;
+                    continue;
+                }
 
                 // Compute embedding vector
                 var embedding = new ActionVector(entry.ActionVectorTags ?? [])
@@ -139,7 +151,7 @@ public static class AdminEndpoints
 
                 try
                 {
-                    await tableClient.AddEntityAsync(entity, ct);
+                    await tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct);
                     seeded++;
                 }
                 catch
@@ -167,6 +179,63 @@ public static class AdminEndpoints
         .RequireAuthorization();
 
         return app;
+    }
+
+    private static async Task<bool> TableRowExistsAsync(TableClient table, Guid soundId, CancellationToken ct)
+    {
+        try
+        {
+            await table.GetEntityAsync<TableEntity>(SoundPartition, soundId.ToString(), cancellationToken: ct);
+            return true;
+        }
+        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Downloads a sound from its source URL and uploads it to the "sounds" blob
+    /// container under its filename. Returns the stored blob's URL, or null if the
+    /// download/upload failed (caller counts it as a failure and skips the row).
+    /// </summary>
+    private static async Task<string?> DownloadAndStoreSoundAsync(
+        HttpClient http,
+        BlobContainerClient container,
+        SoundEntry entry,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(entry.SourceUrl) || string.IsNullOrWhiteSpace(entry.Filename))
+            return null;
+
+        var blobClient = container.GetBlobClient(entry.Filename);
+
+        // Already uploaded on a prior run — reuse it (idempotent).
+        if (await blobClient.ExistsAsync(ct))
+            return blobClient.Uri.ToString();
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, entry.SourceUrl);
+            // myinstants.com (and similar) reject requests without a browser User-Agent.
+            req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (PoMemeVideo sound seeder)");
+
+            using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (!resp.IsSuccessStatusCode)
+                return null;
+
+            await using var sourceStream = await resp.Content.ReadAsStreamAsync(ct);
+            await blobClient.UploadAsync(
+                sourceStream,
+                new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = "audio/mpeg" } },
+                ct);
+
+            return blobClient.Uri.ToString();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static async Task ClearTableAsync(TableClient table, CancellationToken ct)

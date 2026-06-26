@@ -249,7 +249,7 @@ public partial class Source
             }
             else
             {
-                _errorMessage = "LOCAL AI MODEL FILES ARE MISSING. Select Remote AI or AI Foundry, then click Apply Model before creating a video.";
+                _errorMessage = "LOCAL AI MODEL FILES ARE MISSING. Select Remote AI, then click Apply Model before creating a video.";
                 _statusMessage = "READY";
                 return;
             }

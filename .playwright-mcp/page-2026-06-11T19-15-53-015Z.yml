@@ -1,4 +1,0 @@
-- generic [active] [ref=e1]:
-  - generic:
-    - img [ref=e2]
-    - generic [ref=e5]: 87%

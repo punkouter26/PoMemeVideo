@@ -6,10 +6,25 @@ namespace PoMemeVideo.Api.Features.Auth;
 
 internal static class UserIdentityResolution
 {
+    // Entra ID's immutable per-user object identifier. This is a Guid, unlike the
+    // `sub`/NameIdentifier claim which is a non-parseable pairwise subject id.
+    private const string EntraObjectIdSchemaClaim =
+        "http://schemas.microsoft.com/identity/claims/objectidentifier";
+
     public static Guid? TryGetUserId(HttpContext httpContext)
     {
-        var claim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(claim, out var userId) ? userId : null;
+        var user = httpContext.User;
+
+        // Cookie-based GUEST/ANON identities set NameIdentifier to a Guid directly.
+        var nameId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (Guid.TryParse(nameId, out var userId))
+            return userId;
+
+        // Entra ID (OIDC) users: NameIdentifier is the `sub` pairwise id (not a Guid),
+        // so fall back to the object-identifier (`oid`) claim, which is a stable Guid.
+        var oid = user.FindFirstValue(EntraObjectIdSchemaClaim)
+                  ?? user.FindFirstValue("oid");
+        return Guid.TryParse(oid, out var objectId) ? objectId : null;
     }
 
     public static async Task EnsureDevelopmentAnonymousIdentityAsync(HttpContext httpContext)
