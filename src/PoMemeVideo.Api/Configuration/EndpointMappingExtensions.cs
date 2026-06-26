@@ -61,6 +61,23 @@ internal static class EndpointMappingExtensions
 
         app.UseAuthentication();
 
+        // ── API docs gate: restrict Scalar/OpenAPI to authenticated users in non-dev ──
+        if (!app.Environment.IsDevelopment())
+        {
+            app.Use(async (context, next) =>
+            {
+                var path = context.Request.Path;
+                if ((path.StartsWithSegments("/scalar") || path.StartsWithSegments("/openapi"))
+                    && context.User?.Identity?.IsAuthenticated != true)
+                {
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsync("Unauthorized — sign in to access API documentation.");
+                    return;
+                }
+                await next();
+            });
+        }
+
         if (app.Environment.IsDevelopment())
         {
             app.Use(async (context, next) =>

@@ -101,6 +101,18 @@ public static class AuthEndpoints
         .Produces<object>(200)
         .AllowAnonymous();
 
+        // ── DELETE /api/dev/session — reset session cookie for multi-user testing ──
+        app.MapDelete("/api/dev/session", (HttpContext httpContext) =>
+        {
+            httpContext.Response.Cookies.Delete(".AspNetCore.Cookies");
+            httpContext.Response.Cookies.Delete("pmv-session-id");
+            return Results.Ok(new { message = "Session cookies cleared. Refresh to start a new session." });
+        })
+        .WithName("DevResetSession")
+        .WithTags("Dev")
+        .Produces<object>(200)
+        .AllowAnonymous();
+
         return app;
     }
 

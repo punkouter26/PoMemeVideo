@@ -1,9 +1,21 @@
 @page "/engine/{SessionId:guid}"
+@page "/engine"
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject IConfiguration Configuration
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+
+@if (SessionId == Guid.Empty)
+{
+    <PageTitle>PoMemeVideo — No Session</PageTitle>
+    <div class="engine-page">
+        <h3>No Session Selected</h3>
+        <p>Select a video from your history to view its processing engine.</p>
+        <a href="/results" class="ascii-btn">[ Go to History ]</a>
+    </div>
+    return;
+}
 
 <PageTitle>PoMemeVideo — Processing</PageTitle>
 
@@ -104,11 +116,22 @@
 
         await _hubClient.JoinSessionAsync(SessionId);
 
-        // Fire-and-forget: initiate engine pipeline
+        // Verify session exists before firing initiate (pre-flight check).
         _ = Task.Run(async () =>
         {
             try
             {
+                // Pre-flight: check session existence to avoid noisy 404 errors.
+                var checkResponse = await Http.GetAsync(
+                    $"/api/output/sessions/{SessionId}/script");
+                if (!checkResponse.IsSuccessStatusCode)
+                {
+                    var body = await checkResponse.Content.ReadAsStringAsync();
+                    _errorMessage = $"Session {SessionId} not found or not yet complete.";
+                    await InvokeAsync(StateHasChanged);
+                    return;
+                }
+
                 var response = await Http.PostAsync(
                     $"/api/processing/sessions/{SessionId}/initiate",
                     null);

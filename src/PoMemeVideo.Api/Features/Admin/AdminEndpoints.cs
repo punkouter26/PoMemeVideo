@@ -1,9 +1,18 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Azure.Data.Tables;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using PoMemeVideo.Api.Features.Processing;
 
 namespace PoMemeVideo.Api.Features.Admin;
 
 public static class AdminEndpoints
 {
+    private const string SoundContainer = "sounds";
+    private const string SoundTable = "SoundAssets";
+    private const string SoundPartition = "library";
+
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
         // DELETE /api/admin/data — wipe ALL session blobs + VideoSessions + DirectorScripts tables.
@@ -45,6 +54,118 @@ public static class AdminEndpoints
         .Produces<object>(200)
         .AllowAnonymous();
 
+        // ── POST /api/admin/sounds/seed — production-safe HTTP seeding ───────
+        // Accepts the sounds-metadata.json body (same format as CLI).
+        // Idempotent: skips rows that already exist in Table Storage.
+        // Works against whichever storage is configured (Azurite local / Azure prod).
+        //
+        // Usage from dev machine to seed production:
+        //   curl -X POST https://myapp.azurewebsites.net/api/admin/sounds/seed \
+        //     -H "Content-Type: application/json" \
+        //     -H "Cookie: .AspNetCore.Cookies=<auth-cookie>" \
+        //     -d @SCRIPTS/meme-sounds/sounds-metadata.json
+        app.MapPost("/api/admin/sounds/seed", async (
+            HttpRequest request,
+            AzureTableClientFactory tableFactory,
+            BlobServiceClientFactory blobFactory,
+            ISoundAssetRepository soundRepo,
+            CancellationToken ct) =>
+        {
+            // Parse metadata from request body
+            SoundsMetadata meta;
+            try
+            {
+                meta = await request.ReadFromJsonAsync<SoundsMetadata>(
+                    SeedSoundsJsonOptions, ct) ?? new SoundsMetadata();
+            }
+            catch (JsonException ex)
+            {
+                return Results.BadRequest(new { error = "Invalid JSON body.", detail = ex.Message });
+            }
+
+            if (meta.Sounds is null || meta.Sounds.Count == 0)
+                return Results.BadRequest(new { error = "No sounds found in payload. Expected { sounds: [...] }" });
+
+            // Connect to storage via configured DI factories
+            var blobContainer = blobFactory.GetContainerClient(SoundContainer);
+
+            var tableClient = tableFactory.GetTableClient(SoundTable);
+            await tableClient.CreateIfNotExistsAsync(ct);
+
+            // Build vocabulary from all unique tags (matching CLI behaviour)
+            var vocabulary = meta.Sounds
+                .SelectMany(s => s.ActionVectorTags ?? [])
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            int seeded = 0, skipped = 0, failed = 0;
+
+            foreach (var entry in meta.Sounds)
+            {
+                var soundId = DeriveStableGuid(entry.Id ?? entry.Filename);
+
+                // Idempotency check — skip if already in table
+                try
+                {
+                    await tableClient.GetEntityAsync<TableEntity>(
+                        SoundPartition, soundId.ToString(), cancellationToken: ct);
+                    skipped++;
+                    continue;
+                }
+                catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+                {
+                    // Not found — proceed
+                }
+
+                // Use sourceUrl as blob reference (no local filesystem in prod)
+                var blobUrl = entry.SourceUrl ?? $"https://placeholder/sounds/{entry.Filename}";
+
+                // Compute embedding vector
+                var embedding = new ActionVector(entry.ActionVectorTags ?? [])
+                    .ToEmbedding(vocabulary);
+                var embeddingCsv = string.Join(",",
+                    embedding.Select(f => f.ToString("G",
+                        System.Globalization.CultureInfo.InvariantCulture)));
+
+                var entity = new TableEntity(SoundPartition, soundId.ToString())
+                {
+                    ["DisplayName"] = entry.DisplayName,
+                    ["DurationMs"] = entry.DurationMs,
+                    ["Tags"] = string.Join(",", entry.ActionVectorTags ?? []),
+                    ["BlobUrl"] = blobUrl,
+                    ["EmbeddingVector"] = embeddingCsv,
+                };
+
+                try
+                {
+                    await tableClient.AddEntityAsync(entity, ct);
+                    seeded++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            // Invalidate cache so next load picks up newly seeded rows
+            soundRepo.InvalidateCache();
+
+            return Results.Ok(new
+            {
+                seeded,
+                skipped,
+                failed,
+                total = meta.Sounds.Count,
+                message = $"Seeding complete. {seeded} new, {skipped} skipped, {failed} failed. Cache invalidated.",
+            });
+        })
+        .WithName("SeedSounds")
+        .WithTags("Admin")
+        .Produces<object>(200)
+        .Produces<object>(400)
+        .RequireAuthorization();
+
         return app;
     }
 
@@ -62,5 +183,42 @@ public static class AdminEndpoints
         {
             // Table doesn't exist yet — nothing to clear
         }
+    }
+
+    // ── Seed helpers (shared with CLI SeedSoundsCommand) ─────────────────────
+
+    private static Guid DeriveStableGuid(string slug)
+    {
+        var namespaceBytes = new byte[] { 0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1, 0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8 };
+        var nameBytes = System.Text.Encoding.UTF8.GetBytes(slug);
+        var combined = namespaceBytes.Concat(nameBytes).ToArray();
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var hash = sha1.ComputeHash(combined);
+        hash[6] = (byte)((hash[6] & 0x0f) | 0x50);
+        hash[8] = (byte)((hash[8] & 0x3f) | 0x80);
+        return new Guid(hash[..16]);
+    }
+
+    private static readonly JsonSerializerOptions SeedSoundsJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    private sealed class SoundsMetadata
+    {
+        public string Version { get; set; } = "1.0";
+        public List<SoundEntry> Sounds { get; set; } = [];
+    }
+
+    private sealed class SoundEntry
+    {
+        public string? Id { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string Filename { get; set; } = string.Empty;
+        public string? SourceUrl { get; set; }
+        public int DurationMs { get; set; }
+        [JsonPropertyName("actionVectorTags")]
+        public string[] ActionVectorTags { get; set; } = [];
     }
 }

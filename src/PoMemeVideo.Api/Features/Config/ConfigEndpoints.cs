@@ -131,6 +131,71 @@ public static class ConfigEndpoints
         .ProducesProblem(400)
         .AllowAnonymous();
 
+        // ── Model download trigger (dev only) ─────────────────────────────────
+        app.MapPost("/api/config/ai-model/download", async (
+            IWebHostEnvironment env,
+            CancellationToken ct) =>
+        {
+            // Gate to Development only — prod uses cloud AI exclusively.
+            if (!env.IsDevelopment())
+                return Results.BadRequest(new { error = "Model download is only available in Development." });
+
+            var scriptsDir = Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "SCRIPTS"));
+            if (!Directory.Exists(scriptsDir))
+                return Results.BadRequest(new { error = "SCRIPTS directory not found.", path = scriptsDir });
+
+            var downloadScript = Path.Combine(scriptsDir, "download-models.py");
+            if (!File.Exists(downloadScript))
+                return Results.BadRequest(new { error = "download-models.py not found.", path = downloadScript });
+
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{downloadScript}\"",
+                    WorkingDirectory = scriptsDir,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+
+                var process = System.Diagnostics.Process.Start(psi);
+                if (process is null)
+                    return Results.Problem("Failed to start download process.");
+
+                // Read output asynchronously with a reasonable timeout.
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+                await process.WaitForExitAsync(linkedCts.Token);
+
+                var stdout = await process.StandardOutput.ReadToEndAsync();
+                var stderr = await process.StandardError.ReadToEndAsync();
+
+                return Results.Ok(new
+                {
+                    exitCode = process.ExitCode,
+                    success = process.ExitCode == 0,
+                    output = stdout,
+                    error = stderr.Length > 0 ? stderr[..System.Math.Min(stderr.Length, 2000)] : null,
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                return Results.Problem("Model download timed out after 10 minutes.");
+            }
+            catch (Exception ex)
+            {
+                return Results.Problem($"Download failed: {ex.Message}");
+            }
+        })
+        .WithName("DownloadModels")
+        .WithTags("Config")
+        .Produces<object>(200)
+        .ProducesProblem(400)
+        .AllowAnonymous();
+
         return app;
     }
 

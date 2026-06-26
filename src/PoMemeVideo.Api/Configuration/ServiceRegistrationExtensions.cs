@@ -46,7 +46,18 @@ internal static class ServiceRegistrationExtensions
 
                 var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
                 if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+                {
                     tracing.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
+                }
+                else if (builder.Environment.IsDevelopment())
+                {
+                    // Auto-wire to .NET Aspire dashboard in Development (default OTLP gRPC port).
+                    tracing.AddOtlpExporter(o =>
+                    {
+                        o.Endpoint = new Uri("http://localhost:4317");
+                        o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                    });
+                }
             });
 
         builder.Services.AddAzureTableClientFactory();

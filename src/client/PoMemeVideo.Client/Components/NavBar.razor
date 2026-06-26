@@ -43,7 +43,7 @@
             }
             else
             {
-                <span style="opacity:0.4;">[ AI: UNKNOWN ]</span>
+                <span style="opacity:0.4;">[ AI: INIT… ]</span>
             }
         </span>
 
@@ -143,10 +143,15 @@
             var me = await Http.GetFromJsonAsync<AuthMeResponse>("/api/auth/me");
             if (me?.DisplayName is { Length: > 0 } name)
             {
-                // GUEST\d{8} pattern — show required explicit guest identity message.
+                // GUEST\d{8} pattern — dev guest identity.
                 if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^GUEST\d{8}$"))
                 {
-                    _authDisplay = $"[ {name} ]";
+                    _authDisplay = $"[ DEV: GUEST {name} ]";
+                }
+                // ANON\d{6} pattern — dev anonymous identity (auto-generated).
+                else if (System.Text.RegularExpressions.Regex.IsMatch(name, @"^ANON\d{6}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    _authDisplay = $"[ DEV: ANON {name} ]";
                 }
                 else
                 {
