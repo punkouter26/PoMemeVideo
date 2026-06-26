@@ -18,7 +18,7 @@ internal static class EndpointMappingExtensions
         if (app.Environment.IsDevelopment())
             app.UseDeveloperExceptionPage();
 
-        app.UseCors();
+        // Single-origin topology: WASM is served same-origin by this API — no CORS middleware.
 
         app.UseStaticFiles(new StaticFileOptions
         {

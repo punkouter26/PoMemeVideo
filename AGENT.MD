@@ -84,12 +84,25 @@ When **any mock** is active the top nav must display **"USING MOCK DATA"**.
 
 ## 5. Storage Strategy
 
+**Contract: Azure Table Storage** (classic `Microsoft.Storage` Table API — *not* Cosmos DB
+Table API). The zero-waste choice: cheap, serverless, sufficient for session/script/sound
+metadata. Account: **`stpomemevideo`** (lowercase, Po-scoped). Because the account is
+dedicated to this app, tables are unprefixed (`VideoSessions`, `DirectorScripts`,
+`SoundAssets`, `UserIdentities`) — the **account name is the `Po{Solution}` identity
+boundary**, so per-table prefixes would be redundant.
+
 | Environment | Table Storage | Blob Storage |
 |---|---|---|
 | Local (Docker) | Azurite `UseDevelopmentStorage=true` | Azurite |
-| Azure Prod | Azure Table Storage (Key Vault connection) | Azure Blob Storage |
+| Azure Prod | `stpomemevideo` (connection string from Key Vault) | `stpomemevideo` |
 
 `AzureTableClientFactory` and `BlobServiceClientFactory` read `ConnectionStrings:AzureTableStorage` / `AzureBlobStorage` and switch automatically.
+
+**Data Protection** keys persist to the `dataprotection` blob container (prod) so the BFF's
+encrypted auth cookies survive container restarts/redeploys.
+
+**Identity:** the app uses a **system-assigned managed identity** with `get`/`list` on
+`kv-poshared` secrets. (No user-assigned identity / `AZURE_CLIENT_ID`.)
 
 Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`, `SoundAssetTableRepository`, `DirectorScriptTableRepository`
 
@@ -198,7 +211,7 @@ Local dev uses `dev` environment (real AI calls).
 - **App Service Plan:** `asp-PoShared-b1` (**B1 Linux**) in the **`PoShared`** RG — a *shared* plan intended to host multiple Po* apps.
   - **F1→B1 exception:** the spec calls for free **F1**, but the app shells out to native `ffmpeg`/`ffprobe`, which forces a **Linux container**, which requires **≥ B1**. F1 cannot run custom containers, so B1 is the deliberate minimum. (Alternative to reach free F1: bundle a static ffmpeg binary + `FFmpegBinPath` and ZIP-deploy instead of a container.)
   - Region note: `PoShared` RG metadata is `eastus2`, but the plan/app run in **westus2** (eastus2 has no B-series quota; westus2 co-locates with storage).
-- **Identity:** user-assigned managed identity **`mi-poshared-containerapps`** (clientId surfaced to the app via the `AZURE_CLIENT_ID` app setting so `DefaultAzureCredential` selects it). Must hold get/list on `kv-poshared` secrets.
+- **Identity:** **system-assigned** managed identity with get/list on `kv-poshared` secrets (no UAMI, no `AZURE_CLIENT_ID`). `DefaultAzureCredential` selects it automatically.
 - **Secrets vault:** `kv-poshared` (access-policy model, *not* RBAC). App-specific secrets are prefixed `PoMemeVideo--`.
 - **CI/CD:** GitHub Actions `deploy-pomemevideo.yml` builds a Docker image → **GHCR** → sets the App Service `linuxFxVersion` + registry creds. No tests run in CI (by rule). `azure.yaml` is a legacy azd manifest; there is no `infra/` Bicep dir.
 
