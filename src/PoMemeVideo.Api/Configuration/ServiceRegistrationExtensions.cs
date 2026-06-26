@@ -2,6 +2,7 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -17,6 +18,15 @@ internal static class ServiceRegistrationExtensions
     {
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         builder.Services.AddProblemDetails();
+
+        // App Service terminates TLS at the front end; honor X-Forwarded-Proto so OIDC
+        // builds https redirect URIs (matching the app registration), not http.
+        builder.Services.Configure<ForwardedHeadersOptions>(o =>
+        {
+            o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            o.KnownIPNetworks.Clear();
+            o.KnownProxies.Clear();
+        });
 
         builder.Services.AddOpenTelemetry()
             .ConfigureResource(r => r.AddService("PoMemeVideo"))

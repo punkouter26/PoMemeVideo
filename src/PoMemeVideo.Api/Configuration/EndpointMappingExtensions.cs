@@ -15,6 +15,9 @@ internal static class EndpointMappingExtensions
 {
     public static void UseAndMapPoMemeVideo(this WebApplication app)
     {
+        // Must run first: rewrites scheme/host from proxy headers before auth builds redirect URIs.
+        app.UseForwardedHeaders();
+
         if (app.Environment.IsDevelopment())
             app.UseDeveloperExceptionPage();
 
