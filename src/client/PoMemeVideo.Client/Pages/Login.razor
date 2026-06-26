@@ -5,7 +5,9 @@
    - Shows SIGN IN WITH MICROSOFT always.
    - After GUEST login, navigates to source page. *@
 @page "/login"
+@attribute [AllowAnonymous]
 @inject HttpClient Http
+@inject AuthenticationStateProvider AuthState
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 

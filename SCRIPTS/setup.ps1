@@ -3,7 +3,8 @@ param(
     [switch]$SkipWinget,
     [switch]$SkipPythonBootstrap,
     [switch]$SkipAzurite,
-    [switch]$SkipKeys
+    [switch]$SkipKeys,
+    [switch]$SkipTools
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,6 +43,21 @@ function Clear-Port {
             Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
             Write-Host "Killed process $p holding port $Port."
         } catch { }
+    }
+}
+
+function Ensure-GitRepo {
+    param(
+        [Parameter(Mandatory = $true)][string]$Url,
+        [Parameter(Mandatory = $true)][string]$Dir
+    )
+    if (Test-Path $Dir) {
+        Write-Host "$Dir already present — pulling latest..."
+        git -C $Dir pull --ff-only 2>&1 | Out-Null
+    }
+    else {
+        Write-Host "Cloning $Url -> $Dir..."
+        git clone --depth 1 $Url $Dir
     }
 }
 
@@ -89,6 +105,20 @@ try {
 
         Write-Host 'Running Python bootstrap (models/sounds/seeding)...'
         python SCRIPTS/setup-new-machine.py
+    }
+
+    if (-not $SkipTools) {
+        if (-not (Test-Command -Name 'git')) {
+            Write-Warning 'git not found — skipping required-tool clones. Install via: winget install Git.Git'
+        }
+        else {
+            Write-Host 'Installing required agent tooling (gstack, Understand-Anything, graphify)...'
+            $toolsRoot = Join-Path $PWD 'tools'
+            New-Item -ItemType Directory -Force -Path $toolsRoot | Out-Null
+            Ensure-GitRepo -Url 'https://github.com/garrytan/gstack' -Dir (Join-Path $toolsRoot 'gstack')
+            Ensure-GitRepo -Url 'https://github.com/Egonex-AI/Understand-Anything' -Dir (Join-Path $toolsRoot 'Understand-Anything')
+            Ensure-GitRepo -Url 'https://github.com/safishamsi/graphify' -Dir (Join-Path $toolsRoot 'graphify')
+        }
     }
 
     # ── az login check — ensures Key Vault access matches Production (rule 9) ─

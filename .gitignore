@@ -9,6 +9,15 @@
 .vscode/
 .history/
 
+## Large media (keep out of git history — pull via SCRIPTS or Git LFS)
+*.mp4
+*.mov
+*.webm
+!docs/**/*.png
+
+## Cloned agent tooling (gstack / Understand-Anything / graphify)
+tools/
+
 ## Build outputs
 [Bb]in/
 [Oo]bj/

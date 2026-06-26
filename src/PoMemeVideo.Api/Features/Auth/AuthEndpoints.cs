@@ -38,7 +38,12 @@ public static class AuthEndpoints
     /// </remarks>
     public static IEndpointRouteBuilder MapGuestAuthEndpoints(this IEndpointRouteBuilder app, IHostEnvironment env)
     {
-        if (!env.IsDevelopment())
+        // GUEST bypass is available in Development (local) and Test (E2E/integration) only.
+        // Production must never expose it — fail loud if ever mis-wired.
+        if (env.IsProduction())
+            throw new InvalidOperationException("GUEST auth bypass must not be registered in Production.");
+
+        if (!env.IsDevelopment() && !env.IsEnvironment("Test"))
             return app;
 
         // ── POST /auth/guest — dev-only GUEST identity creation ───────────────

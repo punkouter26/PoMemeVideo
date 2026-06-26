@@ -10,7 +10,9 @@
     <Project Path="src/client/PoMemeVideo.Client/PoMemeVideo.Client.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/PoMemeVideo.IntegrationTests/PoMemeVideo.IntegrationTests.csproj" />
     <Project Path="tests/PoMemeVideo.UnitTests/PoMemeVideo.UnitTests.csproj" />
+    <Project Path="tests/PoMemeVideo.IntegrationTests/PoMemeVideo.IntegrationTests.csproj" />
+    <Project Path="tests/PoMemeVideo.E2EAPI/PoMemeVideo.E2EAPI.csproj" />
+    <Project Path="tests/PoMemeVideo.E2EUI/PoMemeVideo.E2EUI.csproj" />
   </Folder>
 </Solution>

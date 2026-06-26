@@ -14,8 +14,17 @@ namespace PoMemeVideo.Infrastructure.FFmpeg;
 /// Uses System.Threading.Channels for bounded job concurrency.
 /// GoF: Template Method — filter_complex construction varies per effect type.
 /// </summary>
-public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
+public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 {
+    [LoggerMessage(Level = LogLevel.Information, Message = "FFmpeg render complete for session {SessionId}")]
+    private partial void LogRenderComplete(Guid sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "ffprobe: session {SessionId} actual output duration = {Duration:F2}s")]
+    private partial void LogProbeDuration(Guid sessionId, double duration);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "ffprobe duration unavailable for session {SessionId}")]
+    private partial void LogProbeUnavailable(Guid sessionId);
+
     private readonly BlobStorageService _blobService;
     private readonly ILogger<FFmpegRenderService> _logger;
     private readonly Channel<RenderJob> _jobQueue;
@@ -128,14 +137,13 @@ public class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             if (exitCode != 0)
                 throw new InvalidOperationException($"FFmpeg exited with code {exitCode} for session {job.SessionId}.");
 
-            _logger.LogInformation("FFmpeg render complete for session {SessionId}", job.SessionId);
+            LogRenderComplete(job.SessionId);
             // ── 4b. Probe actual output duration via ffprobe ─────────────────────────────
             job.ActualDurationSeconds = await ProbeOutputDurationAsync(outputPath, cancellationToken);
             if (job.ActualDurationSeconds > 0)
-                _logger.LogInformation("ffprobe: session {SessionId} actual output duration = {Duration:F2}s",
-                    job.SessionId, job.ActualDurationSeconds);
+                LogProbeDuration(job.SessionId, job.ActualDurationSeconds);
             else
-                _logger.LogWarning("ffprobe duration unavailable for session {SessionId}", job.SessionId);
+                LogProbeUnavailable(job.SessionId);
             // ── 5. Upload output to blob storage ──────────────────────────────
             await UploadFileToBlobAsync(outputPath, job.OutputBlobPath, cancellationToken);
             _logger.LogInformation("Output uploaded: {Path}", job.OutputBlobPath);
