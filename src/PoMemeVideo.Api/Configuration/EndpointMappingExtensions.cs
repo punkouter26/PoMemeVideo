@@ -7,14 +7,14 @@ using PoMemeVideo.Api.Endpoints;
 using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
-using PoMemeVideo.Infrastructure;
+using PoMemeVideo.Api;
 using PoMemeVideo.Api.Features.Ingestion;
 using PoMemeVideo.Api.Features.MemeLibrary;
 using PoMemeVideo.Api.Features.Output;
 using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Api.Hubs;
-using PoMemeVideo.Infrastructure.AzureStorage;
-using PoMemeVideo.Infrastructure.BrowserLlm;
+using PoMemeVideo.Api.AzureStorage;
+using PoMemeVideo.Api.BrowserLlm;
 using Scalar.AspNetCore;
 using Serilog;
 

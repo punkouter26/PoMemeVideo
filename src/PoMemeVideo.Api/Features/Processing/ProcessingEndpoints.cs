@@ -1,7 +1,7 @@
 // GoF: Command Pattern — initiates engine pipeline
 using Microsoft.AspNetCore.Mvc;
 using PoMemeVideo.Api.Features.Auth;
-using PoMemeVideo.Domain.Interfaces;
+using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 
 namespace PoMemeVideo.Api.Features.Processing;

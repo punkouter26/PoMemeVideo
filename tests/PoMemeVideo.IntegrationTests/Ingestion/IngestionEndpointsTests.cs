@@ -5,10 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
-using PoMemeVideo.Application.Ingestion;
-using PoMemeVideo.Domain.Entities;
-using PoMemeVideo.Domain.Interfaces;
-using PoMemeVideo.Infrastructure.AzureStorage;
+using PoMemeVideo.Api.Ingestion;
+using PoMemeVideo.Api.Entities;
+using PoMemeVideo.Api.Interfaces;
+using PoMemeVideo.Api.AzureStorage;
 using PoMemeVideo.Shared.Enums;
 
 namespace PoMemeVideo.IntegrationTests.Ingestion;

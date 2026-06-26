@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using PoMemeVideo.Infrastructure.AzureStorage;
+using PoMemeVideo.Api.AzureStorage;
 
 namespace PoMemeVideo.Api.Pages;
 

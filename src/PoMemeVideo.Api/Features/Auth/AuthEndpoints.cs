@@ -2,8 +2,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using PoMemeVideo.Domain.Entities;
-using PoMemeVideo.Domain.Interfaces;
+using PoMemeVideo.Api.Entities;
+using PoMemeVideo.Api.Interfaces;
 
 namespace PoMemeVideo.Api.Features.Auth;
 
