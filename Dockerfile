@@ -4,9 +4,6 @@ WORKDIR /src
 
 # Copy solution and project files first for layer caching
 COPY PoMemeVideo.slnx global.json Directory.Build.props Directory.Packages.props ./
-COPY src/PoMemeVideo.Domain/PoMemeVideo.Domain.csproj src/PoMemeVideo.Domain/
-COPY src/PoMemeVideo.Application/PoMemeVideo.Application.csproj src/PoMemeVideo.Application/
-COPY src/PoMemeVideo.Infrastructure/PoMemeVideo.Infrastructure.csproj src/PoMemeVideo.Infrastructure/
 COPY src/PoMemeVideo.Shared/PoMemeVideo.Shared.csproj src/PoMemeVideo.Shared/
 COPY src/PoMemeVideo.Api/PoMemeVideo.Api.csproj src/PoMemeVideo.Api/
 COPY src/client/PoMemeVideo.Client/PoMemeVideo.Client.csproj src/client/PoMemeVideo.Client/
