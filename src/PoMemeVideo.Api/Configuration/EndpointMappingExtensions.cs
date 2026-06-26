@@ -211,19 +211,38 @@ internal static class EndpointMappingExtensions
         app.MapFallbackToFile("index.html");
     }
 
-    public static async Task ConfigureDevStorageCorsAsync(this WebApplication app)
+    public static async Task ConfigureStorageCorsAsync(this WebApplication app)
     {
+        // Browser direct-upload (a SAS PUT straight to Blob Storage) only works if the storage
+        // account has a CORS rule listing the page's origin. This MUST run in EVERY environment:
+        // in Production the deployed site fails uploads with "Failed to fetch" when its origin is
+        // missing from the blob CORS allow-list. (This was previously gated to Development, so the
+        // production origin was never configured.)
+        var blobFactory = app.Services.GetRequiredService<BlobServiceClientFactory>();
+
+        var origins = (app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [])
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .ToList();
+
+        if (app.Environment.IsDevelopment())
+        {
+            // Local dev always permits the fixed dev hosts (Azurite direct-upload), regardless of config.
+            origins.AddRange(["http://localhost:7000", "http://127.0.0.1:7000", "https://localhost:5001", "http://localhost:5280"]);
+        }
+
+        var allowedOrigins = origins.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (allowedOrigins.Length > 0)
+            await blobFactory.EnsureUploadCorsAsync(string.Join(",", allowedOrigins));
+        else
+            Log.Warning("No Cors:AllowedOrigins configured — browser direct-upload to Blob Storage will fail.");
+
+        // ── Dev-only bootstrap below: restore AI selection + ensure/auto-seed the sound library ──
         if (!app.Environment.IsDevelopment())
             return;
 
         // Restore previously-selected AI provider so users don't have to re-click "Apply Model" after restart.
         var aiSettings = app.Services.GetRequiredService<RuntimeAiSettings>();
         ConfigEndpoints.RestoreSettings(aiSettings);
-
-        var blobFactory = app.Services.GetRequiredService<BlobServiceClientFactory>();
-        var allowedOrigins = app.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? ["http://localhost:7000", "http://127.0.0.1:7000", "https://localhost:5001", "http://localhost:5280"];
-        await blobFactory.EnsureDevCorsAsync(string.Join(",", allowedOrigins));
 
         // Ensure SoundAssets table exists and warn if empty so developers know to seed it.
         var tableFactory = app.Services.GetRequiredService<AzureTableClientFactory>();

@@ -42,8 +42,8 @@ try
     app.Services.GetRequiredService<FFmpegRenderService>().StartWorker();
 
     app.UseAndMapPoMemeVideo();
-    _ = Task.Run(app.ConfigureDevStorageCorsAsync).ContinueWith(
-        task => Log.Warning(task.Exception, "Development storage bootstrap failed."),
+    _ = Task.Run(app.ConfigureStorageCorsAsync).ContinueWith(
+        task => Log.Warning(task.Exception, "Storage CORS bootstrap failed."),
         TaskContinuationOptions.OnlyOnFaulted);
     app.Lifetime.ApplicationStarted.Register(() =>
     {

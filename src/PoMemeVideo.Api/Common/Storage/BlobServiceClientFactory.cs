@@ -90,10 +90,11 @@ public class BlobServiceClientFactory
     }
 
     /// <summary>
-    /// Configures CORS on the blob service to allow browser direct-upload from the given origin.
-    /// Safe to call on Azurite; retries up to 3 times so startup ordering (API before Azurite) is tolerated.
+    /// Configures CORS on the blob service to allow browser direct-upload from the given origin(s).
+    /// Works against Azurite (local) and real Azure Storage (prod, via the account-key connection
+    /// string). Retries up to 3 times so startup ordering (API before Azurite) is tolerated.
     /// </summary>
-    public async Task EnsureDevCorsAsync(string allowedOrigin, CancellationToken cancellationToken = default)
+    public async Task EnsureUploadCorsAsync(string allowedOrigin, CancellationToken cancellationToken = default)
     {
         const int maxAttempts = 3;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
