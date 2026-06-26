@@ -1,7 +1,4 @@
 using NSubstitute;
-using PoMemeVideo.Application.Ingestion;
-using PoMemeVideo.Domain.Entities;
-using PoMemeVideo.Domain.Interfaces;
 
 namespace PoMemeVideo.UnitTests.Ingestion;
 

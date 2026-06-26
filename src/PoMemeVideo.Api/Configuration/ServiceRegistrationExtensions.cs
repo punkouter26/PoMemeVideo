@@ -3,21 +3,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using PoMemeVideo.Api.Features.Processing;
-using PoMemeVideo.Api.Infrastructure;
-using PoMemeVideo.Application.Ingestion;
-using PoMemeVideo.Application.MemeLibrary;
-using PoMemeVideo.Application.Processing;
-using PoMemeVideo.Application.Rendering;
-using PoMemeVideo.Domain.Interfaces;
 using PoMemeVideo.Api.Hubs;
-using PoMemeVideo.Infrastructure;
-using PoMemeVideo.Infrastructure.AiFoundry;
-using PoMemeVideo.Infrastructure.AzureOpenAi;
-using PoMemeVideo.Infrastructure.AzureStorage;
-using PoMemeVideo.Infrastructure.BrowserLlm;
-using PoMemeVideo.Infrastructure.FFmpeg;
-using PoMemeVideo.Infrastructure.Ollama;
 using Serilog;
 
 namespace PoMemeVideo.Api.Configuration;
@@ -55,7 +41,11 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddDirectorScriptTableRepository();
 
         builder.Services.AddSingleton<RuntimeAiSettings>();
-        builder.Services.AddHttpClient();
+
+        // Typed/named HttpClients backed by a standard resilience pipeline
+        // (retry + timeout + circuit breaker) per the .NET 10 resilience mandate.
+        builder.Services.AddHttpClient("Ollama").AddStandardResilienceHandler();
+        builder.Services.AddHttpClient("AiFoundry").AddStandardResilienceHandler();
         builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
         builder.Services.AddSingleton<AzureOpenAiDirectorService>();
         builder.Services.AddSingleton<AiFoundryDirectorService>();
@@ -102,8 +92,12 @@ internal static class ServiceRegistrationExtensions
                     options.LoginPath = "/login";
                     options.LogoutPath = "/auth/logout";
                     options.Cookie.HttpOnly = true;
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                    options.Cookie.SameSite = SameSiteMode.Lax;
+                    // BFF session cookie: encrypted by the data-protection layer, HttpOnly,
+                    // SameSite=Strict, and Secure everywhere except local http dev.
+                    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                        ? CookieSecurePolicy.SameAsRequest
+                        : CookieSecurePolicy.Always;
+                    options.Cookie.SameSite = SameSiteMode.Strict;
                 });
         }
 

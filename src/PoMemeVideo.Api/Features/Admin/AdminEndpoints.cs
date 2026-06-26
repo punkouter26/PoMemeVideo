@@ -1,6 +1,4 @@
 using Azure.Data.Tables;
-using PoMemeVideo.Domain.Interfaces;
-using PoMemeVideo.Infrastructure.AzureStorage;
 
 namespace PoMemeVideo.Api.Features.Admin;
 

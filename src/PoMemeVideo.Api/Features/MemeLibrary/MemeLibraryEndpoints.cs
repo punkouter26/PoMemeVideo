@@ -1,6 +1,4 @@
 // GoF: Repository Pattern — sound library query endpoint
-using PoMemeVideo.Domain.Interfaces;
-using PoMemeVideo.Infrastructure.AzureStorage;
 using PoMemeVideo.Shared.Models;
 
 namespace PoMemeVideo.Api.Features.MemeLibrary;

@@ -25,24 +25,31 @@ Directory.Build.props     ← Nullable + TreatWarningsAsErrors + MinVer versioni
 Directory.Packages.props  ← Centralized Package Management (CPM)
 
 src/
-  PoMemeVideo.Domain/         ← Entities, interfaces, value objects (no dependencies)
-  PoMemeVideo.Application/    ← Use-cases: Ingestion, Processing, Rendering, MemeLibrary
-  PoMemeVideo.Infrastructure/ ← Azure Storage, AI providers, FFmpeg, Mock services
-  PoMemeVideo.Api/            ← ASP.NET Core host; serves Blazor WASM; all endpoints
-  PoMemeVideo.Shared/         ← DTOs + enums shared between WASM and API
-  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 7000/5001)
+  PoMemeVideo.Api/            ← Single server project (VSA). Hosts Blazor WASM + all slices.
+    Features/<Slice>/         ← One folder per slice: endpoint + command/handler + entity
+                                + interface + repository + services co-located.
+                                Slices: Admin, Auth, Config, Ingestion, MemeLibrary,
+                                Output (rendering), Processing (AI director + providers).
+    Common/                   ← Cross-cutting kernel: storage client factories,
+                                GlobalExceptionHandler.
+    Configuration/, Endpoints/, Hubs/, Pages/  ← host wiring, health, SignalR, Diag.
+  PoMemeVideo.Shared/         ← DTOs + enums shared between WASM and API.
+  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 7000/5001).
 
 tests/
   PoMemeVideo.UnitTests/          ← xUnit, pure unit tests, no I/O
   PoMemeVideo.IntegrationTests/   ← Testcontainers (Azurite), real storage
-  PoMemeVideo.E2ETests/           ← Playwright (TypeScript)
+  PoMemeVideo.E2EAPI/             ← C# pure-API emulation (Test env, GUEST bypass)
+  PoMemeVideo.E2EUI/              ← C# Playwright browser tests (E2E_BASE_URL-driven)
 
-SCRIPTS/                    ← setup.ps1, seed scripts, model download helpers
-infra/                      ← Azure Bicep / azd deployment
+SCRIPTS/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool clones), seed/model helpers
 ```
 
-**Onion Architecture rule:** dependencies point inward only.
-`Api → Application → Domain`. `Infrastructure → Application/Domain`. `Shared` is referenced by all.
+**Vertical Slice Architecture:** the layer projects (Domain/Application/Infrastructure)
+were collapsed into `PoMemeVideo.Api`. Code is organized by feature slice, not by
+technical layer. Slice types live in `PoMemeVideo.Api.Features.<Slice>`; cross-cutting
+types in `PoMemeVideo.Api.Common`. Cross-slice access is via global usings.
+Three projects only: **Api / Client / Shared.**
 
 ---
 
@@ -97,6 +104,8 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
   - Button is **hidden and disabled** in Production (`ASPNETCORE_ENVIRONMENT != Development`)
 - Nav bar always shows authenticated email/name + **LOG OUT** button on the right
 - No AOT — build is standard Blazor WASM
+- **Forced login:** the client `App.razor` wraps routing in `CascadingAuthenticationState` + `AuthorizeRouteView`; `_Imports.razor` applies a global `[Authorize]`, and `Login.razor` is `[AllowAnonymous]`. Anonymous users are redirected to `/login`. Auth state is sourced from `ApiAuthenticationStateProvider` (queries `/api/auth/me`).
+- **GUEST bypass** is mapped in **Development and Test** environments only; registering it in Production throws `InvalidOperationException`.
 
 ---
 
@@ -183,13 +192,15 @@ Local dev uses `dev` environment (real AI calls).
 
 ---
 
-## 14. Azure Deployment
+## 14. Azure Deployment (current truth)
 
-- **Resource group:** `Punkouter26` (shared: `PoShared`)
-- **Identity:** Managed Identity for Key Vault access
-- **IaC:** Bicep under `infra/`; deploy with `azd up`
-- **Fallback App Service Plan:** check `PoShared` resource group if default plan fails
-- `azure.yaml` is the azd manifest
+- **App resource group:** `PoMemeVideo` — holds `app-pomemevideo` (Web App) and `stpomemevideo` (Table/Blob storage).
+- **App Service Plan:** `asp-PoShared-b1` (**B1 Linux**) in the **`PoShared`** RG — a *shared* plan intended to host multiple Po* apps.
+  - **F1→B1 exception:** the spec calls for free **F1**, but the app shells out to native `ffmpeg`/`ffprobe`, which forces a **Linux container**, which requires **≥ B1**. F1 cannot run custom containers, so B1 is the deliberate minimum. (Alternative to reach free F1: bundle a static ffmpeg binary + `FFmpegBinPath` and ZIP-deploy instead of a container.)
+  - Region note: `PoShared` RG metadata is `eastus2`, but the plan/app run in **westus2** (eastus2 has no B-series quota; westus2 co-locates with storage).
+- **Identity:** user-assigned managed identity **`mi-poshared-containerapps`** (clientId surfaced to the app via the `AZURE_CLIENT_ID` app setting so `DefaultAzureCredential` selects it). Must hold get/list on `kv-poshared` secrets.
+- **Secrets vault:** `kv-poshared` (access-policy model, *not* RBAC). App-specific secrets are prefixed `PoMemeVideo--`.
+- **CI/CD:** GitHub Actions `deploy-pomemevideo.yml` builds a Docker image → **GHCR** → sets the App Service `linuxFxVersion` + registry creds. No tests run in CI (by rule). `azure.yaml` is a legacy azd manifest; there is no `infra/` Bicep dir.
 
 ---
 
@@ -200,7 +211,7 @@ Local dev uses `dev` environment (real AI calls).
 - Do **not** hardcode connection strings — always use config/Key Vault
 - Do **not** add navigation links to `/health` or `/diag`
 - Do **not** show the GUEST login button when `ASPNETCORE_ENVIRONMENT == Production`
-- Do **not** break the Onion Architecture dependency direction
+- Do **not** reintroduce technical-layer projects/folders — keep code in feature slices (VSA)
 - Do **not** add NuGet package versions directly in `.csproj` files (use CPM)
 
 ---

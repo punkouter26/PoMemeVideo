@@ -1,5 +1,3 @@
-using PoMemeVideo.Application.Processing;
-using PoMemeVideo.Domain.Entities;
 using PoMemeVideo.Shared.Enums;
 
 namespace PoMemeVideo.UnitTests.Processing;

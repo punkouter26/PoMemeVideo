@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using PoMemeVideo.Infrastructure;
-using PoMemeVideo.Infrastructure.Ollama;
+using PoMemeVideo.Api;
 using System.Text.Json;
 
 namespace PoMemeVideo.Api.Features.Config;

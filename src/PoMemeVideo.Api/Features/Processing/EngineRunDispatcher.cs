@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
-using PoMemeVideo.Application.Processing;
 
 namespace PoMemeVideo.Api.Features.Processing;
 
