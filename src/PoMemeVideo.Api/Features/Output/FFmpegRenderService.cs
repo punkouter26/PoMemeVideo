@@ -23,6 +23,9 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     [LoggerMessage(Level = LogLevel.Warning, Message = "ffprobe duration unavailable for session {SessionId}")]
     private partial void LogProbeUnavailable(Guid sessionId);
 
+    /// <summary>Wall-clock ceiling for a single ffmpeg render before it is aborted as failed.</summary>
+    private const int RenderTimeoutMinutes = 5;
+
     private readonly BlobStorageService _blobService;
     private readonly ILogger<FFmpegRenderService> _logger;
     private readonly Channel<RenderJob> _jobQueue;
@@ -107,6 +110,10 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             // (prevents trailing meme audio from extending the output past the video).
             var sourceDurationSeconds = await ProbeOutputDurationAsync(sourcePath, cancellationToken);
 
+            // Probe for an audio stream so we only try to mix the original audio when it exists
+            // (referencing [0:a] on a silent video would fail the filter graph).
+            var sourceHasAudio = await ProbeHasAudioStreamAsync(sourcePath, cancellationToken);
+
             // ── 2. Download each sound file from blob ─────────────────────────
             var soundPaths = new List<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)>();
             for (var i = 0; i < job.SoundEntries.Count; i++)
@@ -130,7 +137,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
             // ── 3. Build FFmpeg command ───────────────────────────────────────
             var outputPath = Path.Combine(tempDir, "output.mp4");
-            var args = BuildFFmpegArgs(sourcePath, soundPaths, outputPath, job.AggressiveVisuals, sourceDurationSeconds);
+            var args = BuildFFmpegArgs(sourcePath, soundPaths, outputPath, job.AggressiveVisuals, sourceDurationSeconds, sourceHasAudio);
 
             _logger.LogDebug("FFmpeg args: {Args}", args);
 
@@ -160,7 +167,9 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
     /// <summary>
     /// GoF: Template Method — builds the -filter_complex string based on effect types.
-    /// Audio: strips original audio (-an), adds each meme sound with adelay, mixes with amix.
+    /// Audio: keeps the original video audio and layers each meme sound on top (adelay + amix),
+    /// with a limiter to prevent clipping. The original track sits slightly under the sounds so
+    /// the effects still cut through. Falls back gracefully when the source has no audio stream.
     /// Video: chains optional deep-fry / snap-zoom / motion-blur filters.
     /// </summary>
     private static string BuildFFmpegArgs(
@@ -168,11 +177,12 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
         string outputPath,
         bool aggressiveVisuals,
-        double sourceDurationSeconds)
+        double sourceDurationSeconds,
+        bool sourceHasAudio)
     {
         var sb = new StringBuilder();
 
-        // Input 0: source video (no original audio)
+        // Input 0: source video (original audio is mixed in below when present)
         sb.Append($"-i \"{sourcePath}\"");
 
         // Inputs 1..N: sound files
@@ -181,17 +191,28 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
         var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals);
         var hasVideoFilters = !string.IsNullOrWhiteSpace(videoChain);
-        var hasAudioMix = sounds.Count > 0;
+        // Build a mixed audio track whenever there are meme sounds. The original audio is layered
+        // in as an extra amix input when the source has one. With no meme sounds we keep the
+        // original audio as-is; with neither, the output is silent.
+        var buildAudioMix = sounds.Count > 0;
 
-        if (hasVideoFilters || hasAudioMix)
+        if (hasVideoFilters || buildAudioMix)
         {
             var fc = new StringBuilder();
 
             if (hasVideoFilters)
                 fc.Append($"[0:v]{videoChain}[vout]");
 
-            if (hasAudioMix)
+            if (buildAudioMix)
             {
+                // Original audio sits slightly under the meme sounds so the effects cut through.
+                if (sourceHasAudio)
+                {
+                    if (fc.Length > 0)
+                        fc.Append(';');
+                    fc.Append("[0:a]volume=0.85[aorig]");
+                }
+
                 for (var i = 0; i < sounds.Count; i++)
                 {
                     var delayMs = sounds[i].TimestampMs;
@@ -200,8 +221,15 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                     fc.Append($"[{i + 1}:a]adelay={delayMs}|{delayMs}[a{i}]");
                 }
 
-                var mixInputs = string.Concat(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
-                fc.Append($";{mixInputs}amix=inputs={sounds.Count}:normalize=0:duration=longest[aout]");
+                var labels = new List<string>();
+                if (sourceHasAudio)
+                    labels.Add("[aorig]");
+                labels.AddRange(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
+
+                var mixInputs = string.Concat(labels);
+                // normalize=0 keeps each source at full level; alimiter tames the clipping that
+                // summing the original track with overlapping sounds would otherwise cause.
+                fc.Append($";{mixInputs}amix=inputs={labels.Count}:normalize=0:duration=longest,alimiter=limit=0.95[aout]");
             }
 
             sb.Append($" -filter_complex \"{fc}\"");
@@ -209,11 +237,17 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
         // Map outputs
         sb.Append(hasVideoFilters ? " -map \"[vout]\"" : " -map 0:v");
-        sb.Append(hasAudioMix ? " -map \"[aout]\"" : " -an");
+        if (buildAudioMix)
+            sb.Append(" -map \"[aout]\"");
+        else if (sourceHasAudio)
+            sb.Append(" -map 0:a");   // no meme sounds — keep the original audio untouched
+        else
+            sb.Append(" -an");
 
-        // Encoding settings: H.264 video + AAC audio, fast encode
-        sb.Append(" -c:v libx264 -preset fast -crf 23");
-        if (sounds.Count > 0)
+        // Encoding settings: H.264 video + AAC audio. 'veryfast' trades a little size for a large
+        // speedup — important on the constrained B1 host where slower presets stall the render.
+        sb.Append(" -c:v libx264 -preset veryfast -crf 23");
+        if (buildAudioMix || sourceHasAudio)
             sb.Append(" -c:a aac -b:a 192k");
         // Cap the output to the source video's duration. amix=duration=longest stretches the
         // mixed audio to the longest *sound clip* (after its adelay), so a meme sound placed
@@ -229,8 +263,10 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     }
 
     /// <summary>
-    /// Builds the video filter chain. Aggressive visuals enable deep-fry EQ + unsharp.
-    /// Per-entry VisualEffect values apply to the overall output (most common effect wins).
+    /// Builds the video filter chain. Always downscales to ≤720p so heavy 1080p/4K phone clips
+    /// encode in reasonable time on constrained hosts (e.g. the B1 App Service plan, where a
+    /// 1080p HEVC re-encode can run tens of minutes). Aggressive visuals enable deep-fry EQ +
+    /// unsharp. Per-entry VisualEffect values apply to the overall output (most common wins).
     /// </summary>
     private static string BuildVideoFilterChain(
         IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
@@ -242,7 +278,10 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             .GroupBy(s => s.VisualEffect!)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        var filters = new List<string>();
+        // Cap height at 720 (never upscale) before any other filter — fewer pixels means the
+        // effects and the x264 encode all run much faster. -2 keeps width even (libx264 needs it)
+        // and preserves the aspect ratio. The escaped comma keeps min() inside one filter token.
+        var filters = new List<string> { "scale=-2:min(720\\,ih)" };
 
         if (aggressiveVisuals || effectCounts.ContainsKey("DeepFry"))
         {
@@ -265,7 +304,8 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             filters.Add("tblend=all_mode=average");
         }
 
-        return filters.Count > 0 ? string.Join(',', filters) : string.Empty;
+        // The scale filter is always present, so the chain is never empty.
+        return string.Join(',', filters);
     }
 
     private async Task<int> RunFFmpegAsync(string args, Guid sessionId, CancellationToken cancellationToken)
@@ -288,13 +328,30 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         process.Start();
         process.BeginErrorReadLine();
 
+        // Hard timeout so a pathologically slow or stuck encode fails cleanly (→ session Error,
+        // SignalR error) instead of leaving the engine page hanging on "AI Directing…" forever.
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(RenderTimeoutMinutes));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
         try
         {
-            await process.WaitForExitAsync(cancellationToken);
+            await process.WaitForExitAsync(linkedCts.Token);
         }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
+
+            // Distinguish our render timeout from a genuine host-shutdown cancellation: the former
+            // is a real failure the user should see; the latter is an expected teardown.
+            if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogError("FFmpeg render exceeded {Minutes}-minute limit for {SessionId}; aborted.\n{Stderr}",
+                    RenderTimeoutMinutes, sessionId, stderr);
+                throw new TimeoutException(
+                    $"Render exceeded the {RenderTimeoutMinutes}-minute limit and was aborted. " +
+                    "The source video may be too large/high-resolution for the current host.");
+            }
+
             throw;
         }
 
@@ -302,6 +359,29 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             _logger.LogError("FFmpeg stderr for {SessionId}:\n{Stderr}", sessionId, stderr);
 
         return process.ExitCode;
+    }
+
+    /// <summary>Returns true when the file has at least one audio stream (ffprobe).</summary>
+    private async Task<bool> ProbeHasAudioStreamAsync(string path, CancellationToken ct)
+    {
+        try
+        {
+            var psi = BuildPsi("ffprobe",
+                $"-v error -select_streams a -show_entries stream=index -of csv=p=0 \"{path}\"");
+
+            using var probe = Process.Start(psi);
+            if (probe is null) return false;
+
+            var output = await probe.StandardOutput.ReadToEndAsync(ct);
+            await probe.WaitForExitAsync(ct);
+
+            return !string.IsNullOrWhiteSpace(output);
+        }
+        catch
+        {
+            // Non-critical — assume no audio so the render still succeeds (sounds only).
+            return false;
+        }
     }
 
     private async Task<double> ProbeOutputDurationAsync(string outputPath, CancellationToken ct)
