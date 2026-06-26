@@ -18,8 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\PoMemeVideo.Domain\PoMemeVideo.Domain.csproj" />
-    <ProjectReference Include="..\..\src\PoMemeVideo.Application\PoMemeVideo.Application.csproj" />
+    <ProjectReference Include="..\..\src\PoMemeVideo.Api\PoMemeVideo.Api.csproj" />
     <ProjectReference Include="..\..\src\PoMemeVideo.Shared\PoMemeVideo.Shared.csproj" />
   </ItemGroup>
 

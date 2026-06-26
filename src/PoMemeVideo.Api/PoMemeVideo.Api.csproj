@@ -25,11 +25,14 @@
     <PackageReference Include="Microsoft.Identity.Web.UI" />
     <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" />
+    <!-- Absorbed from the collapsed Infrastructure/Application layers (VSA) -->
+    <PackageReference Include="Azure.Storage.Blobs" />
+    <PackageReference Include="Azure.Data.Tables" />
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="System.Numerics.Tensors" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PoMemeVideo.Application\PoMemeVideo.Application.csproj" />
-    <ProjectReference Include="..\PoMemeVideo.Infrastructure\PoMemeVideo.Infrastructure.csproj" />
     <ProjectReference Include="..\PoMemeVideo.Shared\PoMemeVideo.Shared.csproj" />
     <ProjectReference Include="..\client\PoMemeVideo.Client\PoMemeVideo.Client.csproj" />
   </ItemGroup>
