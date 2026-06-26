@@ -1,4 +1,3 @@
-using PoMemeVideo.Api.Entities;
 
 namespace PoMemeVideo.UnitTests.Auth;
 

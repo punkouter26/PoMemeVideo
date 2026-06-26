@@ -3,14 +3,12 @@
 //   1. Serialises the inference payload and sends it to the browser via SignalR.
 //   2. Awaits a TaskCompletionSource that the /browser-director-result endpoint resolves
 //      once the browser has finished running Transformers.js locally.
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api.BrowserLlm;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class BrowserLLMDirectorService : IDirectorService
 {

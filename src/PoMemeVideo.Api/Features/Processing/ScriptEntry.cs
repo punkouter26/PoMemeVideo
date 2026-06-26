@@ -1,7 +1,7 @@
 // GoF: Entity
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Entities;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public class ScriptEntry
 {

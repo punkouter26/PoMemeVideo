@@ -4,15 +4,13 @@ using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
-using PoMemeVideo.Api.Entities;
 using Microsoft.Extensions.Hosting;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api.AzureOpenAi;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class AzureOpenAiDirectorService : IDirectorService
 {

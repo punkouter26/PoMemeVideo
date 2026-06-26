@@ -1,13 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using PoMemeVideo.Api.Interfaces;
-using PoMemeVideo.Api.AzureStorage;
 using PoMemeVideo.Shared;
 using System.Diagnostics;
 using System.Text;
 using System.Threading.Channels;
 
-namespace PoMemeVideo.Api.FFmpeg;
+namespace PoMemeVideo.Api.Features.Output;
 
 /// <summary>
 /// FFmpeg-based video rendering service implementing IVideoRenderService.

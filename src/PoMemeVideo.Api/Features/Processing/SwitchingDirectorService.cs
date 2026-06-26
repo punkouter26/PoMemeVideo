@@ -1,11 +1,5 @@
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
-using PoMemeVideo.Api.AiFoundry;
-using PoMemeVideo.Api.AzureOpenAi;
-using PoMemeVideo.Api.BrowserLlm;
-using PoMemeVideo.Api.Ollama;
 
-namespace PoMemeVideo.Api;
+namespace PoMemeVideo.Api.Features.Processing;
 
 /// <summary>
 /// Delegates to the correct AI backend based on the current RuntimeAiSettings.

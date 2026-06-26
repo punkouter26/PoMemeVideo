@@ -2,8 +2,6 @@
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using PoMemeVideo.Api.ValueObjects;
-using PoMemeVideo.Api.AzureStorage;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 

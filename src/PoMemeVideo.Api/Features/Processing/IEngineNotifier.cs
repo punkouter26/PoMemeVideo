@@ -2,7 +2,7 @@
 // never on IHubContext<EngineHub>
 using PoMemeVideo.Shared.Models;
 
-namespace PoMemeVideo.Api.Interfaces;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public interface IEngineNotifier
 {

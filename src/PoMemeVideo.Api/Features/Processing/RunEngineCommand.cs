@@ -1,16 +1,12 @@
 // SOLID: Open/Closed — new AI providers plug in via IAiVisionService without modifying this command
 using Microsoft.Extensions.Logging;
-using PoMemeVideo.Api.MemeLibrary;
-using PoMemeVideo.Api.Rendering;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 using PoMemeVideo.Shared.Models;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api.Processing;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class RunEngineCommand
 {

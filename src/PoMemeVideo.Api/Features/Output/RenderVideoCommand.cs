@@ -1,12 +1,10 @@
-using PoMemeVideo.Api.Interfaces;
-using PoMemeVideo.Api.Entities;
 using PoMemeVideo.Shared.Enums;
 using PoMemeVideo.Shared.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api.Rendering;
+namespace PoMemeVideo.Api.Features.Output;
 
 /// <summary>
 /// Orchestrates video rendering: queues render job, uploads output, updates session status.

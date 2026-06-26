@@ -2,10 +2,8 @@
 using Azure.Data.Tables;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 
-namespace PoMemeVideo.Api.AzureStorage;
+namespace PoMemeVideo.Api.Features.MemeLibrary;
 
 public sealed class SoundAssetTableRepository : ISoundAssetRepository
 {

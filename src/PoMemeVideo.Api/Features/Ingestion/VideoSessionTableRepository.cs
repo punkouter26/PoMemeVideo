@@ -2,11 +2,9 @@
 using Azure;
 using Azure.Data.Tables;
 using Microsoft.Extensions.DependencyInjection;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.AzureStorage;
+namespace PoMemeVideo.Api.Features.Ingestion;
 
 internal sealed class VideoSessionTableEntity : ITableEntity
 {

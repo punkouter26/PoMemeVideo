@@ -1,8 +1,7 @@
 // GoF: Strategy Pattern — timing algorithm encapsulated
-using PoMemeVideo.Api.Entities;
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Processing;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed record PlacementRequest(
     long RequestedTimestampMs,

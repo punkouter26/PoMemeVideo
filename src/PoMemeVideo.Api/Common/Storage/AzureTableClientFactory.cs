@@ -4,7 +4,7 @@ using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace PoMemeVideo.Api.AzureStorage;
+namespace PoMemeVideo.Api.Common;
 
 public class AzureTableClientFactory
 {

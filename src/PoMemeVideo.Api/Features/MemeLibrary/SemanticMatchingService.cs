@@ -1,9 +1,7 @@
 // SOLID: Single Responsibility — matching isolated from orchestration
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using System.Numerics.Tensors;
 
-namespace PoMemeVideo.Api.MemeLibrary;
+namespace PoMemeVideo.Api.Features.MemeLibrary;
 
 public sealed record SoundCandidate(SoundAsset Sound, float Score);
 

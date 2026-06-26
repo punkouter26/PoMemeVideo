@@ -1,10 +1,9 @@
 // Shared director prompt builder and response parser used by all AI backends.
-using PoMemeVideo.Api.Entities;
 using PoMemeVideo.Shared.Enums;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api;
+namespace PoMemeVideo.Api.Features.Processing;
 
 internal static class DirectorPrompt
 {

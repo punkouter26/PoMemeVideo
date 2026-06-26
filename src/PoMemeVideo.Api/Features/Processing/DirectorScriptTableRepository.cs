@@ -1,10 +1,8 @@
 // SOLID: Single Responsibility — script persistence isolated
 using Azure.Data.Tables;
 using Microsoft.Extensions.DependencyInjection;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 
-namespace PoMemeVideo.Api.AzureStorage;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class DirectorScriptTableRepository : IDirectorScriptRepository
 {

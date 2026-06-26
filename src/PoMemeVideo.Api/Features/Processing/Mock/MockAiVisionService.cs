@@ -1,7 +1,6 @@
 // GoF: Null Object Pattern — no-cost AI service for development/testing
-using PoMemeVideo.Api.Interfaces;
 
-namespace PoMemeVideo.Api.Mock;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class MockAiVisionService : IAiVisionService
 {

@@ -1,4 +1,4 @@
-namespace PoMemeVideo.Api.Interfaces;
+namespace PoMemeVideo.Api.Features.Output;
 
 public interface IBlobStorageService
 {

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 
-namespace PoMemeVideo.Api.Infrastructure;
+namespace PoMemeVideo.Api.Common;
 
 // GoF: Chain of Responsibility — sits in the ASP.NET Core exception handler pipeline.
 // SOLID: Single Responsibility — all unhandled-exception formatting is isolated here.

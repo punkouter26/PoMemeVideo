@@ -2,10 +2,8 @@
 using Azure;
 using Azure.Data.Tables;
 using Microsoft.Extensions.DependencyInjection;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 
-namespace PoMemeVideo.Api.AzureStorage;
+namespace PoMemeVideo.Api.Features.Auth;
 
 internal sealed class UserIdentityTableEntity : ITableEntity
 {

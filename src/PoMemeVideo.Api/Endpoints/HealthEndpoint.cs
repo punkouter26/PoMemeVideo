@@ -1,6 +1,5 @@
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
-using PoMemeVideo.Api.AzureStorage;
 
 namespace PoMemeVideo.Api.Endpoints;
 

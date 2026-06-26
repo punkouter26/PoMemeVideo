@@ -2,9 +2,8 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.DependencyInjection;
-using PoMemeVideo.Api.Interfaces;
 
-namespace PoMemeVideo.Api.AzureStorage;
+namespace PoMemeVideo.Api.Features.Output;
 
 public class BlobStorageService : IBlobStorageService
 {

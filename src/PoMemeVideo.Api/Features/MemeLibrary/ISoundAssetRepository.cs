@@ -1,6 +1,5 @@
-using PoMemeVideo.Api.Entities;
 
-namespace PoMemeVideo.Api.Interfaces;
+namespace PoMemeVideo.Api.Features.MemeLibrary;
 
 public interface ISoundAssetRepository
 {

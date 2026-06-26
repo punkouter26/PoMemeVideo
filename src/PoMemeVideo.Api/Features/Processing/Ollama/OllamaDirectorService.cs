@@ -2,14 +2,12 @@
 // Only available in Development — the dev check is enforced at the config endpoint level.
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api.Ollama;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class OllamaDirectorService : IDirectorService
 {

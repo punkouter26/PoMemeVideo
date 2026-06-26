@@ -1,7 +1,6 @@
-using PoMemeVideo.Api.Entities;
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Interfaces;
+namespace PoMemeVideo.Api.Features.Ingestion;
 
 public interface IVideoSessionRepository
 {

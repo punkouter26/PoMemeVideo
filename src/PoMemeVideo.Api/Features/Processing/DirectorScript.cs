@@ -1,5 +1,5 @@
 // GoF: Entity
-namespace PoMemeVideo.Api.Entities;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public class DirectorScript
 {

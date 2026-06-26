@@ -4,12 +4,6 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
-using PoMemeVideo.Api.MemeLibrary;
-using PoMemeVideo.Api.Processing;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
-using PoMemeVideo.Api.AzureStorage;
-using PoMemeVideo.Api.Mock;
 using PoMemeVideo.Shared.Enums;
 
 namespace PoMemeVideo.IntegrationTests.Processing;

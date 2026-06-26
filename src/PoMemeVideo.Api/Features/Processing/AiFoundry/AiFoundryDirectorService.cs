@@ -5,13 +5,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PoMemeVideo.Api.AiFoundry;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class AiFoundryDirectorService : IDirectorService
 {

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.SignalR;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Models;
 
 namespace PoMemeVideo.Api.Hubs;

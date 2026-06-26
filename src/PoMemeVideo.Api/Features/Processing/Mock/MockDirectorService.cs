@@ -1,9 +1,7 @@
 // GoF: Null Object Pattern — deterministic script generation for development/testing
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Mock;
+namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class MockDirectorService : IDirectorService
 {

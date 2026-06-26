@@ -1,6 +1,3 @@
-using PoMemeVideo.Api.AzureStorage;
-using PoMemeVideo.Api.Features.Auth;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared;
 using PoMemeVideo.Shared.Models;
 using PoMemeVideo.Shared.Enums;
@@ -39,7 +36,7 @@ public static class OutputEndpoints
                 PropertyNameCaseInsensitive = true,
                 Converters = { new JsonStringEnumConverter() },
             };
-            var entries = JsonSerializer.Deserialize<List<PoMemeVideo.Api.Entities.ScriptEntry>>(script.EntriesJson, jsonOpts) ?? [];
+            var entries = JsonSerializer.Deserialize<List<ScriptEntry>>(script.EntriesJson, jsonOpts) ?? [];
 
             var scriptDto = new DirectorScriptDto
             {

@@ -1,9 +1,7 @@
 // SOLID: Single Responsibility — validation separated from persistence
-using PoMemeVideo.Api.Entities;
-using PoMemeVideo.Api.Interfaces;
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Ingestion;
+namespace PoMemeVideo.Api.Features.Ingestion;
 
 public sealed record IngestVideoResult(Guid SessionId, string SourceBlobPath);
 
