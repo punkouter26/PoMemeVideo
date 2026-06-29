@@ -39,6 +39,10 @@ src/
 tests/
   PoMemeVideo.UnitTests/          ← xUnit, pure unit tests, no I/O
   PoMemeVideo.IntegrationTests/   ← Testcontainers (Azurite), real storage
+                                Infrastructure/ — `[Collection("Integration")]`
+                                with a `TestcontainersCleanupFixture` so any
+                                leaked Testcontainer is reaped at collection
+                                teardown (see SCRIPTS/cleanup-testcontainers.ps1)
   PoMemeVideo.E2EAPI/             ← C# pure-API emulation (Test env, GUEST bypass)
   PoMemeVideo.E2EUI/              ← C# Playwright browser tests (E2E_BASE_URL-driven)
 
@@ -172,7 +176,7 @@ Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
 | Layer | Stack | Notes |
 |---|---|---|
 | Unit | xUnit, no I/O | Uses mock/stub AI, no containers |
-| Integration | xUnit + Testcontainers (Azurite) | Real table/blob storage; `test` env config |
+| Integration | xUnit + Testcontainers (Azurite) | Real table/blob storage; `test` env config. Containers are cleaned at collection teardown via `TestcontainersCleanupFixture` (see §13). |
 | E2E | Playwright (TypeScript) | Uses GUEST auth; `test` env; run `npm test` from `tests/PoMemeVideo.E2ETests/` |
 
 **Rule:** Integration and E2E tests use `test` environment (non-AI mock data).  
@@ -202,6 +206,7 @@ Local dev uses `dev` environment (real AI calls).
 | `seed-meme-sounds.py` | Populate Azurite/Azure with sound assets |
 | `download-models.py` | Pull Ollama models |
 | `check-azurite.py` | Verify local Azurite connectivity |
+| `cleanup-testcontainers.ps1` | Idempotent — removes any Docker container matching `*-test-*-{16-32hex}` (Testcontainers' default name pattern). Preserves `pomemevideo-azurite` (dev compose). Wire into `dotnet test` pre/post or let `TestcontainersCleanupFixture` invoke it at collection teardown. |
 
 ---
 
