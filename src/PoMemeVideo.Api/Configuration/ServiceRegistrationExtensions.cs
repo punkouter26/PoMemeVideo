@@ -91,6 +91,7 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddScoped<SemanticMatchingService>();
         builder.Services.AddScoped<RunEngineCommand>();
         builder.Services.AddScoped<RenderVideoCommand>();
+        builder.Services.AddSingleton<FoundryDeploymentLister>();
         builder.Services.AddSingleton<EngineRunDispatcher>();
         builder.Services.AddSingleton<IEngineRunDispatcher>(sp => sp.GetRequiredService<EngineRunDispatcher>());
         builder.Services.AddHostedService(sp => sp.GetRequiredService<EngineRunDispatcher>());
@@ -109,6 +110,14 @@ internal static class ServiceRegistrationExtensions
             hasTenantId,
             hasClientSecret);
 
+        // Cookie is always the default auth scheme. The dev-mode ANON middleware
+        // and /auth/guest call SignInAsync(Cookie); if OIDC were default, UseAuthentication
+        // would not read the cookie on the next request and the user would get a fresh
+        // ANON identity on every call — breaking session-scoped repositories.
+        // AddMicrosoftIdentityWebApp internally registers a Cookie scheme named "Cookies",
+        // so we only call AddCookie ourselves when AzureAd is NOT configured.
+        var authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme);
+
         if (hasAzureAd)
         {
             if (!hasTenantId)
@@ -116,24 +125,22 @@ internal static class ServiceRegistrationExtensions
                 Log.Warning("AzureAd:ClientId is set but AzureAd:TenantId is missing. Entra ID sign-in may fail.");
             }
 
-            builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-                .AddMicrosoftIdentityWebApp(azureAdSection);
+            authBuilder.AddMicrosoftIdentityWebApp(azureAdSection);
         }
         else
         {
-            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                .AddCookie(options =>
-                {
-                    options.LoginPath = "/login";
-                    options.LogoutPath = "/auth/logout";
-                    options.Cookie.HttpOnly = true;
-                    // BFF session cookie: encrypted by the data-protection layer, HttpOnly,
-                    // SameSite=Strict, and Secure everywhere except local http dev.
-                    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-                        ? CookieSecurePolicy.SameAsRequest
-                        : CookieSecurePolicy.Always;
-                    options.Cookie.SameSite = SameSiteMode.Strict;
-                });
+            authBuilder.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+            {
+                options.LoginPath = "/login";
+                options.LogoutPath = "/auth/logout";
+                options.Cookie.HttpOnly = true;
+                // BFF session cookie: encrypted by the data-protection layer, HttpOnly,
+                // SameSite=Strict, and Secure everywhere except local http dev.
+                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                    ? CookieSecurePolicy.SameAsRequest
+                    : CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+            });
         }
 
         builder.Services.AddAuthorization();

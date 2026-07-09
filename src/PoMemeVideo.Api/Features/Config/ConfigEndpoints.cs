@@ -29,6 +29,7 @@ public static class ConfigEndpoints
         app.MapGet("/api/config/ai-model", async (
             [FromServices] RuntimeAiSettings settings,
             [FromServices] OllamaDirectorService ollama,
+            [FromServices] FoundryDeploymentLister foundry,
             IWebHostEnvironment env) =>
         {
             var localModelIds = GetAvailableLocalModelIds(env);
@@ -41,6 +42,20 @@ public static class ConfigEndpoints
             if (env.IsDevelopment())
                 ollamaModels = await ollama.GetInstalledModelsAsync();
 
+            // Enumerate AI Foundry / Azure OpenAI deployments from ARM.
+            // Returns an empty list on any failure — the UI hides the Remote group in that case.
+            var foundryDeployments = await foundry.ListAsync(default);
+            var foundryDeploymentNames = foundryDeployments
+                .Select(d => d.Name)
+                .ToArray();
+
+            // If the cached/active deployment isn't in the live list (e.g. it was just
+            // deleted), keep it visible so the user can still see what's selected.
+            var selectedFoundry = settings.AiFoundryDeployment;
+            var allFoundryNames = foundryDeploymentNames.Contains(selectedFoundry, StringComparer.OrdinalIgnoreCase)
+                ? foundryDeploymentNames
+                : new[] { selectedFoundry }.Concat(foundryDeploymentNames).Distinct().ToArray();
+
             return Results.Ok(new
             {
                 provider = settings.Provider,
@@ -50,8 +65,17 @@ public static class ConfigEndpoints
                     id,
                     label = RuntimeAiSettings.LocalModelDisplayNames.TryGetValue(id, out var label) ? label : id,
                 }),
-                aiFoundryDeployment = settings.AiFoundryDeployment,
-                aiFoundryDeployments = new[] { "gpt-5.4-nano" },
+                aiFoundryDeployment = selectedFoundry,
+                aiFoundryDeployments = allFoundryNames,
+                aiFoundryDeploymentDetails = foundryDeployments.Select(d => new
+                {
+                    name = d.Name,
+                    model = d.ModelName,
+                    version = d.ModelVersion,
+                    provisioningState = d.ProvisioningState,
+                    capacity = d.Capacity,
+                    skuName = d.SkuName,
+                }),
                 ollamaAvailable = ollamaModels is not null,
                 ollamaModel = settings.OllamaModel,
                 ollamaModels = ollamaModels ?? [],
