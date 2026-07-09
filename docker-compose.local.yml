@@ -1,0 +1,22 @@
+services:
+  azurite:
+    image: arafato/azurite:latest
+    container_name: pomemevideo-azurite
+    hostname: azurite
+    command: "/opt/azurite/bin/azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --loose --skipApiVersionCheck"
+    ports:
+      - "10000:10000"   # Blob Storage
+      - "10001:10001"   # Queue Storage
+      - "10002:10002"   # Table Storage
+    volumes:
+      - azurite-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('net').connect(10000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  azurite-data:
+    driver: local

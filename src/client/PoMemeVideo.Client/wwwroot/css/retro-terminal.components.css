@@ -513,6 +513,41 @@ pre {
     min-width: 15rem;
 }
 
+.ai-model-dropdown {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ai-model-dropdown-label {
+    font-size: 0.75rem;
+    color: var(--term-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.ai-model-dropdown-select {
+    background: #000;
+    border: 1px solid var(--term-border-strong);
+    color: var(--term-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.5rem;
+    min-width: 18rem;
+    cursor: pointer;
+}
+
+.ai-model-dropdown-select:focus {
+    outline: 1px solid var(--term-primary);
+}
+
+.ai-model-dropdown-hint {
+    font-size: 0.7rem;
+    color: var(--term-secondary);
+    opacity: 0.85;
+}
+
 .clear-data-row {
     display: flex;
     align-items: center;

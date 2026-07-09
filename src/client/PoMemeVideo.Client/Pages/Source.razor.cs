@@ -47,6 +47,9 @@ public partial class Source
     private bool _modelDirty;
     private bool _modelApplying;
     private string? _modelMessage;
+    // Unified model-selection dropdown (Remote / Ollama / Browser groups).
+    private string _pendingModelSelection = "remote:gpt-5.4-nano";
+    private string _dropdownHint = "";
     private bool CanSelectBrowserLlm => _localModels.Count > 0;
     private bool CanSelectOllama => _ollamaAvailable;
     private int CurrentStep => !_uploaded ? 1 : _visionInProgress ? 2 : 3;
@@ -350,6 +353,17 @@ public partial class Source
             _pendingOllamaModel = _activeOllamaModel;
             _ollamaModels = ai.OllamaModels?.ToList() ?? [];
 
+            // Seed the unified dropdown selection from the active provider/model.
+            _pendingModelSelection = ai.Provider switch
+            {
+                "AzureOpenAI" => $"remote:{_activeFoundryDeployment}",
+                "AiFoundry" => $"remote:{_activeFoundryDeployment}",
+                "Ollama" => $"ollama:{_activeOllamaModel}",
+                "BrowserLLM" => $"browser:{_activeBrowserModelId}",
+                _ => $"remote:{_activeFoundryDeployment}",
+            };
+            UpdateDropdownHint();
+
             if (_activeProvider == "BrowserLLM" && _localModels.Count == 0)
             {
                 // Keep active provider unchanged until user applies, but preselect a viable option.
@@ -401,6 +415,47 @@ public partial class Source
                       || _pendingBrowserModelId != _activeBrowserModelId
                       || _pendingFoundryDeployment != _activeFoundryDeployment
                       || _pendingOllamaModel != _activeOllamaModel;
+    }
+
+    private void OnModelSelectionChanged()
+    {
+        // The dropdown uses "kind:name" tokens so the optgroup value is unambiguous.
+        if (string.IsNullOrWhiteSpace(_pendingModelSelection)) return;
+        var sep = _pendingModelSelection.IndexOf(':');
+        if (sep <= 0) return;
+        var kind = _pendingModelSelection[..sep];
+        var name = _pendingModelSelection[(sep + 1)..];
+        switch (kind)
+        {
+            case "remote":
+                _pendingProvider = "AzureOpenAI";
+                _pendingFoundryDeployment = name;
+                _dropdownHint = $"Remote AI Foundry deployment → {name}";
+                break;
+            case "ollama":
+                _pendingProvider = "Ollama";
+                _pendingOllamaModel = name;
+                _dropdownHint = $"Ollama model → {name}";
+                break;
+            case "browser":
+                _pendingProvider = "BrowserLLM";
+                _pendingBrowserModelId = name;
+                _dropdownHint = $"Browser WebGPU model → {name}";
+                break;
+        }
+        RecomputeModelDirty();
+    }
+
+    private void UpdateDropdownHint()
+    {
+        _dropdownHint = _pendingProvider switch
+        {
+            "AzureOpenAI" => $"☁ AI Foundry · {_pendingFoundryDeployment}",
+            "AiFoundry" => $"☁ AI Foundry · {_pendingFoundryDeployment}",
+            "Ollama" => $"🦙 Ollama · {_pendingOllamaModel}",
+            "BrowserLLM" => $"⚡ Browser · {(string.IsNullOrEmpty(_pendingBrowserModelId) ? "(no model)" : _pendingBrowserModelId)}",
+            _ => "",
+        };
     }
 
     private async Task ApplyModelAsync()

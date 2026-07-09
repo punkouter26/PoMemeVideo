@@ -78,57 +78,137 @@ public sealed class FoundryDeploymentLister
 
     private async Task<IReadOnlyList<FoundryDeployment>> FetchAsync(string endpoint, CancellationToken ct)
     {
-        var resourceId = TryBuildResourceId(endpoint);
-        if (resourceId is null)
+        var acct = ResolveAccountName(endpoint);
+        if (acct is null)
         {
-            _logger.LogWarning(
-                "FoundryDeploymentLister: cannot derive ARM resource id from endpoint {Endpoint}. " +
-                "Configure AiFoundry:SubscriptionId / ResourceGroup / AccountName explicitly.",
-                endpoint);
+            _logger.LogWarning("FoundryDeploymentLister: cannot extract account name from endpoint {Endpoint}.", endpoint);
             return [];
         }
 
-        var armUrl =
-            $"https://management.azure.com{resourceId}/deployments" +
-            $"?api-version={ApiVersion}";
-
+        // Two strategies, in order:
+        //   1. Explicit AiFoundry:SubscriptionId + ResourceGroup → single targeted call.
+        //   2. Walk all subscriptions the credential has access to, then per-subscription
+        //      try the well-known PoShared group, and a list-all if that fails.
         var client = _httpFactory.CreateClient("AiFoundry");
         client.Timeout = TimeSpan.FromSeconds(8);
 
+        var sub = _config["AiFoundry:SubscriptionId"];
+        var rg = _config["AiFoundry:ResourceGroup"] ?? "PoShared";
+
+        if (!string.IsNullOrWhiteSpace(sub))
+        {
+            var url = $"https://management.azure.com/subscriptions/{sub}/resourceGroups/{rg}" +
+                      $"/providers/Microsoft.CognitiveServices/accounts/{acct}/deployments" +
+                      $"?api-version={ApiVersion}";
+            var deployments = await TryListAsync(client, url, ct);
+            if (deployments.Count > 0) return deployments;
+        }
+
+        // No explicit subscription — enumerate subscriptions and search each.
+        try
+        {
+            var subs = await ListSubscriptionsAsync(client, ct);
+            foreach (var s in subs)
+            {
+                var url = $"https://management.azure.com/subscriptions/{s}/resourceGroups/{rg}" +
+                          $"/providers/Microsoft.CognitiveServices/accounts/{acct}/deployments" +
+                          $"?api-version={ApiVersion}";
+                var deployments = await TryListAsync(client, url, ct);
+                if (deployments.Count > 0) return deployments;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FoundryDeploymentLister: subscription enumeration failed.");
+        }
+
+        return [];
+    }
+
+    private async Task<IReadOnlyList<FoundryDeployment>> TryListAsync(HttpClient client, string armUrl, CancellationToken ct)
+    {
         var req = new HttpRequestMessage(HttpMethod.Get, armUrl);
         AttachAuth(req);
-
         try
         {
             var resp = await client.SendAsync(req, ct);
             if (!resp.IsSuccessStatusCode)
             {
                 var body = await resp.Content.ReadAsStringAsync(ct);
-                _logger.LogWarning(
-                    "FoundryDeploymentLister: ARM returned {Status} for {Url}. Body: {Body}",
-                    (int)resp.StatusCode, armUrl, Truncate(body, 256));
+                if (resp.StatusCode != System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogDebug(
+                        "FoundryDeploymentLister: ARM {Status} for {Url}. Body: {Body}",
+                        (int)resp.StatusCode, armUrl, Truncate(body, 200));
+                }
                 return [];
             }
-
             var json = await resp.Content.ReadAsStringAsync(ct);
             return Parse(json);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "FoundryDeploymentLister: ARM GET failed for {Url}", armUrl);
+            _logger.LogDebug(ex, "FoundryDeploymentLister: GET failed for {Url}", armUrl);
             return [];
         }
     }
 
+    private async Task<IReadOnlyList<string>> ListSubscriptionsAsync(HttpClient client, CancellationToken ct)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, "https://management.azure.com/subscriptions?api-version=2020-01-01");
+        AttachAuth(req);
+        var resp = await client.SendAsync(req, ct);
+        if (!resp.IsSuccessStatusCode) return [];
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        try
+        {
+            var doc = JsonDocument.Parse(json);
+            var subs = new List<string>();
+            foreach (var s in doc.RootElement.GetProperty("value").EnumerateArray())
+            {
+                if (s.TryGetProperty("subscriptionId", out var id) && id.GetString() is { } sub)
+                    subs.Add(sub);
+            }
+            return subs;
+        }
+        catch { return []; }
+    }
+
+    private string? ResolveAccountName(string endpoint)
+    {
+        var configured = _config["AiFoundry:AccountName"];
+        if (!string.IsNullOrWhiteSpace(configured)) return configured;
+
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+        {
+            var host = uri.Host; // po-aiservices-shared.cognitiveservices.azure.com
+            var first = host.Split('.')[0];
+            if (!string.IsNullOrWhiteSpace(first) && first != "localhost")
+                return first;
+        }
+        return null;
+    }
+
     private void AttachAuth(HttpRequestMessage req)
     {
-        // Prefer explicit API key (works for both AiFoundry and AzureOpenAI keys),
-        // fall back to AAD token via DefaultAzureCredential against management.azure.com.
+        // Authentication options for ARM REST, in priority order:
+        //   1. Explicit AiFoundry:ArmBearer — paste a bearer token from `az account get-access-token --resource https://management.azure.com`.
+        //   2. Explicit API key (AiFoundry:Key or AzureOpenAI:Key) — works because Azure accepts account keys for some operations
+        //      but NOT for ARM, so we still try AAD next.
+        //   3. DefaultAzureCredential — works in any environment with a managed identity / dev sign-in.
+        var armBearer = _config["AiFoundry:ArmBearer"];
+        if (!string.IsNullOrWhiteSpace(armBearer))
+        {
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", armBearer);
+            return;
+        }
+
         var key = _config["AiFoundry:Key"] ?? _config["AzureOpenAI:Key"];
         if (!string.IsNullOrWhiteSpace(key))
         {
+            // Not ARM-compatible — keep it for callers that support account keys, but try
+            // AAD as a fallback so this single client works for both list and call sites.
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            return;
         }
 
         try
@@ -140,7 +220,7 @@ public sealed class FoundryDeploymentLister
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "FoundryDeploymentLister: DefaultAzureCredential failed.");
+            _logger.LogDebug(ex, "FoundryDeploymentLister: DefaultAzureCredential failed (will rely on configured bearer).");
         }
     }
 
@@ -148,52 +228,6 @@ public sealed class FoundryDeploymentLister
     {
         // AiFoundry and AzureOpenAI can target the same account. Prefer AiFoundry.
         return _config["AiFoundry:Endpoint"] ?? _config["AzureOpenAI:Endpoint"];
-    }
-
-    private string? TryBuildResourceId(string endpoint)
-    {
-        // Explicit configuration always wins — these three values can be set in
-        // appsettings.json under AiFoundry.
-        var sub = _config["AiFoundry:SubscriptionId"];
-        var rg = _config["AiFoundry:ResourceGroup"];
-        var acct = _config["AiFoundry:AccountName"];
-
-        // Otherwise parse the hostname:
-        //   https://po-aiservices-shared.cognitiveservices.azure.com/
-        //       └─────────────────────────┘
-        if (string.IsNullOrWhiteSpace(acct) && Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
-        {
-            var host = uri.Host; // po-aiservices-shared.cognitiveservices.azure.com
-            var first = host.Split('.')[0];
-            if (!string.IsNullOrWhiteSpace(first) && first != "localhost")
-            {
-                acct = first;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(acct))
-            return null;
-
-        // Resource group is not in the endpoint URL; PoShared is the known naming
-        // convention (see AGENT.MD). Operators can override via AiFoundry:ResourceGroup.
-        if (string.IsNullOrWhiteSpace(rg))
-        {
-            rg = acct.StartsWith("po-", StringComparison.OrdinalIgnoreCase)
-                ? "PoShared"
-                : "DefaultResourceGroup";
-        }
-
-        // Subscription: fall back to a configured value; otherwise return a partial
-        // resource id that ARM may still accept if the credential has access.
-        if (string.IsNullOrWhiteSpace(sub))
-        {
-            _logger.LogInformation(
-                "FoundryDeploymentLister: AiFoundry:SubscriptionId not configured. " +
-                "Set AiFoundry:SubscriptionId / ResourceGroup / AccountName for full enumeration.");
-            return null;
-        }
-
-        return $"/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.CognitiveServices/accounts/{acct}";
     }
 
     private static IReadOnlyList<FoundryDeployment> Parse(string json)

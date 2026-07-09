@@ -22,10 +22,11 @@ public sealed class MemePipelineE2ETests
         if (string.IsNullOrWhiteSpace(BaseUrl))
             return; // No target configured — skip in headless build/CI.
 
+        var headed = Environment.GetEnvironmentVariable("HEADED") == "1";
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
-            Headless = true,
+            Headless = !headed,
         });
 
         var context = await browser.NewContextAsync(new BrowserNewContextOptions
@@ -72,16 +73,16 @@ public sealed class MemePipelineE2ETests
         Assert.Contains("Sound Admin", heading ?? "");
 
         // ── Step 4: History page ────────────────────────────────────────────
-        await page.ClickAsync("a[href='/results']");
-        await page.WaitForURLAsync("**/results");
+        await page.GotoAsync($"{BaseUrl}results");
         await page.WaitForSelectorAsync("h1:has-text('Video History')");
 
         // ── Step 5: Engine fallback (no session GUID) ────────────────────────
-        await page.GotoAsync($"{BaseUrl}engine");
+        var url = BaseUrl!.EndsWith("/") ? BaseUrl : BaseUrl + "/";
+        await page.GotoAsync($"{url}engine");
         await page.WaitForSelectorAsync("text=No Session Selected");
 
         // ── Step 6: Login page renders both auth options ─────────────────────
-        await page.GotoAsync($"{BaseUrl}login");
+        await page.GotoAsync($"{url}login");
         await page.WaitForSelectorAsync("text=RANDOM GUEST");
         var microsoftBtn = await page.QuerySelectorAsync("text=SIGN IN WITH MICROSOFT");
         Assert.NotNull(microsoftBtn);

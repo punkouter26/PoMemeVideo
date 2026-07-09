@@ -30,6 +30,7 @@ public static class ConfigEndpoints
             [FromServices] RuntimeAiSettings settings,
             [FromServices] OllamaDirectorService ollama,
             [FromServices] FoundryDeploymentLister foundry,
+            IConfiguration configuration,
             IWebHostEnvironment env) =>
         {
             var localModelIds = GetAvailableLocalModelIds(env);
@@ -43,11 +44,23 @@ public static class ConfigEndpoints
                 ollamaModels = await ollama.GetInstalledModelsAsync();
 
             // Enumerate AI Foundry / Azure OpenAI deployments from ARM.
-            // Returns an empty list on any failure — the UI hides the Remote group in that case.
+            // On any failure (no AAD session, network, missing subscription) we fall back
+            // to a curated list so the dropdown still has selectable values.
             var foundryDeployments = await foundry.ListAsync(default);
             var foundryDeploymentNames = foundryDeployments
                 .Select(d => d.Name)
                 .ToArray();
+
+            // Curated fallback list — common GPT-5 / o-series names. Used when ARM call
+            // returned empty (e.g. no AAD credential available). Operators can extend via
+            // AiFoundry:KnownDeployments (comma-separated) in appsettings.
+            var curated = configuration
+                .GetSection("AiFoundry:KnownDeployments")
+                .Get<string[]>()
+                ?? Array.Empty<string>();
+
+            if (foundryDeploymentNames.Length == 0 && curated.Length > 0)
+                foundryDeploymentNames = curated;
 
             // If the cached/active deployment isn't in the live list (e.g. it was just
             // deleted), keep it visible so the user can still see what's selected.

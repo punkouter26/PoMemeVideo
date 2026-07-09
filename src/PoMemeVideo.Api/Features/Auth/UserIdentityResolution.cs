@@ -32,10 +32,25 @@ internal static class UserIdentityResolution
         if (httpContext.User.Identity?.IsAuthenticated == true)
             return;
 
-        var displayName = $"ANON{Random.Shared.Next(100_000, 1_000_000)}";
+        // Reuse an existing NameIdentifier claim if the auth cookie principal already carries one
+        // (e.g. when Cookie auth couldn't decode the cookie at this layer, or when the request
+        // pipe is missing the cookie header). Generating Guid.NewGuid() here was producing a fresh
+        // userId per request, which made VideoSessionRepository.GetByIdAsync(partitionKey=userId)
+        // fail for sessions stored under a previous ANON GUID.
+        var existingNameId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userIdStr = Guid.TryParse(existingNameId, out var existingGuid)
+            ? existingGuid.ToString()
+            : Guid.NewGuid().ToString();
+
+        // Stable display name keyed to the userId (so the same ANON# gets shown across requests
+        // for the same user, instead of a random number rotating every call).
+        var gid = Guid.Parse(userIdStr);
+        var anonNumber = unchecked((int)(gid.GetHashCode() & 0x7FFFFFFF) % 900_000 + 100_000);
+        var displayName = $"ANON{anonNumber}";
+
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new(ClaimTypes.NameIdentifier, userIdStr),
             new(ClaimTypes.Name, displayName),
             new(ClaimTypes.Email, $"{displayName.ToLowerInvariant()}@anon.pomemevideo.local"),
             new("identity_type", "ANON"),

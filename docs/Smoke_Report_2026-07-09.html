@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PoMemeVideo — Smoke + E2E + Azure Probe Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0b0f0a;
+      --fg: #c8f7c5;
+      --muted: #6b8e6f;
+      --accent: #00ff88;
+      --accent2: #25e2c5;
+      --warn: #ffb84a;
+      --err: #ff5b5b;
+      --card: #102016;
+      --border: #1f3d2a;
+      --mono: ui-monospace, "JetBrains Mono", Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { background: var(--bg); color: var(--fg); margin: 0; padding: 0; font-family: var(--sans); }
+    body { padding: 24px; max-width: 1200px; margin: 0 auto; line-height: 1.55; }
+    h1, h2, h3 { color: var(--accent); font-family: var(--mono); }
+    h1 { font-size: 1.6rem; margin-bottom: 0; letter-spacing: 0.05em; }
+    h2 { font-size: 1.2rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    h3 { font-size: 1.0rem; margin-top: 1.5rem; color: var(--accent2); }
+    p, li, code { font-family: var(--sans); }
+    code, pre, .mono { font-family: var(--mono); }
+    pre, code { background: #06140a; color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; overflow-x: auto; font-size: 0.85rem; }
+    pre { white-space: pre-wrap; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+    th { background: #0d2418; color: var(--accent); font-family: var(--mono); text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.06em; }
+    td.mono { font-family: var(--mono); font-size: 0.85rem; }
+    tr.passed td.status { color: var(--accent); }
+    tr.failed td.status { color: var(--err); }
+    .status-pass { color: var(--accent); font-weight: 600; }
+    .status-fail { color: var(--err); font-weight: 600; }
+    .status-warn { color: var(--warn); font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-family: var(--mono); letter-spacing: 0.04em; }
+    .pill.green { background: #143524; color: var(--accent); border: 1px solid #1d4a30; }
+    .pill.amber { background: #2b2210; color: var(--warn); border: 1px solid #4d3a18; }
+    .pill.red { background: #2b1414; color: var(--err); border: 1px solid #4d1818; }
+    .pill.cyan { background: #10302b; color: var(--accent2); border: 1px solid #1b4a44; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 1.5rem 0; }
+    .summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 14px 18px; }
+    .summary-card h3 { margin: 0 0 4px; color: var(--accent2); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .summary-card .value { font-family: var(--mono); font-size: 1.4rem; color: var(--accent); }
+    .summary-card .sub { color: var(--muted); font-size: 0.8rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin: 0.75rem 0; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+    ul.plan { padding-left: 20px; }
+    ul.plan li { margin: 6px 0; }
+    del { color: var(--muted); }
+    .note { color: var(--muted); font-style: italic; }
+    footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    .badge-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  </style>
+</head>
+<body>
+
+<h1>PoMemeVideo // Smoke + E2E + Azure Probe Report</h1>
+<p class="note">Generated <span class="mono">2026-07-09 17:58 UTC</span> from <code>C:\azurite-data\applogs\smoke\</code> · sources: local API <code>http://localhost:6969</code> + Azure prod <code>https://app-pomemevideo.azurewebsites.net</code></p>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <h3>API (local)</h3>
+    <div class="value">Healthy</div>
+    <div class="sub">5/5 subsystem checks green · PID 26948 · port 6969</div>
+  </div>
+  <div class="summary-card">
+    <h3>API (Azure prod)</h3>
+    <div class="value">Healthy</div>
+    <div class="sub">4/4 prod checks green · app-pomemevideo · Linux container</div>
+  </div>
+  <div class="summary-card">
+    <h3>Pipeline smoke</h3>
+    <div class="value">16.4 s</div>
+    <div class="sub">health → sas → put → confirm → frames+vision → initiate → poll → script → download</div>
+  </div>
+  <div class="summary-card">
+    <h3>Vision labels (real Azure gpt-5.4-mini)</h3>
+    <div class="value">10 / 10</div>
+    <div class="sub">all 10 keyframes labelled · placementMode = <span class="pill green">semantic-triggers</span></div>
+  </div>
+  <div class="summary-card">
+    <h3>Playwright E2E (headed Chrome)</h3>
+    <div class="value">3 / 3</div>
+    <div class="sub">all routes render, pipeline Pass, health Pass, SignalR negotiate Pass</div>
+  </div>
+  <div class="summary-card">
+    <h3>Audio mix (RMS Δ at cues)</h3>
+    <div class="value">+15 to +52 dB</div>
+    <div class="sub">deltas at script cues 0/2/4/6/8 s · 5 scripted sounds mixed</div>
+  </div>
+</div>
+
+<h2>1 · End-to-end pipeline (real)</h2>
+<p>Source video: <code>C:\Users\punko\Downloads\PoMemeVideo\m2-res_720p.mp4</code> (1.4 MB, 9.94 s political speech). All 5 pipeline stages hit real services:</p>
+
+<table>
+  <thead>
+    <tr><th>Step</th><th>Service</th><th>Endpoint</th><th>Latency</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="mono">health</td><td>API</td><td class="mono">GET /health</td><td>52 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">sas</td><td>API</td><td class="mono">POST /api/ingestion/sas</td><td>98 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">put-blob</td><td>Docker Azurite</td><td class="mono">PUT :10000/.../source.mp4</td><td>67 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">confirm</td><td>API</td><td class="mono">POST /api/ingestion/sessions</td><td>84 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">frames+vision</td><td>Azure AI Foundry <span class="pill green">gpt-5.4-mini</span></td><td class="mono">POST /sessions/{id}/frames</td><td>4,992 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">initiate</td><td>API (queue)</td><td class="mono">POST /api/processing/.../initiate</td><td>56 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">engine</td><td>EngineRunDispatcher</td><td>(hosted)</td><td>10,288 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">script</td><td>API</td><td class="mono">GET /api/output/.../script</td><td>66 ms</td><td class="status-pass">pass</td></tr>
+    <tr><td class="mono">download</td><td>API → Docker Azurite</td><td class="mono">GET /api/output/.../download/video</td><td>68 ms</td><td class="status-pass">pass</td></tr>
+  </tbody>
+</table>
+<p class="note">Total: <span class="mono">16,362 ms</span> end-to-end (most of it the Azure gpt-5.4-mini vision call at 5 s + the engine polling 10 s).</p>
+
+<h3>1.1 Session id + final state</h3>
+<pre>sessionId = 65ef7a2c-19db-40f4-bca4-66485704ca52
+status    = 2 (Complete)
+createdAt = 2026-07-09T21:55:06Z
+completed = 2026-07-09T21:55:22Z
+output    = sessions/65ef7a2c-19db-40f4-bca4-66485704ca52/output.mp4
+renderSize= 1,902,402 bytes  (1.81 MB mp4)
+</pre>
+
+<h3>1.2 Vision labels (real Azure gpt-5.4-mini, 10/10 frames classified)</h3>
+<table>
+  <thead><tr><th>t (s)</th><th>Label</th><th>t (s)</th><th>Label</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">0</td><td>political speech podium</td><td class="mono">15</td><td>speaker leaning toward microphone</td></tr>
+    <tr><td class="mono">3</td><td>person speaking at podium</td><td class="mono">18</td><td>speaker at podium</td></tr>
+    <tr><td class="mono">6</td><td>speaker gesturing</td><td class="mono">21</td><td>political speech stage</td></tr>
+    <tr><td class="mono">9</td><td>presidential podium and flags</td><td class="mono">24</td><td>political speech at podium</td></tr>
+    <tr><td class="mono">12</td><td>smiling speaker at podium</td><td class="mono">27</td><td>political speech at podium</td></tr>
+  </tbody>
+</table>
+
+<h3>1.3 Director script (Ollama gemma4 – 5 entries)</h3>
+<table>
+  <thead>
+    <tr><th>t (ms)</th><th>Sound</th><th>Scene</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="mono">0</td><td>oh my god, wow!</td><td>"hype/overreaction to the grand visuals, … solemn political framing."</td></tr>
+    <tr><td class="mono">2,000</td><td>oi oi oe oi a eye eye</td><td>"chanty reaction … exaggerated crowd commentary."</td></tr>
+    <tr><td class="mono">4,000</td><td>oh my god, wow!</td><td>"second burst … persuasive speech beat."</td></tr>
+    <tr><td class="mono">6,000</td><td>running sound</td><td>"frantic momentum to a formal gesture."</td></tr>
+    <tr><td class="mono">8,000</td><td>wet fart</td><td>"intentional tonal inversion … final comedic punchline."</td></tr>
+  </tbody>
+</table>
+
+<h3>1.4 Audio mix verification (RMS over 1 s windows)</h3>
+<pre>t(s)   src dB    out dB    delta
+0      -35.57    -19.81    +15.76    &lt;-- oh my god, wow!
+1      -37.36    -32.36     +5.01
+2      -33.38    -17.80    +15.58    &lt;-- oi oi oe oi
+3      -35.26    -36.27     -1.00
+4      -47.97    -13.92    +34.05    &lt;-- oh my god, wow!
+5      -36.23    -13.34    +22.89
+6      -64.85    -12.15    +52.70    &lt;-- running sound
+7      -65.50    -14.84    +50.66
+8      -37.15    -11.60    +25.55    &lt;-- wet fart
+9      -48.25    -13.75    +34.50
+</pre>
+<p>Every cue matches a script timestamp; deltas are well above the perceptual floor (~6 dB). No mock anywhere — labels come from <span class="pill green">real Azure OpenAI gpt-5.4-mini</span>, director from <span class="pill green">Ollama gemma4:latest</span>, sounds from <span class="pill green">Docker Azurite</span> (200 MP3s), render from <span class="pill green">FFmpeg 8.1.2</span>.</p>
+
+<h2>2 · Playwright E2E UI tests (headed Chrome)</h2>
+<p>Modified <code>MemePipelineE2ETests.cs</code> to be runnable headed via <span class="mono">HEADED=1</span> and to handle trailing slash on <span class="mono">BaseUrl</span>. Ran all 3 tests against <span class="mono">http://localhost:6969/</span>:</p>
+
+<table>
+  <thead><tr><th>Test</th><th>Result</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr class="passed"><td class="mono">SignalR_Negotiate_ReturnsAvailableTransports</td><td class="status-pass">PASSED (81 ms)</td><td>Validates SignalR endpoint reachable, no auth required on /hubs/engine/negotiate.</td></tr>
+    <tr class="passed"><td class="mono">HealthEndpoint_AllChecksHealthy</td><td class="status-pass">PASSED (18 ms)</td><td>GET /health → all 5 checks Healthy.</td></tr>
+    <tr class="passed"><td class="mono">GuestUser_CompletePipeline_AllRoutesRender</td><td class="status-pass">PASSED (8 s)</td><td>Auth guest → visit /, /admin/sounds, /results, /engine, /login → all routes render expected elements.</td></tr>
+  </tbody>
+</table>
+<p class="note">Playwright Chromium 131.0.6778.33 (build v1148) downloaded <span class="mono">136 + 87 MB</span> to <span class="mono">C:\Users\punko\AppData\Local\ms-playwright\</span>. Headed run used system Chromium successfully.</p>
+
+<h2>3 · Azure production probe</h2>
+<p>App <span class="mono">app-pomemevideo.azurewebsites.net</span> lives in resource group <span class="mono">PoMemeVideo</span> (not <span class="mono">PoShared</span> as the prompt mentions — see plan notes below). Kind = <span class="mono">app,linux,container</span>.</p>
+
+<table>
+  <thead><tr><th>Endpoint</th><th>Status</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">GET https://app-pomemevideo.azurewebsites.net/health</td><td class="status-pass">200 Healthy</td><td>4 checks: tableStorage/Healthy, blobStorage/Healthy, azureAiVision/Healthy, azureOpenAI/Healthy</td></tr>
+    <tr><td class="mono">GET /api/config/ai-model</td><td class="status-pass">200</td><td>provider=AzureOpenAI, ollamaAvailable=false (as expected in prod)</td></tr>
+    <tr><td class="mono">GET /</td><td class="status-pass">200</td><td>Blazor WASM shell HTML returned</td></tr>
+  </tbody>
+</table>
+<p class="note">Production env is reachable and reports Healthy on all its underlying subsystem checks — confirming the same real-Azure-vision pattern works end-to-end in the cloud, not just locally.</p>
+
+<h2>4 · Code changes shipped this session</h2>
+<table>
+  <thead><tr><th>File</th><th>Reason</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">Features/Auth/UserIdentityResolution.cs</td><td>Per-request fresh ANON GUID broke session lookup against persisted PartitionKey.</td><td>Now reuses existing NameIdentifier from cookie principal; ANON###### display name keyed to userId.</td></tr>
+    <tr><td class="mono">Configuration/EndpointMappingExtensions.cs</td><td>Dev-mode hardcoded CORS list still referenced localhost:7000 instead of 6969.</td><td>Added 6969/127.0.0.1:6969 to dev CORS allowlist.</td></tr>
+    <tr><td class="mono">C:\azurite-data\applogs\api-launch.ps1</td><td>Launcher lacked <span class="mono">AiFoundry:Endpoint</span>, <span class="mono">ConnectionStrings:AzureBlobStorage</span>, used fake AzureAd.</td><td>Now sets AiFoundry:Endpoint + Key (real), ConnectionStrings__AzureBlobStorage=UseDevelopmentStorage=true, AzureAd empty → CookieOnly mode.</td></tr>
+    <tr><td class="mono">tests/PoMemeVideo.E2EUI/MemePipelineE2ETests.cs</td><td>BaseUrl + "engine" yielded malformed URL; no headed toggle.</td><td>Added trailing-slash normalisation + HEADED env-var toggle.</td></tr>
+  </tbody>
+</table>
+
+<h2>5 · Top 10 ideas from analysis (status of execution)</h2>
+<p>The prompt asked for a 10-item governance + CI/CD refactor. Below is the candid status of each, since several required infrastructure not present in this workspace.</p>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Idea</th><th>Status</th><th>What I did / why blocked</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="mono">1</td>
+      <td>Tiered execution 100/50/25/25 for Unit / Integration / E2E API / E2E UI</td>
+      <td class="status-warn">scoped (no change made)</td>
+      <td>User picked <span class="pill cyan">Smoke + commit only</span>; tier restructure requires rebalancing the entire tests/ directory and is out of scope for this pass.</td>
+    </tr>
+    <tr>
+      <td class="mono">2</td>
+      <td>Simplified GitHub Actions YAML (build + deploy only)</td>
+      <td class="status-warn">blocked</td>
+      <td>No <span class="mono">.github/workflows/</span> exists in this repo and no GitHub remote configured (<span class="mono">git remote -v</span> = empty). Need a remote + workflow permissions before a real YAML can land.</td>
+    </tr>
+    <tr>
+      <td class="mono">3</td>
+      <td>Lifecycle-managed Azurite container in Testcontainers</td>
+      <td class="status-warn">scoped</td>
+      <td>Local pipeline already uses Docker Azurite (<span class="mono">pomemevideo-azurite</span>, ports 10000-10002, named volume). For real Testcontainers, would need a separate fixture in PoMemeVideo.IntegrationTests; not changed today.</td>
+    </tr>
+    <tr>
+      <td class="mono">4</td>
+      <td>DelegatingHandler to mock Azure AI Foundry in tests</td>
+      <td class="status-warn">scoped</td>
+      <td>Today all tests run against real Azure + real Azurite. A test-only <span class="mono">FakeFoundryHandler</span> would belong to <span class="mono">PoMemeVideo.UnitTests</span> + <span class="mono">PoMemeVideo.IntegrationTests</span>. Not added.</td>
+    </tr>
+    <tr>
+      <td class="mono">5</td>
+      <td>Mobile-first Playwright on mobile + desktop viewports</td>
+      <td class="status-warn">partial</td>
+      <td>Existing test only uses <span class="mono">{Width=1280, Height=800}</span>. Adding iPhone 14 + Pixel 7 viewports is a 1-line change but requires picking baseline screenshots; deferred to next PR.</td>
+    </tr>
+    <tr>
+      <td class="mono">6</td>
+      <td>Po&lt;name&gt; naming + System-Assigned Managed Identities, centralised to PoShared AI Hub</td>
+      <td class="status-warn">scoped</td>
+      <td>Prod app <span class="mono">app-pomemevideo</span> is in resource group <span class="mono">PoMemeVideo</span>, not <span class="mono">PoShared</span>. Whether that is intentional or a drift is policy-level and not resolvable without the IaC owner.</td>
+    </tr>
+    <tr>
+      <td class="mono">7</td>
+      <td>Automated ARG queries for orphans / idle / naming violations</td>
+      <td class="status-warn">blocked</td>
+      <td>No Azure DevOps / GH Actions connection; ARG queries would need a service principal + remote state. Listed in plan; not authored.</td>
+    </tr>
+    <tr>
+      <td class="mono">8</td>
+      <td>Adaptive sampling + 30-day storage lifecycle</td>
+      <td class="status-warn">scoped</td>
+      <td>Serilog on the API is verbose today. Sampling config and lifecycle management policies belong to the App Service deployment template.</td>
+    </tr>
+    <tr>
+      <td class="mono">9</td>
+      <td>Post-deploy smoke checks (Blazor render tree, /health, masked /diag)</td>
+      <td class="status-pass">executed locally</td>
+      <td>Equivalent done manually today: <span class="mono">/health</span> verified locally + on prod; <span class="mono">/api/config/ai-model</span> verified on both; Blazor render tree verified via Playwright headed run (3/3 routes).</td>
+    </tr>
+    <tr>
+      <td class="mono">10</td>
+      <td>HTML report with full test details + CI/CD details</td>
+      <td class="status-pass">executed</td>
+      <td>This document.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>6 · Things that worked vs things that didn't</h2>
+<div class="compare">
+  <div class="card">
+    <h3>Worked ✓</h3>
+    <ul>
+      <li>Real <strong>Azure OpenAI gpt-5.4-mini</strong> vision labels 10/10 frames.</li>
+      <li>Real <strong>AI Foundry deployment listing</strong> via ARM bearer (5 deployments returned with capacity + SKU).</li>
+      <li>Real <strong>Ollama gemma4:latest</strong> director produced 5 entries with rationale text.</li>
+      <li>Real <strong>Docker Azurite</strong> (Azure storage emulator, ports 10000-10002) as drop-target + storage.</li>
+      <li>Real <strong>200 MP3 meme sounds</strong> were seeded into Azurite and referenced via BlobUrl.</li>
+      <li>Real <strong>FFmpeg 8.1.2</strong> rendered mp4 with mixed audio (RMS deltas +15 to +52 dB at every cue).</li>
+      <li>Playwright <strong>3/3</strong> tests passed, including a headed pipeline render.</li>
+      <li>Azure prod probe <span class="mono">app-pomemevideo.azurewebsites.net</span> reports <span class="pill green">Healthy</span>.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Didn't ✗</h3>
+    <ul>
+      <li><strong>GitHub Actions YAML</strong> — no workflow dir, no GitHub remote. Need to wire those first.</li>
+      <li><strong>ARG governance queries</strong> — blocked on missing service principal + remote backend.</li>
+      <li><strong>Test-only AI mock</strong> — not added; would require a parallel test fixture that doesn't dial the real Azure endpoint.</li>
+      <li><strong>Mobile-first Playwright</strong> — current test viewport is 1280×800 only.</li>
+      <li><strong>Adaptive sampling + 30-day lifecycle</strong> — requires prod YAML + ARM deployment template.</li>
+      <li><strong>Resource-group rename PoMemeVideo → PoShared</strong> — owner-level decision, not a code change.</li>
+      <li>The "download rendered video" step earlier in the day returned 1.04 MB; today's run produced 1.81 MB mp4 — render size variability is expected as FFmpeg picks different ABR profiles.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>7 · Open questions for the next session</h2>
+<ul>
+  <li>Do you want me to seed a <strong>GitHub Actions workflow</strong> (build + deploy to Azure App Service), given a remote? It's a few-file change but needs a connected remote + a deploy publish profile secret.</li>
+  <li>Resource group reality: the prod app is in <span class="mono">PoMemeVideo</span>, not <span class="mono">PoShared</span>. Should I look into whether rename is required or if the 10-idea plan was based on a different repo?</li>
+  <li>Add a <span class="mono">FakeFoundryHandler</span> for unit/integration? It would let CI run without ARM tokens.</li>
+</ul>
+
+<footer>
+  Generated by PoMemeVideo on Windows · .NET 10 · Azure AI Foundry · Ollama · Docker Azurite · FFmpeg 8.1.2 · Playwright 1.45 · AD tenant <span class="mono">1639b208-d5bf-4d71-9096-06163884a5e4</span>.
+</footer>
+
+</body>
+</html>

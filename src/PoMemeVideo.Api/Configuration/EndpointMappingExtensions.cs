@@ -227,7 +227,11 @@ internal static class EndpointMappingExtensions
         if (app.Environment.IsDevelopment())
         {
             // Local dev always permits the fixed dev hosts (Azurite direct-upload), regardless of config.
-            origins.AddRange(["http://localhost:7000", "http://127.0.0.1:7000", "https://localhost:5001", "http://localhost:5280"]);
+            origins.AddRange([
+                "http://localhost:6969", "http://127.0.0.1:6969",
+                "http://localhost:7000", "http://127.0.0.1:7000",
+                "https://localhost:5001", "http://localhost:5280",
+            ]);
         }
 
         var allowedOrigins = origins.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();

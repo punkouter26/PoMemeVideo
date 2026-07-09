@@ -73,18 +73,25 @@ public static class HealthEndpoint
                 }
             }
 
-            // Azure AI Vision
+            // AI vision is provided by AzureOpenAiVisionService (gpt-5.4-nano chat
+            // completions with image parts). It reads AzureOpenAI:Endpoint + Key, so we
+            // report Healthy when that endpoint is configured. The legacy AzureAiVision
+            // (Computer Vision) key is still accepted as a fallback.
             var visionEndpoint = configuration["AzureAiVision:Endpoint"];
-            if (string.IsNullOrWhiteSpace(visionEndpoint))
+            var openAiEndpoint = configuration["AzureOpenAI:Endpoint"];
+            if (string.IsNullOrWhiteSpace(visionEndpoint) && string.IsNullOrWhiteSpace(openAiEndpoint))
             {
-                checks["azureAiVision"] = "Degraded: not configured";
+                checks["azureAiVision"] = "Degraded: not configured (set AzureOpenAI:Endpoint or AzureAiVision:Endpoint)";
                 isHealthy = false;
             }
             else
-                checks["azureAiVision"] = "Healthy";
+            {
+                checks["azureAiVision"] = string.IsNullOrWhiteSpace(visionEndpoint)
+                    ? "Healthy (Azure OpenAI gpt-5.4-nano vision)"
+                    : "Healthy (Azure Computer Vision)";
+            }
 
-            // Azure OpenAI
-            var openAiEndpoint = configuration["AzureOpenAI:Endpoint"];
+            // Azure OpenAI director / chat completions
             if (string.IsNullOrWhiteSpace(openAiEndpoint))
             {
                 checks["azureOpenAI"] = "Degraded: not configured";
