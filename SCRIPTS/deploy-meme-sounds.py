@@ -289,6 +289,7 @@ def deploy(args: argparse.Namespace) -> None:
             "ClipPosition":    clip_pos,
             "Intensity":       intensity,
             "Origin":          origin,
+            "Priority":        bool(entry.get("priority", False)),
         }
 
         try:

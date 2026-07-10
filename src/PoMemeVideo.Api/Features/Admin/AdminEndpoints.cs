@@ -147,6 +147,7 @@ public static class AdminEndpoints
                     ["Tags"] = string.Join(",", entry.ActionVectorTags ?? []),
                     ["BlobUrl"] = blobUrl,
                     ["EmbeddingVector"] = embeddingCsv,
+                    ["Priority"] = entry.Priority,
                 };
 
                 try
@@ -289,5 +290,6 @@ public static class AdminEndpoints
         public int DurationMs { get; set; }
         [JsonPropertyName("actionVectorTags")]
         public string[] ActionVectorTags { get; set; } = [];
+        public bool Priority { get; set; }
     }
 }

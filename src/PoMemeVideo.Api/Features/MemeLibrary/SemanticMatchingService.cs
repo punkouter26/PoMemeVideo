@@ -7,6 +7,10 @@ public sealed record SoundCandidate(SoundAsset Sound, float Score);
 
 public sealed class SemanticMatchingService
 {
+    // Curated priority sounds (wojak-storytelling staples) outrank generic matches
+    // with comparable tag overlap, without letting a zero-overlap sound win.
+    private const float PriorityBoost = 1.5f;
+
     private readonly ISoundAssetRepository _repository;
 
     public SemanticMatchingService(ISoundAssetRepository repository)
@@ -41,6 +45,8 @@ public sealed class SemanticMatchingService
             {
                 var soundVector = BuildEmbedding(s.ActionVectorTags, vocabulary);
                 var score = TensorPrimitives.CosineSimilarity<float>(queryVector, soundVector);
+                if (s.Priority)
+                    score *= PriorityBoost;
                 return new SoundCandidate(s, score);
             })
             .Where(c => c.Score > 0)

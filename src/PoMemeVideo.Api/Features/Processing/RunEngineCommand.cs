@@ -174,7 +174,11 @@ public sealed class RunEngineCommand
                     var usedSoundIds = placementRequests.Select(p => p.SelectedSound.SoundId).ToHashSet();
                     var available = allSounds.Where(s => !usedSoundIds.Contains(s.SoundId)).ToList();
                     if (available.Count == 0) available = allSounds.ToList(); // all used — allow repeats
-                    var sound = available[Random.Shared.Next(available.Count)];
+
+                    // Prefer curated priority sounds when any are still unused
+                    var priorityPool = available.Where(s => s.Priority).ToList();
+                    var pool = priorityPool.Count > 0 ? priorityPool : available;
+                    var sound = pool[Random.Shared.Next(pool.Count)];
                     placementRequests.Add(new(times[i], sound, 0.5f));
                 }
 

@@ -135,6 +135,7 @@ public static class SeedSoundsCommand
                 ["Tags"] = string.Join(",", entry.ActionVectorTags),
                 ["BlobUrl"] = blobUrl,
                 ["EmbeddingVector"] = embeddingCsv,
+                ["Priority"] = entry.Priority,
             };
 
             await tableClient.AddEntityAsync(entity);
@@ -192,5 +193,6 @@ public static class SeedSoundsCommand
         public int DurationMs { get; set; }
         [JsonPropertyName("actionVectorTags")]
         public string[] ActionVectorTags { get; set; } = [];
+        public bool Priority { get; set; }
     }
 }

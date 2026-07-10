@@ -9,4 +9,7 @@ public class SoundAsset
     public string[] ActionVectorTags { get; set; } = [];
     public required string BlobUrl { get; set; }
     public float[] EmbeddingVector { get; set; } = [];
+
+    /// <summary>Curated wojak-storytelling staples the director should favor over generic matches.</summary>
+    public bool Priority { get; set; }
 }
