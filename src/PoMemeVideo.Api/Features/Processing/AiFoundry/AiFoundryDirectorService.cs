@@ -69,8 +69,7 @@ public sealed class AiFoundryDirectorService : IDirectorService
         var deployment = _settings.AiFoundryDeployment;
         var labelsJson = JsonSerializer.Serialize(
             visionLabels.Select(v => new { v.TimestampSeconds, v.Label }), JsonOpts);
-        var soundsJson = JsonSerializer.Serialize(
-            topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }), JsonOpts);
+        var soundsJson = DirectorPrompt.SerializeSounds(topCandidates, JsonOpts);
 
         _logger.LogInformation(
             "Session {SessionId}: AI Foundry director start. Deployment={Deployment}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, HasRealVision={HasRealVision}",

@@ -50,7 +50,14 @@ public sealed class BrowserLLMDirectorService : IDirectorService
         {
             sessionId,
             visionLabels = visionLabels.Select(v => new { v.TimestampSeconds, v.Label }),
-            sounds = topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }),
+            sounds = topCandidates.Select(s => new
+            {
+                s.SoundId,
+                s.DisplayName,
+                Tags = s.ActionVectorTags,
+                UseCase = string.IsNullOrWhiteSpace(s.UseCase) ? null : s.UseCase,
+                Priority = s.Priority ? true : (bool?)null,
+            }),
             modelId = _settings.BrowserLLMModel,
         }, JsonOpts);
 

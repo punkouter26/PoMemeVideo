@@ -7,6 +7,22 @@ namespace PoMemeVideo.Api.Features.Processing;
 
 internal static class DirectorPrompt
 {
+    /// <summary>
+    /// Canonical JSON projection of the sound menu offered to the LLM. Shared by all
+    /// director backends so the prompt guidance below always matches the fields sent.
+    /// </summary>
+    public static string SerializeSounds(IEnumerable<SoundAsset> sounds, JsonSerializerOptions jsonOpts)
+        => JsonSerializer.Serialize(
+            sounds.Select(s => new
+            {
+                s.SoundId,
+                s.DisplayName,
+                Tags = s.ActionVectorTags,
+                UseCase = string.IsNullOrWhiteSpace(s.UseCase) ? null : s.UseCase,
+                Priority = s.Priority ? true : (bool?)null,
+            }),
+            jsonOpts);
+
     public static string Build(string labelsJson, string soundsJson, bool hasRealVisionData = false)
     {
         var visionContext = hasRealVisionData
@@ -23,6 +39,10 @@ internal static class DirectorPrompt
                $"Available sounds (JSON): {soundsJson}\n\n" +
                $"IMPORTANT: {visionContext} " +
                "Always return an entry for every label provided — never return an empty array.\n\n" +
+               "Choosing sounds: you may pick ANY sound from the list for any entry — the list is a menu, " +
+               "not a per-label assignment. Use each sound's tags and useCase hint to judge fit. " +
+               "Sounds marked \"priority\": true are curated wojak-storytelling classics (Low Budget Stories style) — " +
+               "prefer them when several sounds fit a moment equally well, and avoid repeating the same sound twice.\n\n" +
                "Return ONLY a JSON array of script entries. Each entry MUST include:\n" +
                "- sceneDescription: see vision context above\n" +
                "- selectionRationale: explain specifically why this meme sound fits (tone, timing, irony, cultural reference)\n" +

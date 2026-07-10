@@ -70,8 +70,7 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
     {
         var labelsJson = JsonSerializer.Serialize(
             visionLabels.Select(v => new { v.TimestampSeconds, v.Label }), JsonOpts);
-        var soundsJson = JsonSerializer.Serialize(
-            topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }), JsonOpts);
+        var soundsJson = DirectorPrompt.SerializeSounds(topCandidates, JsonOpts);
 
         _logger.LogInformation(
             "Session {SessionId}: Azure director start. VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, Endpoint={Endpoint}, Deployment={Deployment}, HasRealVision={HasRealVision}",

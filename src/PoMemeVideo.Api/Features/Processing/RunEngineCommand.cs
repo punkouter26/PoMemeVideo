@@ -134,27 +134,42 @@ public sealed class RunEngineCommand
             await _notifier.DirectorLogAsync(sessionId,
                 $"SOUND LIBRARY: {allSounds.Count} asset(s) loaded from cache.", cancellationToken);
 
-            // Semantic matching per label
+            // Semantic matching per label. Vision labels are scene captions ("speaker at podium")
+            // whose words rarely overlap the tag vocabulary, so tag matching often finds nothing.
+            // Instead of dropping those labels (which forced the every-2s fallback), keep them
+            // with a provisional priority sound — the AI director re-picks from the full menu below.
             var placementRequests = new List<PlacementRequest>();
+            var directorMenu = new Dictionary<Guid, SoundAsset>();
+            var prioritySounds = allSounds.Where(s => s.Priority).ToList();
+            var provisionalIdx = 0;
             foreach (var (ts, label) in visionLabels)
             {
                 var candidates = await _matching.GetTopCandidatesAsync(label, topN: 3, cancellationToken);
-                if (candidates.Count == 0)
-                {
-                    await _notifier.DirectorLogAsync(sessionId,
-                        $"SCANNING... t={ts:F1}s | ACTION: [{label.ToUpperInvariant()}] — no candidates found, skipping.", cancellationToken);
-                    continue;
-                }
+                foreach (var c in candidates)
+                    directorMenu[c.Sound.SoundId] = c.Sound;
 
-                var best = candidates[0];
                 await _notifier.DirectorLogAsync(sessionId,
                     $"SCANNING... t={ts:F1}s | ACTION: [{label.ToUpperInvariant()}]", cancellationToken);
-                await _notifier.DirectorLogAsync(sessionId,
-                    $"SEARCHING SOUND LIBRARY... {candidates.Count} candidate(s) found", cancellationToken);
-                await _notifier.DirectorLogAsync(sessionId,
-                    $"SELECTED: {best.Sound.DisplayName} (accuracy={best.Score:F2})", cancellationToken);
 
-                placementRequests.Add(new((long)(ts * 1000), best.Sound, best.Score));
+                if (candidates.Count > 0)
+                {
+                    var best = candidates[0];
+                    await _notifier.DirectorLogAsync(sessionId,
+                        $"SEARCHING SOUND LIBRARY... {candidates.Count} candidate(s) found", cancellationToken);
+                    await _notifier.DirectorLogAsync(sessionId,
+                        $"SELECTED: {best.Sound.DisplayName} (accuracy={best.Score:F2})", cancellationToken);
+                    placementRequests.Add(new((long)(ts * 1000), best.Sound, best.Score));
+                }
+                else if (allSounds.Count > 0)
+                {
+                    // No tag overlap — provisionally place a curated priority sound; the AI
+                    // director sees the scene label and may swap in a better fit from the menu.
+                    var pool = prioritySounds.Count > 0 ? prioritySounds : allSounds.ToList();
+                    var provisional = pool[provisionalIdx++ % pool.Count];
+                    await _notifier.DirectorLogAsync(sessionId,
+                        $"NO TAG MATCH — PROVISIONAL: {provisional.DisplayName}. AI DIRECTOR WILL CHOOSE FINAL SOUND.", cancellationToken);
+                    placementRequests.Add(new((long)(ts * 1000), provisional, 0.4f));
+                }
             }
 
             // Time-based fallback: when no placements exist (e.g. no keyframes or no library matches),
@@ -224,11 +239,26 @@ public sealed class RunEngineCommand
 
             var approvedSounds = decisions.Select(d => d.SelectedSound).ToList();
 
+            // Director menu: approved provisional picks + per-label tag candidates + the full
+            // curated priority set, capped to keep the prompt small. The LLM may assign any
+            // menu sound to any entry; the render pipeline resolves SoundId → BlobUrl for the
+            // whole library, so every menu pick is renderable.
+            const int directorMenuCap = 48;
+            foreach (var s in approvedSounds)
+                directorMenu[s.SoundId] = s;
+            foreach (var s in prioritySounds)
+            {
+                if (directorMenu.Count >= directorMenuCap) break;
+                directorMenu.TryAdd(s.SoundId, s);
+            }
+            var directorSounds = directorMenu.Values.Take(directorMenuCap).ToList();
+
             _logger.LogInformation(
-                "{DiagPrefix} Director input prepared. ApprovedLabels={LabelCount}, ApprovedSounds={SoundCount}, FirstLabel={FirstLabel}, FirstSound={FirstSound}",
+                "{DiagPrefix} Director input prepared. ApprovedLabels={LabelCount}, ApprovedSounds={SoundCount}, MenuSounds={MenuCount}, FirstLabel={FirstLabel}, FirstSound={FirstSound}",
                 diagPrefix,
                 approvedLabels.Length,
                 approvedSounds.Count,
+                directorSounds.Count,
                 approvedLabels.FirstOrDefault().Label,
                 approvedSounds.FirstOrDefault()?.DisplayName);
 
@@ -242,7 +272,7 @@ public sealed class RunEngineCommand
             ScriptEntry[] scriptEntries;
             try
             {
-                scriptEntries = await _director.DirectAsync(approvedLabels, approvedSounds, sessionId, hasRealVision, cancellationToken);
+                scriptEntries = await _director.DirectAsync(approvedLabels, directorSounds, sessionId, hasRealVision, cancellationToken);
             }
             catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {
@@ -294,8 +324,8 @@ public sealed class RunEngineCommand
                 }).ToArray();
             }
 
-            // Populate SoundName from the approved sound list (by matching SoundId)
-            var soundNameMap = approvedSounds.DistinctBy(s => s.SoundId).ToDictionary(s => s.SoundId, s => s.DisplayName);
+            // Populate SoundName from the director menu (covers director-chosen sounds too)
+            var soundNameMap = directorSounds.DistinctBy(s => s.SoundId).ToDictionary(s => s.SoundId, s => s.DisplayName);
             foreach (var entry in scriptEntries)
             {
                 if (string.IsNullOrEmpty(entry.SoundName) && soundNameMap.TryGetValue(entry.SoundId, out var name))

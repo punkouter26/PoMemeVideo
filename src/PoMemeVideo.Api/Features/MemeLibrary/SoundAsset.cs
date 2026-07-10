@@ -12,4 +12,7 @@ public class SoundAsset
 
     /// <summary>Curated wojak-storytelling staples the director should favor over generic matches.</summary>
     public bool Priority { get; set; }
+
+    /// <summary>Human-readable hint for the AI director describing when this sound fits.</summary>
+    public string UseCase { get; set; } = string.Empty;
 }

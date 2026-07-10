@@ -48,6 +48,7 @@ public sealed class SoundAssetTableRepository : ISoundAssetRepository
                 BlobUrl = entity.GetString("BlobUrl") ?? string.Empty,
                 EmbeddingVector = embedding,
                 Priority = entity.GetBoolean("Priority") ?? false,
+                UseCase = entity.GetString("UseCase") ?? string.Empty,
             });
         }
 

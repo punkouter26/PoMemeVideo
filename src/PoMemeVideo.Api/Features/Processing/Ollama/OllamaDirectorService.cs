@@ -52,8 +52,7 @@ public sealed class OllamaDirectorService : IDirectorService
         var model = _settings.OllamaModel;
         var labelsJson = JsonSerializer.Serialize(
             visionLabels.Select(v => new { v.TimestampSeconds, v.Label }), JsonOpts);
-        var soundsJson = JsonSerializer.Serialize(
-            topCandidates.Select(s => new { s.SoundId, s.DisplayName, Tags = s.ActionVectorTags }), JsonOpts);
+        var soundsJson = DirectorPrompt.SerializeSounds(topCandidates, JsonOpts);
 
         _logger.LogInformation(
             "Session {SessionId}: Ollama director start. Model={Model}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, HasRealVision={HasRealVision}",
