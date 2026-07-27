@@ -23,16 +23,24 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
     private readonly ChatClient _chatClient;
     private readonly ILogger<AzureOpenAiVisionService> _logger;
 
-    public AzureOpenAiVisionService(IConfiguration config, ILogger<AzureOpenAiVisionService> logger)
+    public AzureOpenAiVisionService(
+        IConfiguration config,
+        IHostEnvironment environment,
+        ILogger<AzureOpenAiVisionService> logger)
     {
         _logger = logger;
         var endpoint = config["AzureOpenAI:Endpoint"]
             ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured.");
 
         var key = config["AzureOpenAI:Key"];
+
+        // Non-null in test environments: routes the SDK through AiInterceptionHandler so no
+        // tokens are spent while the real client/serialisation path is still exercised.
+        var options = AiInterception.BuildClientOptions(environment, config);
+
         AzureOpenAIClient client = string.IsNullOrWhiteSpace(key)
-            ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential())
-            : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
+            ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential(), options)
+            : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key), options);
 
         // Vision model. Configurable via AzureOpenAI:VisionDeployment so operators can
         // route around quota contention on the default 1-capacity gpt-5.4-nano.

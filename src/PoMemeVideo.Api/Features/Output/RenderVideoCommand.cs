@@ -11,7 +11,7 @@ namespace PoMemeVideo.Api.Features.Output;
 /// SOLID: Dependency Inversion — depends on IVideoRenderService abstraction.
 /// GoF: Command Pattern.
 /// </summary>
-public class RenderVideoCommand
+public class RenderVideoCommand : IRenderVideoCommand
 {
     private readonly IVideoRenderService _renderService;
     private readonly IVideoSessionRepository _sessionRepository;
@@ -40,8 +40,8 @@ public class RenderVideoCommand
     /// Executes video rendering for a completed session.
     /// </summary>
     public async Task ExecuteAsync(
-        Guid sessionId,
-        Guid userId,
+        SessionId sessionId,
+        UserId userId,
         VideoSession session,
         DirectorScript script,
         CancellationToken cancellationToken = default)
@@ -73,7 +73,9 @@ public class RenderVideoCommand
                 {
                     // Load sound library once to resolve SoundId → BlobUrl
                     var allSounds = await _sounds.LoadAllAsync(cancellationToken);
-                    var soundMap = allSounds.ToDictionary(s => s.SoundId, s => s.BlobUrl);
+                    // Keyed by raw Guid: entries are rehydrated from persisted JSON DTOs, which
+                    // carry the wire representation of the id.
+                    var soundMap = allSounds.ToDictionary(s => s.SoundId.Value, s => s.BlobUrl);
 
                     soundEntries = entries
                         .Select(entry =>

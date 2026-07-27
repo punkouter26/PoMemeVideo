@@ -56,7 +56,7 @@
             <div class="script-panel ascii-border-double engine-script-panel">
                 <div class="engine-panel-title">
                     <span>AI Director's Script</span>
-                    <span style="font-size:0.68rem; color:var(--term-muted); font-weight:normal;">sounds added and why — live</span>
+                    <span class="panel-subtitle">sounds added and why — live</span>
                 </div>
                 <DirectorScriptFeed HubClient="_hubClient" />
             </div>
@@ -79,7 +79,7 @@
             }
         </div>
 
-        <div style="margin-top: 0.75rem;">
+        <div class="engine-actions">
             <button class="ascii-btn compact-btn" @onclick="ToggleAdvancedPanels">
                 @(_showAdvancedPanels ? "[ Hide Technical Panels ]" : "[ Show Technical Panels ]")
             </button>

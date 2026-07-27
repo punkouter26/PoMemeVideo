@@ -29,7 +29,7 @@ public static class MemeLibraryEndpoints
             var totalCount = filtered.Count;
             var page = filtered.Skip(Math.Max(0, offset)).Take(Math.Min(limit, 100)).Select(s => new SoundAssetDto
             {
-                SoundId = s.SoundId,
+                SoundId = s.SoundId.Value,
                 DisplayName = s.DisplayName,
                 DurationMs = s.DurationMs,
                 ActionVectorTags = s.ActionVectorTags,
@@ -41,9 +41,9 @@ public static class MemeLibraryEndpoints
 
         // GET /api/memelibrary/sounds/{soundId}/stream — proxy sound file from blob storage to browser
         group.MapGet("/sounds/{soundId:guid}/stream", async (
-            Guid soundId,
+            SoundId soundId,
             ISoundAssetRepository repository,
-            BlobStorageService blobService,
+            IBlobStorageService blobService,
             CancellationToken cancellationToken) =>
         {
             var allSounds = await repository.LoadAllAsync(cancellationToken);

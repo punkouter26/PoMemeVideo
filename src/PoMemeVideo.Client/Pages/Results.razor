@@ -30,7 +30,7 @@
     {
         <div class="empty-state ascii-border-double reveal-in">
             <pre class="status">[ No completed videos yet ]</pre>
-            <p class="result-meta" style="font-family: var(--font-ui); font-size:0.82rem; padding: 0.25rem 0;">Your renders will appear here once processing completes.</p>
+            <p class="result-meta result-meta-empty">Your renders will appear here once processing completes.</p>
             <div class="empty-actions">
                 <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>[ Create a Video ]</button>
             </div>
@@ -69,7 +69,7 @@
                         <div class="history-card-danger">
                             @if (_pendingDeleteSessionId == session.SessionId)
                             {
-                                <pre class="clear-warning" style="font-size:0.72rem;">⚠ This will permanently delete the video and script.</pre>
+                                <pre class="clear-warning">⚠ This will permanently delete the video and script.</pre>
                                 <button class="ascii-btn wipe-btn compact-btn" @onclick="() => DeleteSession(session)">[ Confirm Delete ]</button>
                                 <button class="ascii-btn compact-btn" @onclick="CancelDelete">[ Cancel ]</button>
                             }

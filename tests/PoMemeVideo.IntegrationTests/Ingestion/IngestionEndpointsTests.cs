@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using PoMemeVideo.Shared.Enums;
 
@@ -34,7 +35,11 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
             })
             .Build();
 
-        _blobFactory = Substitute.ForPartsOf<BlobServiceClientFactory>(cfg);
+        // BlobServiceClientFactory takes (IConfiguration, ILogger<T>) — omitting the logger made
+        // Castle fail to find a matching constructor, failing all 6 tests in this class at ctor time.
+        _blobFactory = Substitute.ForPartsOf<BlobServiceClientFactory>(
+            cfg,
+            NullLogger<BlobServiceClientFactory>.Instance);
         _blobFactory
             .GenerateUploadSasUriAsync(Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new Uri("https://fake.blob.core.windows.net/source/video.mp4?sv=2025-07-05&sig=faketoken"));
@@ -49,8 +54,8 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
 
         _repository
             .UpdateMetadataAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<Guid>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<UserId>(),
                 Arg.Any<string>(),
                 Arg.Any<double>(),
                 Arg.Any<bool>(),
@@ -150,15 +155,15 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
     [Fact]
     public async Task PostSessions_ValidSession_Returns201()
     {
-        var sessionId = Guid.NewGuid();
+        var sessionId = SessionId.New();
 
         // Arrange: the repository reports the session as existing
         _repository
-            .GetByIdAsync(sessionId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .GetByIdAsync(sessionId, Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<VideoSession?>(new VideoSession
             {
                 SessionId = sessionId,
-                UserId = Guid.Empty,
+                UserId = UserId.Empty,
                 SourceBlobPath = $"sessions/{sessionId}/source.mp4",
             }));
 
@@ -173,16 +178,16 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<SessionResponse>();
-        Assert.Equal(sessionId, body?.SessionId);
+        Assert.Equal(sessionId.Value, body?.SessionId);
     }
 
     [Fact]
     public async Task PostSessions_UnknownSession_Returns404()
     {
-        var sessionId = Guid.NewGuid();
+        var sessionId = SessionId.New();
 
         _repository
-            .GetByIdAsync(sessionId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .GetByIdAsync(sessionId, Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<VideoSession?>(null));
 
         var response = await _client!.PostAsJsonAsync("/api/ingestion/sessions", new

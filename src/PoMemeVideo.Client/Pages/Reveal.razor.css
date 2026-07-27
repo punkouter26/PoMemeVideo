@@ -1,0 +1,86 @@
+.reveal-loading {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.output-not-ready {
+    color: var(--term-script-error);
+    text-align: center;
+    padding: 2rem;
+}
+
+/* ── Director script readout ─────────────────────────────────────────────── */
+.script-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.cut-block {
+    border: 1px solid var(--term-script-frame);
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.cut-block pre {
+    margin: 0;
+}
+
+.cut-rule {
+    color: var(--term-script-frame);
+}
+
+.cut-scene {
+    color: var(--term-script-scene);
+    white-space: pre-wrap;
+}
+
+.cut-sound {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--term-script-sound);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.cut-why {
+    color: var(--term-script-why);
+    white-space: pre-wrap;
+}
+
+.cut-effect {
+    color: var(--term-script-dim);
+}
+
+.reveal-play-btn {
+    font-size: 0.7rem;
+    padding: 0 0.35rem;
+    min-width: 3rem;
+}
+
+/* ── Empty / fallback states ─────────────────────────────────────────────── */
+.script-empty {
+    color: var(--term-script-dim);
+}
+
+.script-empty-hint {
+    color: var(--term-script-dim);
+    white-space: pre-wrap;
+}
+
+.script-status {
+    color: var(--term-script-notice);
+    white-space: pre-wrap;
+}
+
+.reveal-status-message {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    color: var(--term-secondary);
+}

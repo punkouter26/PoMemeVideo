@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 
 namespace PoMemeVideo.Api.Features.Processing;
 
-public sealed class OllamaDirectorService : IDirectorService
+public sealed class OllamaDirectorService : IDirectorService, ILocalModelCatalog
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -45,7 +45,7 @@ public sealed class OllamaDirectorService : IDirectorService
     public async Task<ScriptEntry[]> DirectAsync(
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
-        Guid sessionId,
+        SessionId sessionId,
         bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {

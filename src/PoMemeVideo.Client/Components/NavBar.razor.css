@@ -1,0 +1,11 @@
+.nav-api-link {
+    font-size: 0.72rem;
+}
+
+.status-placeholder {
+    opacity: var(--term-dim-opacity);
+}
+
+.logout-form {
+    display: inline;
+}

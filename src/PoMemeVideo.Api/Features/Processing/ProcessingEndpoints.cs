@@ -11,7 +11,7 @@ public static class ProcessingEndpoints
         var group = routes.MapGroup("/api/processing").RequireAuthorization();
 
         group.MapPost("/sessions/{sessionId:guid}/initiate", async (
-            Guid sessionId,
+            SessionId sessionId,
             [FromServices] IVideoSessionRepository sessions,
             [FromServices] IEngineRunDispatcher dispatcher,
             HttpContext ctx,

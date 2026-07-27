@@ -30,7 +30,7 @@ public sealed class SwitchingDirectorService : IDirectorService
     public Task<ScriptEntry[]> DirectAsync(
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
-        Guid sessionId,
+        SessionId sessionId,
         bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {

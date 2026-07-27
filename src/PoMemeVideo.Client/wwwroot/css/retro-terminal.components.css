@@ -1417,3 +1417,10 @@ details[open] .advanced-toggle::before {
         flex-direction: column;
     }
 }
+
+/* ── Utilities ────────────────────────────────────────────────────────────────
+   Global (not scoped) because these are splatted onto child components such as
+   <InputFile>, whose rendered element does not carry the parent's scope id. */
+.is-hidden {
+    display: none;
+}

@@ -23,12 +23,12 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
-    private Guid _sessionId = Guid.NewGuid();
+    private SessionId _sessionId = SessionId.New();
     private SessionStatus _currentStatus = SessionStatus.Ingesting;
 
     public Task InitializeAsync()
     {
-        var sessionUserId = Guid.NewGuid();
+        var sessionUserId = UserId.New();
 
         var session = new VideoSession
         {
@@ -41,7 +41,7 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
         };
 
         // Repository: GetById returns session with current status
-        _sessions.GetByIdAsync(_sessionId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _sessions.GetByIdAsync(_sessionId, Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromResult<VideoSession?>(
                 new VideoSession
                 {
@@ -55,7 +55,7 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
 
         // Track status updates
         _sessions.UpdateStatusAsync(
-                Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<SessionStatus>(),
+                Arg.Any<SessionId>(), Arg.Any<UserId>(), Arg.Any<SessionStatus>(),
                 Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
             .Returns(x =>
             {
@@ -66,8 +66,8 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
         // Sound repo: return two mock sounds
         var mockSounds = new List<SoundAsset>
         {
-            new() { SoundId = Guid.NewGuid(), DisplayName = "Vine Boom", DurationMs = 800, BlobUrl = "https://example.com/vine-boom.mp3", ActionVectorTags = ["impact", "boom"] },
-            new() { SoundId = Guid.NewGuid(), DisplayName = "Sad Violin", DurationMs = 1200, BlobUrl = "https://example.com/sad-violin.mp3", ActionVectorTags = ["sad", "slow"] },
+            new() { SoundId = SoundId.New(), DisplayName = "Vine Boom", DurationMs = 800, BlobUrl = "https://example.com/vine-boom.mp3", ActionVectorTags = ["impact", "boom"] },
+            new() { SoundId = SoundId.New(), DisplayName = "Sad Violin", DurationMs = 1200, BlobUrl = "https://example.com/sad-violin.mp3", ActionVectorTags = ["sad", "slow"] },
         };
         _sounds.LoadAllAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<SoundAsset>>(mockSounds.AsReadOnly()));
@@ -128,15 +128,15 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
 
         var body = await response.Content.ReadFromJsonAsync<InitiateResponse>();
         Assert.NotNull(body);
-        Assert.Equal(_sessionId, body.SessionId);
+        Assert.Equal(_sessionId.Value, body.SessionId);
         Assert.Equal("Processing", body.Status);
     }
 
     [Fact]
     public async Task PostInitiate_UnknownSession_Returns404()
     {
-        var unknownId = Guid.NewGuid();
-        _sessions.GetByIdAsync(unknownId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        var unknownId = SessionId.New();
+        _sessions.GetByIdAsync(unknownId, Arg.Any<UserId>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<VideoSession?>(null));
 
         var response = await _client!.PostAsync(

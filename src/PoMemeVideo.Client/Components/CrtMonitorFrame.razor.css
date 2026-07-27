@@ -1,0 +1,8 @@
+/* Carries only the <defs> for the bulge filter — must not occupy layout space. */
+.crt-filter-defs {
+    position: absolute;
+}
+
+.crt-frame {
+    filter: url(#crt-bulge);
+}

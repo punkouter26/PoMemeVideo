@@ -1,0 +1,13 @@
+.dropzone-host {
+    display: block;
+}
+
+/* Toggled instead of an inline display style once the upload completes. */
+.dropzone-host.is-uploaded {
+    display: none;
+}
+
+/* Offscreen decoder surface for keyframe extraction — never shown to the user. */
+.keyframe-source {
+    display: none;
+}

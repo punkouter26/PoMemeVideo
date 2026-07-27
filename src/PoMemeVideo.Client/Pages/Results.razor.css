@@ -1,0 +1,9 @@
+.result-meta-empty {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    padding: 0.25rem 0;
+}
+
+.clear-warning {
+    font-size: 0.72rem;
+}

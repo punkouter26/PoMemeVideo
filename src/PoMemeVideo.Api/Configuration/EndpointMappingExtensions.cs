@@ -4,8 +4,16 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using PoMemeVideo.Api.Endpoints;
+using PoMemeVideo.Api.Features.Admin;
+using PoMemeVideo.Api.Features.Auth;
+using PoMemeVideo.Api.Features.Config;
+using PoMemeVideo.Api.Features.Ingestion;
+using PoMemeVideo.Api.Features.MemeLibrary;
+using PoMemeVideo.Api.Features.Output;
+using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Api;
 using PoMemeVideo.Api.Hubs;
+using PoMemeVideo.Shared;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -78,6 +86,23 @@ internal static class EndpointMappingExtensions
             });
         }
 
+        // Header-driven test identity takes precedence over the dev ANON fallback, so a suite can
+        // pin an exact user/roles pair. Non-Production only — the scheme is not registered in Production.
+        if (!app.Environment.IsProduction())
+        {
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Headers.ContainsKey(FakeAuthHandler.UserHeader))
+                {
+                    var result = await context.AuthenticateAsync(FakeAuthHandler.SchemeName);
+                    if (result.Succeeded)
+                        context.User = result.Principal;
+                }
+
+                await next();
+            });
+        }
+
         if (app.Environment.IsDevelopment())
         {
             app.Use(async (context, next) =>
@@ -85,6 +110,12 @@ internal static class EndpointMappingExtensions
                 var path = context.Request.Path;
                 var excluded = path.StartsWithSegments("/auth")
                     || path.StartsWithSegments("/health")
+                    // Realtime transport must never DEFINE the user. SignalR's negotiate can
+                    // arrive without the auth cookie; minting an ANON identity here would
+                    // SignInAsync over the browser's existing cookie and silently swap the user
+                    // mid-session. Because userId is the VideoSessions PartitionKey, every
+                    // in-flight session then 404s ("Session ... not found") on the next call.
+                    || path.StartsWithSegments("/hubs")
                     || path.StartsWithSegments("/scalar")
                     || path.StartsWithSegments("/openapi")
                     || path.StartsWithSegments("/api/config")
@@ -103,7 +134,7 @@ internal static class EndpointMappingExtensions
 
         app.Use(async (context, next) =>
         {
-            const string sessionCookieName = "pmv-session-id";
+            const string sessionCookieName = CorrelationHeaders.SessionCookieName;
             if (!context.Request.Cookies.ContainsKey(sessionCookieName))
             {
                 context.Response.Cookies.Append(
@@ -119,6 +150,14 @@ internal static class EndpointMappingExtensions
                     });
             }
 
+            // Echo the correlation id so a browser/E2E failure can be tied straight to server logs.
+            var correlationId = CorrelationPropagationHandler.ResolveCorrelationId(context);
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers[CorrelationHeaders.CorrelationId] = correlationId;
+                return Task.CompletedTask;
+            });
+
             await next();
         });
 
@@ -127,11 +166,12 @@ internal static class EndpointMappingExtensions
             options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
             {
                 diagnosticContext.Set("UserId", httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anonymous");
-                var sessionId = httpContext.Request.Headers["X-Session-Id"].FirstOrDefault()
-                    ?? httpContext.Request.Cookies["pmv-session-id"]
-                    ?? httpContext.TraceIdentifier;
-                diagnosticContext.Set("SessionId", sessionId);
-                diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
+                diagnosticContext.Set(
+                    "SessionId",
+                    CorrelationPropagationHandler.ResolveSessionId(httpContext) ?? httpContext.TraceIdentifier);
+                diagnosticContext.Set(
+                    "CorrelationId",
+                    CorrelationPropagationHandler.ResolveCorrelationId(httpContext));
             };
             // Demote high-frequency heartbeat polls so they don't drown the log
             options.GetLevel = (httpContext, elapsed, ex) =>
@@ -148,15 +188,25 @@ internal static class EndpointMappingExtensions
             };
         });
 
-        app.MapHub<EngineHub>("/hubs/engine");
-        app.MapRazorPages();
+        // The hub carries no user-scoped data — it only relays progress into groups keyed by
+        // sessionId, and never reads Context.User. Ownership is enforced on the /api endpoints
+        // that create and drive a session. It must stay anonymous: under the deny-by-default
+        // FallbackPolicy a negotiate without the auth cookie would 401 and the client would
+        // silently lose all live progress updates.
+        app.MapHub<EngineHub>("/hubs/engine").AllowAnonymous();
+
+        // /diag is deliberately anonymous: it is a deploy-time smoke target and every value it
+        // renders is masked (see DiagModel.MaskValue). Without this it would inherit the
+        // deny-by-default FallbackPolicy and the post-deploy health gate would fail on a 302.
+        app.MapRazorPages().AllowAnonymous();
+
         app.MapHealthEndpoint();
         app.MapConfigEndpoints();
         app.MapIngestionEndpoints();
         app.MapProcessingEndpoints();
 
         app.MapPost("/api/processing/sessions/{sessionId:guid}/browser-director-result",
-            (Guid sessionId,
+            (SessionId sessionId,
              BrowserDirectorResultDto result,
              BrowserLLMDirectorService svc) =>
                 svc.TryResolve(sessionId, result)
@@ -207,8 +257,10 @@ internal static class EndpointMappingExtensions
             return Results.Redirect(env.IsDevelopment() ? "/login" : "/");
         }).AllowAnonymous();
 
-        app.MapStaticAssets();
-        app.MapFallbackToFile("index.html");
+        // The WASM shell and its framework assets must stay anonymous — they are what renders the
+        // /login page in the first place. Authorization is enforced on the /api surface behind them.
+        app.MapStaticAssets().AllowAnonymous();
+        app.MapFallbackToFile("index.html").AllowAnonymous();
     }
 
     public static async Task ConfigureStorageCorsAsync(this WebApplication app)
@@ -252,7 +304,7 @@ internal static class EndpointMappingExtensions
         var tableFactory = app.Services.GetRequiredService<AzureTableClientFactory>();
         try
         {
-            var soundsTable = tableFactory.GetTableClient("SoundAssets");
+            var soundsTable = tableFactory.GetTableClient(StorageNames.Tables.SoundAssets);
             var hasEntries = soundsTable.Query<Azure.Data.Tables.TableEntity>(maxPerPage: 1).Any();
             if (!hasEntries)
             {

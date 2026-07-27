@@ -1,12 +1,12 @@
 // GoF: Entity
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Features.Ingestion;
+namespace PoMemeVideo.Shared.Domain;
 
 public class VideoSession
 {
-    public Guid SessionId { get; init; } = Guid.NewGuid();
-    public required Guid UserId { get; init; }
+    public SessionId SessionId { get; init; } = SessionId.New();
+    public required UserId UserId { get; init; }
     public required string SourceBlobPath { get; set; }
     public double VideoDurationSeconds { get; set; }
     public bool AggressiveVisuals { get; set; }

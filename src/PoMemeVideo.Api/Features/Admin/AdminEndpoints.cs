@@ -3,14 +3,13 @@ using System.Text.Json.Serialization;
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using PoMemeVideo.Api.Features.Processing;
 
 namespace PoMemeVideo.Api.Features.Admin;
 
 public static class AdminEndpoints
 {
-    private const string SoundContainer = "sounds";
-    private const string SoundTable = "SoundAssets";
+    private const string SoundContainer = StorageNames.Containers.Sounds;
+    private const string SoundTable = StorageNames.Tables.SoundAssets;
     private const string SoundPartition = "library";
 
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
@@ -18,7 +17,7 @@ public static class AdminEndpoints
         // DELETE /api/admin/data — wipe ALL session blobs + VideoSessions + DirectorScripts tables.
         // Sound data (sounds container + SoundAssets table) is preserved.
         app.MapDelete("/api/admin/data", async (
-            BlobStorageService blobs,
+            IBlobStorageService blobs,
             AzureTableClientFactory tableFactory,
             ISoundAssetRepository soundRepo,
             CancellationToken ct) =>
@@ -27,10 +26,10 @@ public static class AdminEndpoints
             await blobs.DeleteBlobsByPrefixAsync("sessions/", ct);
 
             // 2. Delete all rows from VideoSessions table
-            await ClearTableAsync(tableFactory.GetTableClient("VideoSessions"), ct);
+            await ClearTableAsync(tableFactory.GetTableClient(StorageNames.Tables.VideoSessions), ct);
 
             // 3. Delete all rows from DirectorScripts table
-            await ClearTableAsync(tableFactory.GetTableClient("DirectorScripts"), ct);
+            await ClearTableAsync(tableFactory.GetTableClient(StorageNames.Tables.DirectorScripts), ct);
 
             // 4. Invalidate the sound cache so any subsequent re-seed is visible immediately
             soundRepo.InvalidateCache();
@@ -52,7 +51,9 @@ public static class AdminEndpoints
         .WithName("InvalidateSoundCache")
         .WithTags("Admin")
         .Produces<object>(200)
-        .AllowAnonymous();
+        // Was AllowAnonymous — an unauthenticated caller could evict the cache at will.
+        // Matches the other two /api/admin endpoints.
+        .RequireAuthorization();
 
         // ── POST /api/admin/sounds/seed — production-safe HTTP seeding ───────
         // Accepts the sounds-metadata.json body (same format as CLI).

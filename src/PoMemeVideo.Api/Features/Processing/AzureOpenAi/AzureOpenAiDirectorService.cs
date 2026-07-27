@@ -47,9 +47,13 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
             ?? (_isDevelopment ? 45 : 0);
 
         var key = config["AzureOpenAI:Key"];
+
+        // Non-null in test environments — see AiInterception.
+        var options = AiInterception.BuildClientOptions(environment, config);
+
         AzureOpenAIClient client = string.IsNullOrWhiteSpace(key)
-            ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential())
-            : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
+            ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential(), options)
+            : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key), options);
 
         _chatClient = client.GetChatClient(_deployment);
         _logger.LogInformation(
@@ -64,7 +68,7 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
     public async Task<ScriptEntry[]> DirectAsync(
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
-        Guid sessionId,
+        SessionId sessionId,
         bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
@@ -169,18 +173,18 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
                 .GroupBy(s => s.SoundId.ToString(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase);
 
-            Guid ResolveSound(string raw)
+            SoundId ResolveSound(string raw)
             {
                 if (byId.TryGetValue(raw, out var byIdMatch)) return byIdMatch;
                 if (byName.TryGetValue(raw, out var byNameMatch)) return byNameMatch;
-                if (Guid.TryParse(raw, out var parsed)) return parsed;
+                if (Guid.TryParse(raw, out var parsed)) return new SoundId(parsed);
                 // Final fallback: first candidate
-                return topCandidates.Count > 0 ? topCandidates[0].SoundId : Guid.Empty;
+                return topCandidates.Count > 0 ? topCandidates[0].SoundId : SoundId.Empty;
             }
 
             var entries = dtos.Select(e => new ScriptEntry
             {
-                EntryId = Guid.NewGuid(),
+                EntryId = EntryId.New(),
                 SessionId = sessionId,
                 TimestampMs = e.TimestampMs,
                 SoundId = ResolveSound(e.SoundIdRaw),

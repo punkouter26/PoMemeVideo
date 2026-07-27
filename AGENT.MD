@@ -33,8 +33,13 @@ src/
     Common/                   ← Cross-cutting kernel: storage client factories,
                                 GlobalExceptionHandler.
     Configuration/, Endpoints/, Hubs/, Pages/  ← host wiring, health, SignalR, Diag.
-  PoMemeVideo.Shared/         ← DTOs + enums shared between WASM and API.
-  client/PoMemeVideo.Client/  ← Blazor WASM front-end (hosted by Api on 7000/5001).
+  PoMemeVideo.Shared/         ← Shared kernel. Referenced by both Api and Client.
+    Domain/                   ← Cross-slice entities + strongly-typed ids
+                                (SessionId/UserId/SoundId/EntryId).
+    Contracts/                ← Cross-slice interfaces (repositories + services).
+                                A slice reaches a sibling ONLY through these.
+    Models/, Enums/           ← Wire DTOs + enums shared with the WASM client.
+  PoMemeVideo.Client/         ← Blazor WASM front-end (hosted by Api on 7000/5001).
 
 tests/
   PoMemeVideo.UnitTests/          ← xUnit, pure unit tests, no I/O
@@ -52,12 +57,22 @@ SCRIPTS/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool
 **Vertical Slice Architecture:** the layer projects (Domain/Application/Infrastructure)
 were collapsed into `PoMemeVideo.Api`. Code is organized by feature slice, not by
 technical layer. Slice types live in `PoMemeVideo.Api.Features.<Slice>`; cross-cutting
-types in `PoMemeVideo.Api.Common`. Cross-slice access is via global usings.
+types in `PoMemeVideo.Api.Common`.
+
+**Slices are autonomous — they must not reference each other.** A slice depends only on
+`PoMemeVideo.Shared.Contracts` and resolves the implementation from DI. `GlobalUsings.cs`
+deliberately imports *only* `Api.Common` + the `Shared` kernel; it does **not** import sibling
+slice namespaces. The composition root (`Configuration/`) is the one place allowed to see every
+concrete slice type, and it imports them explicitly.
+
+Cross-cutting helpers that every slice needs (e.g. `UserIdentityResolution`, which answers
+"who is calling?") live in `Api.Common`, not in a slice.
+
 Three projects only: **Api / Client / Shared.**
 
 ---
 
-## 3. Key Domain Entities (`PoMemeVideo.Domain`)
+## 3. Key Domain Entities (`PoMemeVideo.Shared.Domain`)
 
 | Entity | Purpose |
 |---|---|
@@ -66,6 +81,12 @@ Three projects only: **Api / Client / Shared.**
 | `DirectorScript` | AI-generated script: list of `ScriptEntry` cue objects |
 | `ScriptEntry` | Single scene cue: timestamp, sound asset reference, text overlay |
 | `SoundAsset` | Metadata for a meme sound effect stored in Blob Storage |
+
+**Identifiers are strongly typed** (`readonly record struct`): `SessionId`, `UserId`, `SoundId`,
+`EntryId`. Each serialises as a bare GUID string and implements `IParsable<T>`, so the HTTP wire
+format and the Table Storage PartitionKey/RowKey are byte-identical to a raw `Guid` — but
+transposing `(sessionId, userId)` is now a compile error instead of a silent null. Wire DTOs in
+`Shared/Models` intentionally keep raw `Guid`: strong types inside, primitives at the edges.
 
 ---
 
@@ -123,6 +144,16 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
 - No AOT — build is standard Blazor WASM
 - **Forced login:** the client `App.razor` wraps routing in `CascadingAuthenticationState` + `AuthorizeRouteView`; `_Imports.razor` applies a global `[Authorize]`, and `Login.razor` is `[AllowAnonymous]`. Anonymous users are redirected to `/login`. Auth state is sourced from `ApiAuthenticationStateProvider` (queries `/api/auth/me`).
 - **GUEST bypass** is mapped in **Development and Test** environments only; registering it in Production throws `InvalidOperationException`.
+- **Deny-by-default:** `AddAuthorization` sets a `FallbackPolicy` requiring an authenticated user.
+  Any endpoint without explicit authorization metadata is protected, so forgetting
+  `RequireAuthorization()` no longer silently leaves an endpoint open. Endpoints that must stay
+  public opt out with `AllowAnonymous()`: `/health`, `/health/live`, `/diag`, `/api/config`,
+  the `/auth/*` family, the WASM shell (`MapStaticAssets`, `MapFallbackToFile`).
+  **When adding an endpoint that must be public, you must say so explicitly.**
+- **`FakeAuthHandler`** (`Features/Auth`) authenticates from `X-Fake-User` / `X-Fake-Roles` for
+  integration and E2E suites. Registered outside Production only, and its constructor throws
+  `InvalidOperationException` if it is ever built in Production.
+- Entra ID uses the `/common` endpoint (`AzureAd:TenantId = "common"`) for multi-tenant sign-in.
 
 ---
 
@@ -153,6 +184,11 @@ Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
 
 ## 9. Observability
 
+**Correlation:** `X-Session-ID` and `X-Correlation-ID` are propagated end to end. The WASM client
+stamps them (`CorrelationHeaderHandler`), the API enriches Serilog with them and echoes
+`X-Correlation-ID` on every response, and `CorrelationPropagationHandler` forwards them on outbound
+HTTP (Ollama, AI Foundry). High-frequency paths use `[LoggerMessage]` source generators.
+
 - **Serilog:** Console + File + Application Insights sinks
 - **Enrichers:** `UserId`, `SessionId`, `CorrelationId` on every log entry
 - **OpenTelemetry:** traces exported to Application Insights in PoShared resource group
@@ -168,6 +204,13 @@ Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
 - AI model selector on Home/Engine page — grouped by: **Remote** (Azure OpenAI / AI Foundry) | **Browser** (WebGPU) | **Local** (Ollama)
 - Mobile-first: CSS `clamp()` + `auto-fit`, left-aligned top nav bar
 - Web Audio API for sound previews
+- **No inline styles.** Component styling lives in scoped `*.razor.css`; design tokens are CSS
+  custom properties in `wwwroot/css/retro-terminal.tokens.css`. `index.html` must keep the
+  `PoMemeVideo.Client.styles.css` link — without it every scoped rule silently does nothing.
+  Utility classes that get splatted onto child components (e.g. `.is-hidden` on `<InputFile>`)
+  live in the global `retro-terminal.components.css`, because a child component's rendered
+  element does not carry the parent's scope id.
+- Long lists use `<Virtualize>` (the sound library grows with every seed run).
 
 ---
 
@@ -179,6 +222,11 @@ Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
 | Integration | xUnit + Testcontainers (Azurite) | Real table/blob storage; `test` env config. Containers are cleaned at collection teardown via `TestcontainersCleanupFixture` (see §13). |
 | E2E | Playwright (TypeScript) | Uses GUEST auth; `test` env; run `npm test` from `tests/PoMemeVideo.E2ETests/` |
 
+**AI test interception:** in Test environments (or when `UseMockAI` is set) `AiInterception`
+routes the Azure OpenAI SDK through `AiInterceptionHandler`, a `DelegatingHandler` that answers
+chat-completion calls locally. The real client, serialisation and retry path still execute, but no
+tokens are spent. It is hard-disabled in Production.
+
 **Rule:** Integration and E2E tests use `test` environment (non-AI mock data).  
 Local dev uses `dev` environment (real AI calls).
 
@@ -187,6 +235,8 @@ Local dev uses `dev` environment (real AI calls).
 ## 12. Coding Conventions
 
 - C# 14, `LangVersion: preview`
+- **Strongly-typed ids over `Guid`** — see §3. Wire DTOs keep raw `Guid`.
+- **No magic strings for storage**: table/container names come from `StorageNames`.
 - All warnings are errors (`<TreatWarningsAsErrors>true`)
 - Nullable reference types enabled everywhere
 - SOLID + GoF patterns; use `// GoF: <Pattern>` comment at class level

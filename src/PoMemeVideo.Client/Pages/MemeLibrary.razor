@@ -36,7 +36,7 @@
 
     <div class="library-controls-row ascii-border-double reveal-in">
         <pre class="status">[ Maintenance zone ]</pre>
-        <div class="clear-data-row" style="margin-top: 0.6rem;">
+        <div class="clear-data-row">
             @if (_clearConfirm)
             {
                 <pre class="clear-warning">⚠ THIS WILL DELETE ALL SESSION BLOBS AND METADATA. SOUND LIBRARY IS PRESERVED.</pre>
@@ -76,13 +76,14 @@
             <pre class="status">[ @_totalCount sounds total — showing @(_page * PageSize + 1)–@(_page * PageSize + _sounds.Length) ]</pre>
             <div class="pagination-controls">
                 <button class="ascii-btn compact-btn" @onclick="PrevPage" disabled="@(_page == 0 || _loading)">[ ◀ PREV ]</button>
-                <span style="font-size:0.78rem; color:var(--term-secondary);">page @(_page + 1) / @TotalPages</span>
+                <span class="page-indicator">page @(_page + 1) / @TotalPages</span>
                 <button class="ascii-btn compact-btn" @onclick="NextPage" disabled="@(_page >= TotalPages - 1 || _loading)">[ NEXT ▶ ]</button>
             </div>
         </div>
         <div class="sound-admin-grid">
-            @foreach (var sound in _sounds)
-            {
+            @* Virtualize: the library grows with every seed run, so only render the cards
+               actually on screen rather than the whole page of results. *@
+            <Virtualize Items="_sounds" Context="sound" ItemSize="220">
                 <div class="sound-admin-card reveal-in">
                     <p class="sound-admin-name">@sound.DisplayName</p>
                     <div class="sound-admin-meta-grid">
@@ -114,7 +115,7 @@
                                 })(this)">[ &#9654; ]</button>
                     </div>
                 </div>
-            }
+            </Virtualize>
         </div>
     }
 

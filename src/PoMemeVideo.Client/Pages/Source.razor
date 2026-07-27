@@ -113,13 +113,13 @@
         </div>
     </div>
 
-    <div style="display: @(_uploaded ? "none" : "block")">
+    <div class="dropzone-host @(_uploaded ? "is-uploaded" : null)">
         <AsciiDropZone OnFileAccepted="OnFileAccepted" />
     </div>
 
     @* Hidden video element used for keyframe extraction — not visible to the user *@
     <video @ref="_videoRef"
-           style="display:none"
+           class="keyframe-source"
            preload="metadata"
            muted
            playsinline>

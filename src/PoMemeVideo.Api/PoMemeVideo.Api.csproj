@@ -7,10 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Test projects assert on internal guardrails (e.g. FakeAuthHandler's Production throw)
+         without widening those types to the public surface. -->
+    <InternalsVisibleTo Include="PoMemeVideo.UnitTests" />
+    <InternalsVisibleTo Include="PoMemeVideo.IntegrationTests" />
+    <InternalsVisibleTo Include="PoMemeVideo.E2EAPI" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.OpenApi" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.Console" />
@@ -37,7 +46,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PoMemeVideo.Shared\PoMemeVideo.Shared.csproj" />
-    <ProjectReference Include="..\client\PoMemeVideo.Client\PoMemeVideo.Client.csproj" />
+    <ProjectReference Include="..\PoMemeVideo.Client\PoMemeVideo.Client.csproj" />
   </ItemGroup>
 
 </Project>

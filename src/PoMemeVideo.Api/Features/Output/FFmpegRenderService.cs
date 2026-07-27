@@ -15,13 +15,13 @@ namespace PoMemeVideo.Api.Features.Output;
 public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 {
     [LoggerMessage(Level = LogLevel.Information, Message = "FFmpeg render complete for session {SessionId}")]
-    private partial void LogRenderComplete(Guid sessionId);
+    private partial void LogRenderComplete(SessionId sessionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "ffprobe: session {SessionId} actual output duration = {Duration:F2}s")]
-    private partial void LogProbeDuration(Guid sessionId, double duration);
+    private partial void LogProbeDuration(SessionId sessionId, double duration);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "ffprobe duration unavailable for session {SessionId}")]
-    private partial void LogProbeUnavailable(Guid sessionId);
+    private partial void LogProbeUnavailable(SessionId sessionId);
 
     /// <summary>Wall-clock ceiling for a single ffmpeg render before it is aborted as failed.</summary>
     private const int RenderTimeoutMinutes = 5;
@@ -308,7 +308,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         return string.Join(',', filters);
     }
 
-    private async Task<int> RunFFmpegAsync(string args, Guid sessionId, CancellationToken cancellationToken)
+    private async Task<int> RunFFmpegAsync(string args, SessionId sessionId, CancellationToken cancellationToken)
     {
         var psi = BuildPsi("ffmpeg", args);
         psi.RedirectStandardError = true;

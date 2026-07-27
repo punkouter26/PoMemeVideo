@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\PoMemeVideo.Shared\PoMemeVideo.Shared.csproj" />
+    <ProjectReference Include="..\PoMemeVideo.Shared\PoMemeVideo.Shared.csproj" />
   </ItemGroup>
 
 </Project>

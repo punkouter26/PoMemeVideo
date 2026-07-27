@@ -3,9 +3,7 @@ using System.Numerics.Tensors;
 
 namespace PoMemeVideo.Api.Features.MemeLibrary;
 
-public sealed record SoundCandidate(SoundAsset Sound, float Score);
-
-public sealed class SemanticMatchingService
+public sealed class SemanticMatchingService : ISemanticMatchingService
 {
     // Curated priority sounds (wojak-storytelling staples) outrank generic matches
     // with comparable tag overlap, without letting a zero-overlap sound win.

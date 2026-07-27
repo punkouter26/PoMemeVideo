@@ -1,14 +1,14 @@
 // GoF: Entity
 using PoMemeVideo.Shared.Enums;
 
-namespace PoMemeVideo.Api.Features.Processing;
+namespace PoMemeVideo.Shared.Domain;
 
 public class ScriptEntry
 {
-    public Guid EntryId { get; init; } = Guid.NewGuid();
-    public required Guid SessionId { get; init; }
+    public EntryId EntryId { get; init; } = EntryId.New();
+    public required SessionId SessionId { get; init; }
     public long TimestampMs { get; set; }
-    public required Guid SoundId { get; set; }
+    public required SoundId SoundId { get; set; }
     public string[] ActionVectorTags { get; set; } = [];
     /// <summary>Human-readable description of what is happening in the scene at this moment.</summary>
     public string SceneDescription { get; set; } = string.Empty;

@@ -6,7 +6,7 @@ WORKDIR /src
 COPY PoMemeVideo.slnx global.json Directory.Build.props Directory.Packages.props ./
 COPY src/PoMemeVideo.Shared/PoMemeVideo.Shared.csproj src/PoMemeVideo.Shared/
 COPY src/PoMemeVideo.Api/PoMemeVideo.Api.csproj src/PoMemeVideo.Api/
-COPY src/client/PoMemeVideo.Client/PoMemeVideo.Client.csproj src/client/PoMemeVideo.Client/
+COPY src/PoMemeVideo.Client/PoMemeVideo.Client.csproj src/PoMemeVideo.Client/
 
 RUN dotnet restore src/PoMemeVideo.Api/PoMemeVideo.Api.csproj
 

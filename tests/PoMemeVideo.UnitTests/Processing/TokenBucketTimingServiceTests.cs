@@ -8,7 +8,7 @@ public sealed class TokenBucketTimingServiceTests
 
     private static SoundAsset MakeSound(string name = "TestSound") => new()
     {
-        SoundId = Guid.NewGuid(),
+        SoundId = SoundId.New(),
         DisplayName = name,
         DurationMs = 800,
         BlobUrl = "https://example.com/test.mp3",

@@ -69,7 +69,7 @@ public static class IngestionEndpoints
         {
             var userId = ResolveUserId(httpContext);
 
-            var session = await repository.GetByIdAsync(request.SessionId, userId, ct);
+            var session = await repository.GetByIdAsync(new SessionId(request.SessionId), userId, ct);
             if (session is null)
                 return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId = request.SessionId });
 
@@ -96,7 +96,7 @@ public static class IngestionEndpoints
         .Produces<object>(404);
 
         group.MapPut("/sessions/{sessionId:guid}/options", async (
-            Guid sessionId,
+            SessionId sessionId,
             SessionOptionsRequest request,
             IVideoSessionRepository repository,
             HttpContext httpContext,
@@ -125,7 +125,7 @@ public static class IngestionEndpoints
 
         // POST /api/ingestion/sessions/{sessionId}/frames — upload raw keyframe images for AI vision
         group.MapPost("/sessions/{sessionId:guid}/frames", async (
-            Guid sessionId,
+            SessionId sessionId,
             FrameUploadRequest request,
             IVideoSessionRepository sessionRepository,
             IBlobStorageService blobs,
@@ -199,7 +199,7 @@ public static class IngestionEndpoints
 
         // GET /api/ingestion/sessions/{sessionId} — retrieve session status
         group.MapGet("/sessions/{sessionId:guid}", async (
-            Guid sessionId,
+            SessionId sessionId,
             IVideoSessionRepository repository,
             HttpContext httpContext,
             CancellationToken ct) =>
@@ -212,8 +212,8 @@ public static class IngestionEndpoints
 
             var dto = new VideoSessionDto
             {
-                SessionId = session.SessionId,
-                UserId = session.UserId,
+                SessionId = session.SessionId.Value,
+                UserId = session.UserId.Value,
                 SourceBlobPath = session.SourceBlobPath,
                 VideoDurationSeconds = session.VideoDurationSeconds,
                 AggressiveVisuals = session.AggressiveVisuals,
@@ -238,7 +238,7 @@ public static class IngestionEndpoints
     /// Resolves the authenticated user's ID from claims.
     /// Falls back to <see cref="Guid.Empty"/> in unauthenticated/dev scenarios.
     /// </summary>
-    private static Guid ResolveUserId(HttpContext httpContext)
+    private static UserId ResolveUserId(HttpContext httpContext)
     {
         return UserIdentityResolution.TryGetUserId(httpContext)
             ?? throw new InvalidOperationException("Authenticated user id claim is missing.");

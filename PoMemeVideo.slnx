@@ -1,10 +1,8 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/PoMemeVideo.Api/PoMemeVideo.Api.csproj" />
+    <Project Path="src/PoMemeVideo.Client/PoMemeVideo.Client.csproj" />
     <Project Path="src/PoMemeVideo.Shared/PoMemeVideo.Shared.csproj" />
-  </Folder>
-  <Folder Name="/src/client/">
-    <Project Path="src/client/PoMemeVideo.Client/PoMemeVideo.Client.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PoMemeVideo.UnitTests/PoMemeVideo.UnitTests.csproj" />

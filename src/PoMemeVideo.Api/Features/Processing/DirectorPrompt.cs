@@ -62,7 +62,7 @@ internal static class DirectorPrompt
 
     public static ScriptEntry[] ParseResponse(
         string rawText,
-        Guid sessionId,
+        SessionId sessionId,
         JsonSerializerOptions jsonOpts,
         IReadOnlyList<SoundAsset>? topCandidates = null)
     {
@@ -78,23 +78,23 @@ internal static class DirectorPrompt
         var byName = topCandidates?
                          .GroupBy(s => s.DisplayName, StringComparer.OrdinalIgnoreCase)
                          .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase)
-                     ?? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+                     ?? new Dictionary<string, SoundId>(StringComparer.OrdinalIgnoreCase);
         var byId = topCandidates?
                        .GroupBy(s => s.SoundId.ToString(), StringComparer.OrdinalIgnoreCase)
                        .ToDictionary(g => g.Key, g => g.First().SoundId, StringComparer.OrdinalIgnoreCase)
-                   ?? new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+                   ?? new Dictionary<string, SoundId>(StringComparer.OrdinalIgnoreCase);
 
-        Guid ResolveSound(string raw)
+        SoundId ResolveSound(string raw)
         {
             if (byId.TryGetValue(raw, out var byIdMatch)) return byIdMatch;
             if (byName.TryGetValue(raw, out var byNameMatch)) return byNameMatch;
-            if (Guid.TryParse(raw, out var parsed)) return parsed;
-            return topCandidates is { Count: > 0 } ? topCandidates[0].SoundId : Guid.Empty;
+            if (Guid.TryParse(raw, out var parsed)) return new SoundId(parsed);
+            return topCandidates is { Count: > 0 } ? topCandidates[0].SoundId : SoundId.Empty;
         }
 
         return dtos.Select(e => new ScriptEntry
         {
-            EntryId = Guid.NewGuid(),
+            EntryId = EntryId.New(),
             SessionId = sessionId,
             TimestampMs = e.TimestampMs,
             SoundId = ResolveSound(e.SoundIdRaw),

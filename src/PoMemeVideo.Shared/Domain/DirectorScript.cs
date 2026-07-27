@@ -1,9 +1,9 @@
 // GoF: Entity
-namespace PoMemeVideo.Api.Features.Processing;
+namespace PoMemeVideo.Shared.Domain;
 
 public class DirectorScript
 {
-    public Guid SessionId { get; init; }
+    public SessionId SessionId { get; init; }
     public DateTimeOffset GeneratedAt { get; init; } = DateTimeOffset.UtcNow;
     public int TotalSoundCount { get; set; }
     public double AverageDensitySeconds { get; set; }

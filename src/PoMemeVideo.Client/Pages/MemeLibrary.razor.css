@@ -1,0 +1,8 @@
+.clear-data-row {
+    margin-top: 0.6rem;
+}
+
+.page-indicator {
+    font-size: 0.78rem;
+    color: var(--term-secondary);
+}

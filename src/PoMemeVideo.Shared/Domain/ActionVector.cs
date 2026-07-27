@@ -1,5 +1,5 @@
 // GoF: Value Object pattern
-namespace PoMemeVideo.Api.Features.Processing;
+namespace PoMemeVideo.Shared.Domain;
 
 public record ActionVector(string[] Tags)
 {

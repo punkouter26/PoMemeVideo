@@ -18,7 +18,7 @@ internal sealed class UserIdentityTableEntity : ITableEntity
 
 public sealed class UserIdentityTableRepository : IUserIdentityRepository
 {
-    private const string TableName = "UserIdentities";
+    private const string TableName = StorageNames.Tables.UserIdentities;
     private readonly TableClient _table;
 
     public UserIdentityTableRepository(AzureTableClientFactory factory)

@@ -6,7 +6,7 @@ namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class DirectorScriptTableRepository : IDirectorScriptRepository
 {
-    private const string TableName = "DirectorScripts";
+    private const string TableName = StorageNames.Tables.DirectorScripts;
 
     private readonly AzureTableClientFactory _factory;
 
@@ -30,7 +30,7 @@ public sealed class DirectorScriptTableRepository : IDirectorScriptRepository
     }
 
     public async Task<DirectorScript?> GetBySessionIdAsync(
-        Guid sessionId, CancellationToken cancellationToken = default)
+        SessionId sessionId, CancellationToken cancellationToken = default)
     {
         var client = _factory.GetTableClient(TableName);
         try
@@ -53,7 +53,7 @@ public sealed class DirectorScriptTableRepository : IDirectorScriptRepository
         }
     }
 
-    public async Task DeleteBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    public async Task DeleteBySessionIdAsync(SessionId sessionId, CancellationToken cancellationToken = default)
     {
         var client = _factory.GetTableClient(TableName);
         await client.DeleteEntityAsync(sessionId.ToString(), "script", cancellationToken: cancellationToken);

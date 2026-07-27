@@ -14,7 +14,7 @@ namespace PoMemeVideo.Api.Features.Admin;
 /// </summary>
 public static class SeedSoundsCommand
 {
-    private const string ContainerName = "sounds";
+    private const string ContainerName = StorageNames.Containers.Sounds;
     private const string TableName = "SoundAssets";
     private const string PartitionKey = "library";
 

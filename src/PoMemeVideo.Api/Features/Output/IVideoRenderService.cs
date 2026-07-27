@@ -9,7 +9,7 @@ public interface IVideoRenderService
 }
 
 public record RenderJob(
-    Guid SessionId,
+    SessionId SessionId,
     string SourceBlobPath,
     string OutputBlobPath,
     bool AggressiveVisuals,

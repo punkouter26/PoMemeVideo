@@ -28,7 +28,7 @@ public static class HealthEndpoint
             // Azure Table Storage
             try
             {
-                var tableClient = tableFactory.GetTableClient("HealthCheck");
+                var tableClient = tableFactory.GetTableClient(StorageNames.Tables.HealthCheck);
                 await foreach (var _ in tableClient.QueryAsync<TableEntity>(maxPerPage: 1, cancellationToken: ct))
                 {
                     break;
@@ -46,7 +46,7 @@ public static class HealthEndpoint
             try
             {
                 var blobClient = blobFactory.GetClient();
-                var container = blobClient.GetBlobContainerClient("sessions");
+                var container = blobClient.GetBlobContainerClient(StorageNames.Containers.Sessions);
                 await container.ExistsAsync(ct);
                 checks["blobStorage"] = "Healthy";
             }
@@ -114,7 +114,11 @@ public static class HealthEndpoint
         .WithName("GetHealth")
         .WithTags("Health")
         .Produces<object>(200)
-        .Produces<object>(503);
+        .Produces<object>(503)
+        // Monitoring endpoint: must stay reachable without a session, otherwise the
+        // deny-by-default FallbackPolicy turns every probe into a 302 to /login.
+        // It reports dependency status only — no configuration values are returned.
+        .AllowAnonymous();
 
         return app;
     }

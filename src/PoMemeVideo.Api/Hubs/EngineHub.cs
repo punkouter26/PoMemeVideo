@@ -34,31 +34,31 @@ public class EngineHubNotifier : IEngineNotifier
         _hubContext = hubContext;
     }
 
-    public Task DirectorLogAsync(Guid sessionId, string message, CancellationToken cancellationToken = default)
+    public Task DirectorLogAsync(SessionId sessionId, string message, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("DirectorLogEntry", message, cancellationToken);
 
-    public Task DirectorScriptAsync(Guid sessionId, ScriptEntryDto entry, CancellationToken cancellationToken = default)
+    public Task DirectorScriptAsync(SessionId sessionId, ScriptEntryDto entry, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("DirectorScriptEntry", entry, cancellationToken);
 
-    public Task AuditAsync(Guid sessionId, string message, CancellationToken cancellationToken = default)
+    public Task AuditAsync(SessionId sessionId, string message, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("AuditEntry", message, cancellationToken);
 
-    public Task HardwareMetricsAsync(Guid sessionId, double inferenceLatencyMs, double cpuLoadPercent, CancellationToken cancellationToken = default)
+    public Task HardwareMetricsAsync(SessionId sessionId, double inferenceLatencyMs, double cpuLoadPercent, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("HardwareMetrics", inferenceLatencyMs, cpuLoadPercent, cancellationToken);
 
-    public Task CompleteAsync(Guid sessionId, string outputBlobPath, CancellationToken cancellationToken = default)
+    public Task CompleteAsync(SessionId sessionId, string outputBlobPath, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("ProcessingComplete", outputBlobPath, cancellationToken);
 
-    public Task ErrorAsync(Guid sessionId, string errorMessage, CancellationToken cancellationToken = default)
+    public Task ErrorAsync(SessionId sessionId, string errorMessage, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("ProcessingError", errorMessage, cancellationToken);
 
-    public Task BrowserLLMInferenceRequestAsync(Guid sessionId, string payloadJson, CancellationToken cancellationToken = default)
+    public Task BrowserLLMInferenceRequestAsync(SessionId sessionId, string payloadJson, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("BrowserLLMInferenceRequest", payloadJson, cancellationToken);
 }

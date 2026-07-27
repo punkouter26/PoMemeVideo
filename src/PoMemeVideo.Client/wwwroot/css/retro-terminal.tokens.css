@@ -12,4 +12,16 @@
     --term-glow-soft: 0 0 10px rgba(0, 245, 106, 0.2);
     --term-glow-strong: 0 0 14px rgba(0, 245, 106, 0.55);
     --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+
+    /* Director-script readout: one token per semantic line of a CUT block. */
+    --term-script-frame: #00ff41;
+    --term-script-scene: #aaffaa;
+    --term-script-sound: #ffff00;
+    --term-script-why: #ff9900;
+    --term-script-dim: #888888;
+    --term-script-error: #ff4141;
+    --term-script-notice: #ffb347;
+
+    --term-dim-opacity: 0.4;
 }

@@ -5,13 +5,13 @@ namespace PoMemeVideo.Api.Features.Processing;
 
 public interface IEngineRunDispatcher
 {
-    bool TryQueue(Guid sessionId, Guid userId);
+    bool TryQueue(SessionId sessionId, UserId userId);
 }
 
 internal sealed class EngineRunDispatcher : BackgroundService, IEngineRunDispatcher
 {
     private readonly Channel<EngineRunRequest> _queue = Channel.CreateUnbounded<EngineRunRequest>();
-    private readonly ConcurrentDictionary<Guid, byte> _queuedOrRunning = new();
+    private readonly ConcurrentDictionary<SessionId, byte> _queuedOrRunning = new();
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<EngineRunDispatcher> _logger;
 
@@ -21,7 +21,7 @@ internal sealed class EngineRunDispatcher : BackgroundService, IEngineRunDispatc
         _logger = logger;
     }
 
-    public bool TryQueue(Guid sessionId, Guid userId)
+    public bool TryQueue(SessionId sessionId, UserId userId)
     {
         if (!_queuedOrRunning.TryAdd(sessionId, 0))
             return false;
@@ -69,5 +69,5 @@ internal sealed class EngineRunDispatcher : BackgroundService, IEngineRunDispatc
         }
     }
 
-    private sealed record EngineRunRequest(Guid SessionId, Guid UserId);
+    private sealed record EngineRunRequest(SessionId SessionId, UserId UserId);
 }

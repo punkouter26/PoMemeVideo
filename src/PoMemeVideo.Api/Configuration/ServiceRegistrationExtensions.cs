@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
@@ -6,6 +7,13 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using PoMemeVideo.Api.Features.Admin;
+using PoMemeVideo.Api.Features.Auth;
+using PoMemeVideo.Api.Features.Config;
+using PoMemeVideo.Api.Features.Ingestion;
+using PoMemeVideo.Api.Features.MemeLibrary;
+using PoMemeVideo.Api.Features.Output;
+using PoMemeVideo.Api.Features.Processing;
 using PoMemeVideo.Api.Hubs;
 using PoMemeVideo.Shared;
 using Serilog;
@@ -79,18 +87,28 @@ internal static class ServiceRegistrationExtensions
 
         // Typed/named HttpClients backed by a standard resilience pipeline
         // (retry + timeout + circuit breaker) per the .NET 10 resilience mandate.
-        builder.Services.AddHttpClient("Ollama").AddStandardResilienceHandler();
-        builder.Services.AddHttpClient("AiFoundry").AddStandardResilienceHandler();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddTransient<CorrelationPropagationHandler>();
+
+        builder.Services.AddHttpClient("Ollama")
+            .AddHttpMessageHandler<CorrelationPropagationHandler>()
+            .AddStandardResilienceHandler();
+        builder.Services.AddHttpClient("AiFoundry")
+            .AddHttpMessageHandler<CorrelationPropagationHandler>()
+            .AddStandardResilienceHandler();
         builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
         builder.Services.AddSingleton<AzureOpenAiDirectorService>();
         builder.Services.AddSingleton<AiFoundryDirectorService>();
         builder.Services.AddSingleton<OllamaDirectorService>();
+        builder.Services.AddSingleton<ILocalModelCatalog>(sp => sp.GetRequiredService<OllamaDirectorService>());
         builder.Services.AddSingleton<BrowserLLMDirectorService>();
         builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 
         builder.Services.AddScoped<SemanticMatchingService>();
+        builder.Services.AddScoped<ISemanticMatchingService>(sp => sp.GetRequiredService<SemanticMatchingService>());
         builder.Services.AddScoped<RunEngineCommand>();
         builder.Services.AddScoped<RenderVideoCommand>();
+        builder.Services.AddScoped<IRenderVideoCommand>(sp => sp.GetRequiredService<RenderVideoCommand>());
         builder.Services.AddSingleton<FoundryDeploymentLister>();
         builder.Services.AddSingleton<EngineRunDispatcher>();
         builder.Services.AddSingleton<IEngineRunDispatcher>(sp => sp.GetRequiredService<EngineRunDispatcher>());
@@ -143,7 +161,23 @@ internal static class ServiceRegistrationExtensions
             });
         }
 
-        builder.Services.AddAuthorization();
+        // Deny-by-default: any endpoint that does not opt out via AllowAnonymous (or state its
+        // own policy) requires an authenticated user. This closes endpoints that simply forgot
+        // to call RequireAuthorization — the BFF's authorization posture is now opt-out, not opt-in.
+        // Header-driven test identity (X-Fake-User / X-Fake-Roles). Registered outside Production
+        // only; FakeAuthHandler itself also throws if it is ever constructed in Production.
+        if (!builder.Environment.IsProduction())
+        {
+            authBuilder.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, FakeAuthHandler>(
+                FakeAuthHandler.SchemeName, _ => { });
+        }
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
 
         builder.Services.AddSignalR();
         builder.Services.AddSingleton<IEngineNotifier, EngineHubNotifier>();
@@ -162,7 +196,7 @@ internal static class ServiceRegistrationExtensions
             {
                 try
                 {
-                    var dpContainer = new BlobContainerClient(blobConn, "dataprotection");
+                    var dpContainer = new BlobContainerClient(blobConn, StorageNames.Containers.DataProtection);
                     dpContainer.CreateIfNotExists();
                     builder.Services.AddDataProtection()
                         .SetApplicationName(PoMemeVideoNaming.ApplicationName)
@@ -175,6 +209,9 @@ internal static class ServiceRegistrationExtensions
             }
         }
 
+        // HybridCache over MemoryCache: adds stampede protection on the sound-library read,
+        // and leaves a seam for a distributed L2 without touching call sites.
         builder.Services.AddMemoryCache();
+        builder.Services.AddHybridCache();
     }
 }

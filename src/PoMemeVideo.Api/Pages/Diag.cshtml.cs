@@ -26,7 +26,7 @@ public class DiagModel : PageModel
         // Table Storage check
         try
         {
-            _tableFactory.GetTableClient("HealthCheck");
+            _tableFactory.GetTableClient(StorageNames.Tables.HealthCheck);
             ConnectionChecks.Add(new("Azure Table Storage", "Connected", true));
         }
         catch (Exception ex)
@@ -37,7 +37,7 @@ public class DiagModel : PageModel
         // Blob Storage check
         try
         {
-            var container = _blobFactory.GetClient().GetBlobContainerClient("sessions");
+            var container = _blobFactory.GetClient().GetBlobContainerClient(StorageNames.Containers.Sessions);
             await container.ExistsAsync();
             ConnectionChecks.Add(new("Azure Blob Storage", "Connected", true));
         }

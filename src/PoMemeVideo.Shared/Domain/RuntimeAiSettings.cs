@@ -1,4 +1,4 @@
-namespace PoMemeVideo.Api.Features.Processing;
+namespace PoMemeVideo.Shared.Domain;
 
 /// <summary>
 /// Runtime-mutable AI backend selection. Registered as a singleton so any

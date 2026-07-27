@@ -24,7 +24,7 @@ public sealed class BrowserLLMDirectorService : IDirectorService
     };
 
     // Keyed by sessionId; resolved by the POST endpoint when the browser responds.
-    private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ScriptEntry[]>> _pending = new();
+    private readonly ConcurrentDictionary<SessionId, TaskCompletionSource<ScriptEntry[]>> _pending = new();
 
     private readonly IEngineNotifier _notifier;
     private readonly RuntimeAiSettings _settings;
@@ -38,7 +38,7 @@ public sealed class BrowserLLMDirectorService : IDirectorService
     public async Task<ScriptEntry[]> DirectAsync(
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
-        Guid sessionId,
+        SessionId sessionId,
         bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
@@ -77,7 +77,7 @@ public sealed class BrowserLLMDirectorService : IDirectorService
     /// <summary>
     /// Called by the POST /browser-director-result endpoint to deliver the browser's answer.
     /// </summary>
-    public bool TryResolve(Guid sessionId, BrowserDirectorResultDto result)
+    public bool TryResolve(SessionId sessionId, BrowserDirectorResultDto result)
     {
         if (!_pending.TryRemove(sessionId, out var tcs))
             return false;
@@ -86,10 +86,10 @@ public sealed class BrowserLLMDirectorService : IDirectorService
         {
             var entries = result.Entries.Select(e => new ScriptEntry
             {
-                EntryId = Guid.NewGuid(),
+                EntryId = EntryId.New(),
                 SessionId = sessionId,
                 TimestampMs = e.TimestampMs,
-                SoundId = e.SoundId,
+                SoundId = new SoundId(e.SoundId),
                 ActionVectorTags = e.ActionVectorTags,
                 SelectionRationale = e.SelectionRationale,
                 IsIronic = e.IsIronic,

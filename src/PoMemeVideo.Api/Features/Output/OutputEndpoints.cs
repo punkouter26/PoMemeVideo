@@ -14,7 +14,7 @@ public static class OutputEndpoints
 
         // GET /api/output/sessions/{id}/script — retrieve Director's Script from Table Storage
         group.MapGet("/sessions/{sessionId:guid}/script", async (
-            Guid sessionId,
+            SessionId sessionId,
             IVideoSessionRepository sessionRepository,
             IDirectorScriptRepository scriptRepository,
             HttpContext httpContext,
@@ -40,16 +40,16 @@ public static class OutputEndpoints
 
             var scriptDto = new DirectorScriptDto
             {
-                SessionId = script.SessionId,
+                SessionId = script.SessionId.Value,
                 GeneratedAt = script.GeneratedAt,
                 TotalSoundCount = script.TotalSoundCount,
                 AverageDensitySeconds = script.AverageDensitySeconds,
                 Entries = entries.Select(e => new ScriptEntryDto
                 {
-                    EntryId = e.EntryId,
-                    SessionId = e.SessionId,
+                    EntryId = e.EntryId.Value,
+                    SessionId = e.SessionId.Value,
                     TimestampMs = e.TimestampMs,
-                    SoundId = e.SoundId,
+                    SoundId = e.SoundId.Value,
                     SoundName = e.SoundName,
                     ActionVectorTags = e.ActionVectorTags,
                     SceneDescription = e.SceneDescription,
@@ -71,7 +71,7 @@ public static class OutputEndpoints
 
         // GET /api/output/sessions/{id}/download/video — stream output MP4
         group.MapGet("/sessions/{sessionId:guid}/download/video", async (
-            Guid sessionId,
+            SessionId sessionId,
             IVideoSessionRepository sessionRepository,
             BlobStorageService blobService,
             HttpContext httpContext,
@@ -108,7 +108,7 @@ public static class OutputEndpoints
 
         // GET /api/output/sessions/{id}/stream/video — inline stream for <video> element (no Content-Disposition: attachment)
         group.MapGet("/sessions/{sessionId:guid}/stream/video", async (
-            Guid sessionId,
+            SessionId sessionId,
             IVideoSessionRepository sessionRepository,
             BlobStorageService blobService,
             HttpContext httpContext,
@@ -144,7 +144,7 @@ public static class OutputEndpoints
 
         // GET /api/output/sessions/{id}/download/script — download Director's Script as JSON
         group.MapGet("/sessions/{sessionId:guid}/download/script", async (
-            Guid sessionId,
+            SessionId sessionId,
             IVideoSessionRepository sessionRepository,
             IDirectorScriptRepository scriptRepository,
             HttpContext httpContext,
@@ -181,7 +181,7 @@ public static class OutputEndpoints
 
         // DELETE /api/output/sessions/{id} — Wipe Buffer: delete session and all associated blobs
         group.MapDelete("/sessions/{sessionId:guid}", async (
-            Guid sessionId,
+            SessionId sessionId,
             IVideoSessionRepository sessionRepository,
             BlobStorageService blobService,
             HttpContext httpContext,
@@ -225,8 +225,8 @@ public static class OutputEndpoints
 
             var dtos = sessions.Select(s => new VideoSessionDto
             {
-                SessionId = s.SessionId,
-                UserId = s.UserId,
+                SessionId = s.SessionId.Value,
+                UserId = s.UserId.Value,
                 SourceBlobPath = s.SourceBlobPath,
                 VideoDurationSeconds = s.VideoDurationSeconds,
                 AggressiveVisuals = s.AggressiveVisuals,
@@ -250,7 +250,7 @@ public static class OutputEndpoints
     /// Resolves the authenticated user's ID from claims.
     /// Falls back to <see cref="Guid.Empty"/> in unauthenticated/dev scenarios.
     /// </summary>
-    private static Guid ResolveUserId(HttpContext httpContext)
+    private static UserId ResolveUserId(HttpContext httpContext)
     {
         return UserIdentityResolution.TryGetUserId(httpContext)
             ?? throw new InvalidOperationException("Authenticated user id claim is missing.");

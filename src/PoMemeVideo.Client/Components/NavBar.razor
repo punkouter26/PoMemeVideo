@@ -21,7 +21,7 @@
         {
             <NavLink href="/login">[ LOGIN ]</NavLink>
         }
-        <a href="/scalar/" target="_blank" rel="noopener noreferrer" style="font-size:0.72rem;">[ API ]</a>
+        <a href="/scalar/" target="_blank" rel="noopener noreferrer" class="nav-api-link">[ API ]</a>
     </div>
 
     <div class="status-cluster" aria-label="Runtime status">
@@ -32,7 +32,7 @@
             }
             else
             {
-                <span style="opacity:0.4;">[ GUEST ]</span>
+                <span class="status-placeholder">[ GUEST ]</span>
             }
         </span>
 
@@ -43,7 +43,7 @@
             }
             else
             {
-                <span style="opacity:0.4;">[ AI: INIT… ]</span>
+                <span class="status-placeholder">[ AI: INIT… ]</span>
             }
         </span>
 
@@ -54,7 +54,7 @@
 
         @if (_isAuthenticated)
         {
-            <form method="post" action="/auth/logout" style="display:inline;">
+            <form method="post" action="/auth/logout" class="logout-form">
                 <button type="submit" class="ascii-btn logout-btn" aria-label="Log out">[ LOG OUT ]</button>
             </form>
         }

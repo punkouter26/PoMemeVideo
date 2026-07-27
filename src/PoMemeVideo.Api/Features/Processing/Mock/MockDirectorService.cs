@@ -21,7 +21,7 @@ public sealed class MockDirectorService : IDirectorService
     public Task<ScriptEntry[]> DirectAsync(
         (double TimestampSeconds, string Label)[] visionLabels,
         IReadOnlyList<SoundAsset> topCandidates,
-        Guid sessionId,
+        SessionId sessionId,
         bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
@@ -37,7 +37,7 @@ public sealed class MockDirectorService : IDirectorService
 
             results.Add(new ScriptEntry
             {
-                EntryId = Guid.NewGuid(),
+                EntryId = EntryId.New(),
                 SessionId = sessionId,
                 TimestampMs = (long)(ts * 1000),
                 SoundId = sound.SoundId,

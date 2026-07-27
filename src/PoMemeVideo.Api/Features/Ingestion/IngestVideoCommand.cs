@@ -3,7 +3,7 @@ using PoMemeVideo.Shared.Enums;
 
 namespace PoMemeVideo.Api.Features.Ingestion;
 
-public sealed record IngestVideoResult(Guid SessionId, string SourceBlobPath);
+public sealed record IngestVideoResult(SessionId SessionId, string SourceBlobPath);
 
 public sealed class IngestVideoCommand
 {
@@ -22,7 +22,7 @@ public sealed class IngestVideoCommand
     public async Task<IngestVideoResult> ExecuteAsync(
         string fileName,
         long fileSizeBytes,
-        Guid userId,
+        UserId userId,
         CancellationToken cancellationToken = default)
     {
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
@@ -44,7 +44,7 @@ public sealed class IngestVideoCommand
         }
 
         // Generate session ID upfront so it can be used in the blob path
-        var sessionId = Guid.NewGuid();
+        var sessionId = SessionId.New();
 
         var session = new VideoSession
         {

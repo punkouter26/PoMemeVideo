@@ -30,9 +30,9 @@ public sealed class IngestVideoCommandTests
         var result = await _command.ExecuteAsync(
             $"video{extension}",
             fileSizeBytes: 1024,
-            userId: Guid.NewGuid());
+            userId: UserId.New());
 
-        Assert.NotEqual(Guid.Empty, result.SessionId);
+        Assert.NotEqual(SessionId.Empty, result.SessionId);
         Assert.Contains(extension.ToLowerInvariant(), result.SourceBlobPath);
     }
 
@@ -48,7 +48,7 @@ public sealed class IngestVideoCommandTests
             _command.ExecuteAsync(
                 $"video{extension}",
                 fileSizeBytes: 1024,
-                userId: Guid.NewGuid()));
+                userId: UserId.New()));
 
         Assert.Equal("INVALID_EXTENSION", ex.ErrorCode);
     }
@@ -61,9 +61,9 @@ public sealed class IngestVideoCommandTests
         var result = await _command.ExecuteAsync(
             "video.mp4",
             fileSizeBytes: IngestVideoCommand.MaxFileSizeBytes,
-            userId: Guid.NewGuid());
+            userId: UserId.New());
 
-        Assert.NotEqual(Guid.Empty, result.SessionId);
+        Assert.NotEqual(SessionId.Empty, result.SessionId);
     }
 
     [Fact]
@@ -72,9 +72,9 @@ public sealed class IngestVideoCommandTests
         var result = await _command.ExecuteAsync(
             "video.mp4",
             fileSizeBytes: IngestVideoCommand.MaxFileSizeBytes - 1,
-            userId: Guid.NewGuid());
+            userId: UserId.New());
 
-        Assert.NotEqual(Guid.Empty, result.SessionId);
+        Assert.NotEqual(SessionId.Empty, result.SessionId);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class IngestVideoCommandTests
         const long size501Mb = 501L * 1024 * 1024;
 
         var ex = await Assert.ThrowsAsync<VideoIngestionValidationException>(() =>
-            _command.ExecuteAsync("video.mp4", size501Mb, userId: Guid.NewGuid()));
+            _command.ExecuteAsync("video.mp4", size501Mb, userId: UserId.New()));
 
         Assert.Equal("FILE_TOO_LARGE", ex.ErrorCode);
         Assert.Equal(IngestVideoCommand.MaxFileSizeBytes, ex.MaxBytes);
@@ -96,9 +96,9 @@ public sealed class IngestVideoCommandTests
         var result = await _command.ExecuteAsync(
             "video.mp4",
             fileSizeBytes: 499L * 1024 * 1024,
-            userId: Guid.NewGuid());
+            userId: UserId.New());
 
-        Assert.NotEqual(Guid.Empty, result.SessionId);
+        Assert.NotEqual(SessionId.Empty, result.SessionId);
     }
 
     // ── Session creation ─────────────────────────────────────────────────
@@ -106,7 +106,7 @@ public sealed class IngestVideoCommandTests
     [Fact]
     public async Task ExecuteAsync_ValidInput_PersistsSession()
     {
-        var userId = Guid.NewGuid();
+        var userId = UserId.New();
 
         await _command.ExecuteAsync("video.mp4", 1024, userId);
 
@@ -118,7 +118,7 @@ public sealed class IngestVideoCommandTests
     [Fact]
     public async Task ExecuteAsync_ValidInput_BlobPathContainsSessionId()
     {
-        var result = await _command.ExecuteAsync("video.mp4", 1024, Guid.NewGuid());
+        var result = await _command.ExecuteAsync("video.mp4", 1024, UserId.New());
 
         Assert.Contains(result.SessionId.ToString(), result.SourceBlobPath);
     }
@@ -126,7 +126,7 @@ public sealed class IngestVideoCommandTests
     [Fact]
     public async Task ExecuteAsync_ValidInput_BlobPathStartsWithSessions()
     {
-        var result = await _command.ExecuteAsync("my-video.mp4", 1024, Guid.NewGuid());
+        var result = await _command.ExecuteAsync("my-video.mp4", 1024, UserId.New());
 
         Assert.StartsWith("sessions/", result.SourceBlobPath);
         Assert.EndsWith(".mp4", result.SourceBlobPath);

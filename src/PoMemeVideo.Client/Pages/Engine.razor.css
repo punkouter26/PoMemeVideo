@@ -1,0 +1,9 @@
+.panel-subtitle {
+    font-size: 0.68rem;
+    color: var(--term-muted);
+    font-weight: normal;
+}
+
+.engine-actions {
+    margin-top: 0.75rem;
+}

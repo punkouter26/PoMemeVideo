@@ -24,7 +24,7 @@
 
     @if (_loading)
     {
-        <pre style="text-align: center; margin-top: 2rem;">[ Loading… ]</pre>
+        <pre class="reveal-loading">[ Loading… ]</pre>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -64,7 +64,7 @@
                 }
                 else
                 {
-                    <pre style="color: #FF4141; text-align: center; padding: 2rem;">[ OUTPUT NOT READY ]</pre>
+                    <pre class="output-not-ready">[ OUTPUT NOT READY ]</pre>
                 }
             </div>
 
@@ -74,16 +74,16 @@
                 <p class="reveal-script-subtitle">What was added to your video and why</p>
                 @if (_script is not null && _script.Entries.Count > 0)
                 {
-                    <div style="max-height: 420px; overflow-y: auto; padding: 0.5rem;">
+                    <div class="script-scroll">
                         @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
                         {
-                            <div style="border: 1px solid #00ff41; margin-bottom: 0.75rem; padding: 0.5rem; font-family: monospace; font-size: 0.75rem; line-height: 1.5;">
-                                <pre style="color:#00ff41; margin:0;">┌─ CUT @idx ── @((entry.TimestampMs / 1000.0).ToString("F1"))s ─────────────────────────┐</pre>
-                                <pre style="color:#aaffaa; margin:0; white-space:pre-wrap;">  SCENE   : @(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</pre>
-                                <div style="display:flex; align-items:center; gap:0.4rem; color:#ffff00; font-family:monospace; font-size:0.75rem; line-height:1.5; margin:0;">
+                            <div class="cut-block">
+                                <pre class="cut-rule">┌─ CUT @idx ── @((entry.TimestampMs / 1000.0).ToString("F1"))s ─────────────────────────┐</pre>
+                                <pre class="cut-scene">  SCENE   : @(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</pre>
+                                <div class="cut-sound">
                                     <span>  SOUND   : @(string.IsNullOrWhiteSpace(entry.SoundName) || entry.SoundName.Length < 2 ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
                                     <audio id="reveal-audio-@entry.SoundId-@idx" src="/api/memelibrary/sounds/@entry.SoundId/stream" preload="none"></audio>
-                                    <button class="ascii-btn reveal-play-btn" style="font-size:0.7rem; padding:0 0.35rem; min-width:3rem;"
+                                    <button class="ascii-btn reveal-play-btn"
                                             onclick="(function(btn){
                                                 var audio = document.getElementById('reveal-audio-@entry.SoundId-@idx');
                                                 if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ \u25B6 ]'; return; }
@@ -94,9 +94,9 @@
                                                 audio.onended = function(){ btn.textContent = '[ \u25B6 ]'; };
                                             })(this)">[ &#9654; ]</button>
                                 </div>
-                                <pre style="color:#ff9900; margin:0; white-space:pre-wrap;">  WHY     : @(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</pre>
-                                <pre style="color:#888; margin:0;">  EFFECT  : @(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</pre>
-                                <pre style="color:#00ff41; margin:0;">└──────────────────────────────────────────────────────────┘</pre>
+                                <pre class="cut-why">  WHY     : @(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</pre>
+                                <pre class="cut-effect">  EFFECT  : @(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</pre>
+                                <pre class="cut-rule">└──────────────────────────────────────────────────────────┘</pre>
                             </div>
                         }
                     </div>
@@ -105,22 +105,22 @@
                 {
                     @if (_script.TotalSoundCount == 0)
                     {
-                        <pre style="color: #888; white-space: pre-wrap;">[ No script entries — sound library was empty at render time ]
+                        <pre class="script-empty-hint">[ No script entries — sound library was empty at render time ]
   Run: python SCRIPTS/seed-meme-sounds.py
   Then create a new video to hear the difference.</pre>
                     }
                     else
                     {
-                        <pre style="color: #888;">[ No script entries generated for this session ]</pre>
+                        <pre class="script-empty">[ No script entries generated for this session ]</pre>
                     }
                 }
                 else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
                 {
-                    <pre style="color: #FFB347; white-space: pre-wrap">@_scriptStatusMessage</pre>
+                    <pre class="script-status">@_scriptStatusMessage</pre>
                 }
                 else
                 {
-                    <pre style="color: #888;">[ Script unavailable ]</pre>
+                    <pre class="script-empty">[ Script unavailable ]</pre>
                 }
             </div>
 
@@ -145,7 +145,7 @@
                 </div>
                 @if (!string.IsNullOrWhiteSpace(_statusMessage))
                 {
-                    <pre style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--term-secondary);">@_statusMessage</pre>
+                    <pre class="reveal-status-message">@_statusMessage</pre>
                 }
             </div>
         </div>

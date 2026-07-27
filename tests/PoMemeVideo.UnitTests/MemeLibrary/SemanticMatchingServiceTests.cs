@@ -14,7 +14,7 @@ public sealed class SemanticMatchingServiceTests
 
     private static SoundAsset MakeSound(string name, params string[] tags) => new()
     {
-        SoundId = Guid.NewGuid(),
+        SoundId = SoundId.New(),
         DisplayName = name,
         DurationMs = 800,
         BlobUrl = "https://example.com/test.mp3",

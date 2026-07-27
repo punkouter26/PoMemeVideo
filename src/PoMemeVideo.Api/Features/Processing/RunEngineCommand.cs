@@ -8,8 +8,39 @@ using System.Text.Json.Serialization;
 
 namespace PoMemeVideo.Api.Features.Processing;
 
-public sealed class RunEngineCommand
+public sealed partial class RunEngineCommand
 {
+    // ── Zero-allocation logging on the per-session engine path ────────────────────────────
+    // These fire once per run (and per label inside the scan loop), so the source-generated
+    // delegates avoid the boxing + template parse that the ILogger extension methods incur.
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{DiagPrefix} RunEngineCommand started.")]
+    private partial void LogEngineStarted(string diagPrefix);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Session {SessionId}: {FrameCount} keyframe(s) loaded from blob storage.")]
+    private partial void LogKeyframesLoaded(SessionId sessionId, int frameCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Session {SessionId}: Using {LabelCount} pre-computed vision label(s).")]
+    private partial void LogPrecomputedLabels(SessionId sessionId, int labelCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Session {SessionId}: No keyframes available — skipping vision analysis, time-based placement will be used.")]
+    private partial void LogNoKeyframes(SessionId sessionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Session {SessionId}: Vision returned {LabelCount} label(s): {Labels}")]
+    private partial void LogVisionLabels(SessionId sessionId, int labelCount, string labels);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{DiagPrefix} Director input prepared. ApprovedLabels={LabelCount}, ApprovedSounds={SoundCount}, MenuSounds={MenuCount}, FirstLabel={FirstLabel}, FirstSound={FirstSound}")]
+    private partial void LogDirectorInputPrepared(string diagPrefix, int labelCount, int soundCount, int menuCount, string? firstLabel, string? firstSound);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{DiagPrefix} Entering IDirectorService.DirectAsync (Provider delegated by SwitchingDirectorService). CancellationRequested={CancellationRequested}")]
+    private partial void LogEnteringDirector(string diagPrefix, bool cancellationRequested);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{DiagPrefix} IDirectorService.DirectAsync returned {EntryCount} entry/entries in {ElapsedMs} ms.")]
+    private partial void LogDirectorReturned(string diagPrefix, int entryCount, long elapsedMs);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Session {SessionId}: Director returned 0 entries despite {Count} approved placement(s). Falling back to basic entries.")]
+    private partial void LogDirectorEmptyFallback(SessionId sessionId, int count);
+
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         Converters = { new JsonStringEnumConverter() },
@@ -26,9 +57,9 @@ public sealed class RunEngineCommand
     private readonly IDirectorService _director;
     private readonly IDirectorScriptRepository _scripts;
     private readonly IEngineNotifier _notifier;
-    private readonly SemanticMatchingService _matching;
+    private readonly ISemanticMatchingService _matching;
     private readonly IBlobStorageService _blobs;
-    private readonly RenderVideoCommand _render;
+    private readonly IRenderVideoCommand _render;
     private readonly ILogger<RunEngineCommand> _logger;
 
     public RunEngineCommand(
@@ -38,9 +69,9 @@ public sealed class RunEngineCommand
         IDirectorService director,
         IDirectorScriptRepository scripts,
         IEngineNotifier notifier,
-        SemanticMatchingService matching,
+        ISemanticMatchingService matching,
         IBlobStorageService blobs,
-        RenderVideoCommand render,
+        IRenderVideoCommand render,
         ILogger<RunEngineCommand> logger)
     {
         _sessions = sessions;
@@ -55,7 +86,7 @@ public sealed class RunEngineCommand
         _logger = logger;
     }
 
-    public async Task ExecuteAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken = default)
     {
         var diagRunId = Guid.NewGuid().ToString("N")[..8];
         var diagPrefix = $"[diag:{diagRunId}][session:{sessionId}]";
@@ -65,7 +96,7 @@ public sealed class RunEngineCommand
             ["DiagRunId"] = diagRunId,
         });
 
-        _logger.LogInformation("{DiagPrefix} RunEngineCommand started.", diagPrefix);
+        LogEngineStarted(diagPrefix);
 
         var session = await _sessions.GetByIdAsync(sessionId, userId, cancellationToken)
             ?? throw new InvalidOperationException($"Session {sessionId} not found.");
@@ -85,7 +116,7 @@ public sealed class RunEngineCommand
 
             // Load keyframe images from blob storage (client-side extracted frames)
             var keyframeImages = await LoadKeyframeImagesAsync(sessionId, cancellationToken);
-            _logger.LogInformation("Session {SessionId}: {FrameCount} keyframe(s) loaded from blob storage.", sessionId, keyframeImages.Length);
+            LogKeyframesLoaded(sessionId, keyframeImages.Length);
             await _notifier.DirectorLogAsync(sessionId,
                 $"KEYFRAMES LOADED: {keyframeImages.Length} frame(s) ready for analysis.", cancellationToken);
 
@@ -93,7 +124,7 @@ public sealed class RunEngineCommand
             var visionLabels = await LoadPrecomputedVisionLabelsAsync(sessionId, cancellationToken);
             if (visionLabels.Length > 0)
             {
-                _logger.LogInformation("Session {SessionId}: Using {LabelCount} pre-computed vision label(s).", sessionId, visionLabels.Length);
+                LogPrecomputedLabels(sessionId, visionLabels.Length);
                 await _notifier.DirectorLogAsync(sessionId,
                     $"VISION LABELS LOADED: {visionLabels.Length} pre-analysed trigger(s) ready.", cancellationToken);
             }
@@ -119,12 +150,11 @@ public sealed class RunEngineCommand
             else
             {
                 // No keyframes and no pre-computed labels — skip vision entirely, time-based fallback will apply
-                _logger.LogInformation("Session {SessionId}: No keyframes available — skipping vision analysis, time-based placement will be used.", sessionId);
+                LogNoKeyframes(sessionId);
                 await _notifier.DirectorLogAsync(sessionId, "NO KEYFRAMES — SKIPPING VISION ANALYSIS. TIME-BASED PLACEMENT WILL BE USED.", cancellationToken);
             }
 
-            _logger.LogInformation("Session {SessionId}: Vision returned {LabelCount} label(s): {Labels}",
-                sessionId, visionLabels.Length,
+            LogVisionLabels(sessionId, visionLabels.Length,
                 string.Join(", ", visionLabels.Select(v => $"t={v.TimestampSeconds:F1}s → \"{v.Label}\"")));
             await _notifier.DirectorLogAsync(sessionId,
                 $"ACTION DETECTED: {visionLabels.Length} semantic trigger(s) identified.", cancellationToken);
@@ -139,7 +169,7 @@ public sealed class RunEngineCommand
             // Instead of dropping those labels (which forced the every-2s fallback), keep them
             // with a provisional priority sound — the AI director re-picks from the full menu below.
             var placementRequests = new List<PlacementRequest>();
-            var directorMenu = new Dictionary<Guid, SoundAsset>();
+            var directorMenu = new Dictionary<SoundId, SoundAsset>();
             var prioritySounds = allSounds.Where(s => s.Priority).ToList();
             var provisionalIdx = 0;
             foreach (var (ts, label) in visionLabels)
@@ -253,8 +283,7 @@ public sealed class RunEngineCommand
             }
             var directorSounds = directorMenu.Values.Take(directorMenuCap).ToList();
 
-            _logger.LogInformation(
-                "{DiagPrefix} Director input prepared. ApprovedLabels={LabelCount}, ApprovedSounds={SoundCount}, MenuSounds={MenuCount}, FirstLabel={FirstLabel}, FirstSound={FirstSound}",
+            LogDirectorInputPrepared(
                 diagPrefix,
                 approvedLabels.Length,
                 approvedSounds.Count,
@@ -264,10 +293,7 @@ public sealed class RunEngineCommand
 
             // Director service enriches entries (adds rationale, isIronic, visual effects, scene descriptions)
             await _notifier.DirectorLogAsync(sessionId, "DIRECTOR IMPROVISING... BUILDING SCRIPT...", cancellationToken);
-            _logger.LogInformation(
-                "{DiagPrefix} Entering IDirectorService.DirectAsync (Provider delegated by SwitchingDirectorService). CancellationRequested={CancellationRequested}",
-                diagPrefix,
-                cancellationToken.IsCancellationRequested);
+            LogEnteringDirector(diagPrefix, cancellationToken.IsCancellationRequested);
             var directorStopwatch = Stopwatch.StartNew();
             ScriptEntry[] scriptEntries;
             try
@@ -297,20 +323,16 @@ public sealed class RunEngineCommand
                 scriptEntries = [];
             }
             directorStopwatch.Stop();
-            _logger.LogInformation(
-                "{DiagPrefix} IDirectorService.DirectAsync returned {EntryCount} entry/entries in {ElapsedMs} ms.",
-                diagPrefix,
-                scriptEntries.Length,
-                directorStopwatch.ElapsedMilliseconds);
+            LogDirectorReturned(diagPrefix, scriptEntries.Length, directorStopwatch.ElapsedMilliseconds);
 
             // Fallback: if the director returned nothing but we have approved placements, build basic entries directly
             if (scriptEntries.Length == 0 && decisions.Count > 0)
             {
-                _logger.LogWarning("Session {SessionId}: Director returned 0 entries despite {Count} approved placement(s). Falling back to basic entries.", sessionId, decisions.Count);
+                LogDirectorEmptyFallback(sessionId, decisions.Count);
                 await _notifier.DirectorLogAsync(sessionId, $"[DIRECTOR FALLBACK] LLM returned no entries — building {decisions.Count} basic placement(s) from approved decisions.", cancellationToken);
                 scriptEntries = decisions.Select((d, i) => new ScriptEntry
                 {
-                    EntryId = Guid.NewGuid(),
+                    EntryId = EntryId.New(),
                     SessionId = sessionId,
                     TimestampMs = d.ApprovedTimestampMs,
                     SoundId = d.SelectedSound.SoundId,
@@ -382,7 +404,7 @@ public sealed class RunEngineCommand
         }
     }
 
-    private async Task EmitHardwareMetricsAsync(Guid sessionId, CancellationToken cancellationToken)
+    private async Task EmitHardwareMetricsAsync(SessionId sessionId, CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         while (await timer.WaitForNextTickAsync(cancellationToken))
@@ -393,7 +415,7 @@ public sealed class RunEngineCommand
         }
     }
 
-    private async Task<string[]> LoadKeyframeImagesAsync(Guid sessionId, CancellationToken ct)
+    private async Task<string[]> LoadKeyframeImagesAsync(SessionId sessionId, CancellationToken ct)
     {
         var prefix = $"sessions/{sessionId}/frames/";
         var blobs = new List<string>();
@@ -430,7 +452,7 @@ public sealed class RunEngineCommand
     }
 
     private async Task<(double TimestampSeconds, string Label)[]> LoadPrecomputedVisionLabelsAsync(
-        Guid sessionId, CancellationToken ct)
+        SessionId sessionId, CancellationToken ct)
     {
         try
         {
@@ -468,10 +490,10 @@ public sealed class RunEngineCommand
 
     private static ScriptEntryDto MapToDto(ScriptEntry entry) => new()
     {
-        EntryId = entry.EntryId,
-        SessionId = entry.SessionId,
+        EntryId = entry.EntryId.Value,
+        SessionId = entry.SessionId.Value,
         TimestampMs = entry.TimestampMs,
-        SoundId = entry.SoundId,
+        SoundId = entry.SoundId.Value,
         SoundName = entry.SoundName,
         ActionVectorTags = entry.ActionVectorTags,
         SceneDescription = entry.SceneDescription,

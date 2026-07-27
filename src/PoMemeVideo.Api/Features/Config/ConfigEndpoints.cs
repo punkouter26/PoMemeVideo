@@ -28,7 +28,7 @@ public static class ConfigEndpoints
         // ── AI model selection ───────────────────────────────────────────────
         app.MapGet("/api/config/ai-model", async (
             [FromServices] RuntimeAiSettings settings,
-            [FromServices] OllamaDirectorService ollama,
+            [FromServices] ILocalModelCatalog ollama,
             [FromServices] FoundryDeploymentLister foundry,
             IConfiguration configuration,
             IWebHostEnvironment env) =>
@@ -103,7 +103,7 @@ public static class ConfigEndpoints
         app.MapPut("/api/config/ai-model", async (
             AiModelRequest req,
             [FromServices] RuntimeAiSettings settings,
-            [FromServices] OllamaDirectorService ollama,
+            [FromServices] ILocalModelCatalog ollama,
             IWebHostEnvironment env) =>
         {
             if (!RuntimeAiSettings.ValidProviders.Contains(req.Provider))

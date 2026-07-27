@@ -25,7 +25,7 @@ internal sealed class VideoSessionTableEntity : ITableEntity
 
 public sealed class VideoSessionTableRepository : IVideoSessionRepository
 {
-    private const string TableName = "VideoSessions";
+    private const string TableName = StorageNames.Tables.VideoSessions;
     private readonly TableClient _table;
 
     public VideoSessionTableRepository(AzureTableClientFactory factory)
@@ -40,7 +40,7 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         return session;
     }
 
-    public async Task<VideoSession?> GetByIdAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<VideoSession?> GetByIdAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -56,7 +56,7 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         }
     }
 
-    public async Task<IReadOnlyList<VideoSession>> ListCompletedAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<VideoSession>> ListCompletedAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var results = new List<VideoSession>();
         var filter = $"PartitionKey eq '{userId}' and Status eq 'Complete'";
@@ -69,8 +69,8 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
     }
 
     public async Task UpdateMetadataAsync(
-        Guid sessionId,
-        Guid userId,
+        SessionId sessionId,
+        UserId userId,
         string sourceBlobPath,
         double videoDurationSeconds,
         bool aggressiveVisuals,
@@ -90,8 +90,8 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
     }
 
     public async Task UpdateStatusAsync(
-        Guid sessionId,
-        Guid userId,
+        SessionId sessionId,
+        UserId userId,
         SessionStatus status,
         string? errorMessage = null,
         string? outputBlobPath = null,
@@ -121,7 +121,7 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         await _table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Merge, cancellationToken);
     }
 
-    public async Task DeleteAsync(Guid sessionId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken = default)
     {
         await _table.DeleteEntityAsync(
             partitionKey: userId.ToString(),
@@ -145,8 +145,8 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
 
     private static VideoSession ToDomain(VideoSessionTableEntity e) => new()
     {
-        SessionId = Guid.Parse(e.RowKey),
-        UserId = Guid.Parse(e.PartitionKey),
+        SessionId = new SessionId(Guid.Parse(e.RowKey)),
+        UserId = new UserId(Guid.Parse(e.PartitionKey)),
         SourceBlobPath = e.SourceBlobPath,
         VideoDurationSeconds = e.VideoDurationSeconds,
         AggressiveVisuals = e.AggressiveVisuals,
