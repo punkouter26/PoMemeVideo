@@ -123,10 +123,6 @@ public static class SeedSoundsCommand
                 Console.WriteLine($"  [WARN] MP3 not found locally, using sourceUrl: {entry.Filename}");
             }
 
-            // Compute embedding vector
-            var embedding = new ActionVector(entry.ActionVectorTags).ToEmbedding(vocabulary);
-            var embeddingCsv = string.Join(",", embedding.Select(f => f.ToString("G", System.Globalization.CultureInfo.InvariantCulture)));
-
             // Insert table row
             var entity = new TableEntity(PartitionKey, soundId.ToString())
             {
@@ -134,7 +130,6 @@ public static class SeedSoundsCommand
                 ["DurationMs"] = entry.DurationMs,
                 ["Tags"] = string.Join(",", entry.ActionVectorTags),
                 ["BlobUrl"] = blobUrl,
-                ["EmbeddingVector"] = embeddingCsv,
                 ["Priority"] = entry.Priority,
             };
 

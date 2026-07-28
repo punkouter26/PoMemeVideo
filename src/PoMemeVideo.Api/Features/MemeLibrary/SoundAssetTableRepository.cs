@@ -43,11 +43,6 @@ public sealed class SoundAssetTableRepository : ISoundAssetRepository
             cancellationToken: cancellationToken))
         {
             var tags = entity.GetString("Tags")?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? [];
-            var embeddingCsv = entity.GetString("EmbeddingVector") ?? string.Empty;
-            var embedding = embeddingCsv.Length > 0
-                ? embeddingCsv.Split(',').Select(float.Parse).ToArray()
-                : [];
-
             assets.Add(new SoundAsset
             {
                 SoundId = new SoundId(Guid.Parse(entity.RowKey)),
@@ -55,7 +50,6 @@ public sealed class SoundAssetTableRepository : ISoundAssetRepository
                 DurationMs = entity.GetInt32("DurationMs") ?? 0,
                 ActionVectorTags = tags,
                 BlobUrl = entity.GetString("BlobUrl") ?? string.Empty,
-                EmbeddingVector = embedding,
                 Priority = entity.GetBoolean("Priority") ?? false,
                 UseCase = entity.GetString("UseCase") ?? string.Empty,
             });

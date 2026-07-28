@@ -94,13 +94,6 @@ public static class AdminEndpoints
             var tableClient = tableFactory.GetTableClient(SoundTable);
             await tableClient.CreateIfNotExistsAsync(ct);
 
-            // Build vocabulary from all unique tags (matching CLI behaviour)
-            var vocabulary = meta.Sounds
-                .SelectMany(s => s.ActionVectorTags ?? [])
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
             var http = httpClientFactory.CreateClient();
             http.Timeout = TimeSpan.FromSeconds(30);
 
@@ -134,20 +127,12 @@ public static class AdminEndpoints
                     continue;
                 }
 
-                // Compute embedding vector
-                var embedding = new ActionVector(entry.ActionVectorTags ?? [])
-                    .ToEmbedding(vocabulary);
-                var embeddingCsv = string.Join(",",
-                    embedding.Select(f => f.ToString("G",
-                        System.Globalization.CultureInfo.InvariantCulture)));
-
                 var entity = new TableEntity(SoundPartition, soundId.ToString())
                 {
                     ["DisplayName"] = entry.DisplayName,
                     ["DurationMs"] = entry.DurationMs,
                     ["Tags"] = string.Join(",", entry.ActionVectorTags ?? []),
                     ["BlobUrl"] = blobUrl,
-                    ["EmbeddingVector"] = embeddingCsv,
                     ["Priority"] = entry.Priority,
                 };
 
