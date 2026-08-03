@@ -131,15 +131,6 @@
                     <button class="ascii-btn compact-btn" @onclick="DownloadScript">[ Download Script ]</button>
                 </div>
                 <div class="reveal-actions-secondary">
-                    @if (_confirmWipe)
-                    {
-                        <button class="ascii-btn wipe-btn" @onclick="WipeBuffer">[ CONFIRM DELETE ]</button>
-                        <button class="ascii-btn" @onclick='() => _confirmWipe = false'>[ CANCEL ]</button>
-                    }
-                    else
-                    {
-                        <button class="ascii-btn wipe-btn compact-btn" @onclick='() => _confirmWipe = true'>[ Delete Session ]</button>
-                    }
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[ + Create Another ]</button>
                 </div>
@@ -168,7 +159,6 @@
     private string? _scriptStatusMessage;
     private string? _statusMessage;
     private bool _videoLoadFailed;
-    private bool _confirmWipe;
     private IJSObjectReference? _revealJs;
     private bool _showCompleteFlash;
 
@@ -265,28 +255,6 @@
             var module = await EnsureRevealModuleAsync();
             await module.InvokeVoidAsync("navigateTo", $"/api/output/sessions/{SessionId}/download/script");
             _statusMessage = "Script downloading...";
-        }
-        catch (Exception ex)
-        {
-            _statusMessage = $"Error: {ex.Message}";
-        }
-    }
-
-    private async Task WipeBuffer()
-    {
-        _confirmWipe = false;
-        _statusMessage = "Wiping buffer...";
-        try
-        {
-            var response = await Http.DeleteAsync($"/api/output/sessions/{SessionId}");
-            if (response.IsSuccessStatusCode)
-            {
-                Nav.NavigateTo("/");
-            }
-            else
-            {
-                _statusMessage = $"Wipe failed: HTTP {(int)response.StatusCode}";
-            }
         }
         catch (Exception ex)
         {

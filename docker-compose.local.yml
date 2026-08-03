@@ -1,9 +1,9 @@
 services:
   azurite:
-    image: arafato/azurite:latest
+    image: mcr.microsoft.com/azure-storage/azurite:latest
     container_name: pomemevideo-azurite
     hostname: azurite
-    command: "/opt/azurite/bin/azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --loose --skipApiVersionCheck"
+    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --skipApiVersionCheck --loose"
     ports:
       - "10000:10000"   # Blob Storage
       - "10001:10001"   # Queue Storage

@@ -34,28 +34,6 @@
         }
     </div>
 
-    <div class="library-controls-row ascii-border-double reveal-in">
-        <pre class="status">[ Maintenance zone ]</pre>
-        <div class="clear-data-row">
-            @if (_clearConfirm)
-            {
-                <pre class="clear-warning">⚠ THIS WILL DELETE ALL SESSION BLOBS AND METADATA. SOUND LIBRARY IS PRESERVED.</pre>
-                <button class="ascii-btn clear-confirm-btn" @onclick="DoClearData" disabled="@_clearing">
-                    @(_clearing ? "[ CLEARING... ]" : "[ YES — WIPE ALL DATA ]")
-                </button>
-                <button class="ascii-btn" @onclick='() => _clearConfirm = false'>[ CANCEL ]</button>
-            }
-            else
-            {
-                <button class="ascii-btn clear-btn" @onclick='() => _clearConfirm = true'>[ CLEAR ALL DATA ]</button>
-            }
-            @if (!string.IsNullOrWhiteSpace(_clearMessage))
-            {
-                <pre class="clear-status">@_clearMessage</pre>
-            }
-        </div>
-    </div>
-
     @if (_loading)
     {
         <pre class="status">[ Loading sounds… ]</pre>
@@ -131,9 +109,6 @@
     private bool _loading;
     private string _tagFilter = string.Empty;
     private string? _errorMessage;
-    private bool _clearConfirm;
-    private bool _clearing;
-    private string? _clearMessage;
     private CancellationTokenSource? _debounceCts;
     private int _page;
     private const int PageSize = 20;
@@ -232,31 +207,6 @@
     {
         _page = 0;
         TagFilter = string.Empty;
-    }
-
-    private async Task DoClearData()
-    {
-        _clearing = true;
-        _clearMessage = null;
-        StateHasChanged();
-
-        try
-        {
-            var response = await Http.DeleteAsync("/api/admin/data");
-            _clearMessage = response.IsSuccessStatusCode
-                ? "ALL SESSION DATA WIPED. SOUND LIBRARY INTACT."
-                : $"ERROR: {response.StatusCode}";
-        }
-        catch (Exception ex)
-        {
-            _clearMessage = $"ERROR: {ex.Message}";
-        }
-        finally
-        {
-            _clearing = false;
-            _clearConfirm = false;
-            StateHasChanged();
-        }
     }
 
     public void Dispose()

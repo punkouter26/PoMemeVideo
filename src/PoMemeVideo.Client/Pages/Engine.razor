@@ -1,21 +1,9 @@
 @page "/engine/{SessionId:guid}"
-@page "/engine"
 @inject NavigationManager Nav
 @inject HttpClient Http
 @inject IConfiguration Configuration
 @inject IJSRuntime JS
 @implements IAsyncDisposable
-
-@if (SessionId == Guid.Empty)
-{
-    <PageTitle>PoMemeVideo — No Session</PageTitle>
-    <div class="engine-page">
-        <h3>No Session Selected</h3>
-        <p>Select a video from your history to view its processing engine.</p>
-        <a href="/results" class="ascii-btn">[ Go to History ]</a>
-    </div>
-    return;
-}
 
 <PageTitle>PoMemeVideo — Processing</PageTitle>
 
@@ -66,23 +54,6 @@
                 <div class="engine-panel-title">Processing Log</div>
                 <DirectorLogFeed HubClient="_hubClient" />
             </div>
-
-            @if (_showAdvancedPanels)
-            {
-                <div class="hw-panel ascii-border-double">
-                    <HardwareMonitor HubClient="_hubClient" />
-                </div>
-
-                <div class="audit-panel ascii-border-double">
-                    <SystemAuditBox HubClient="_hubClient" />
-                </div>
-            }
-        </div>
-
-        <div class="engine-actions">
-            <button class="ascii-btn compact-btn" @onclick="ToggleAdvancedPanels">
-                @(_showAdvancedPanels ? "[ Hide Technical Panels ]" : "[ Show Technical Panels ]")
-            </button>
         </div>
     }
 
@@ -97,12 +68,6 @@
 
     private EngineHubClient? _hubClient;
     private string? _errorMessage;
-    private bool _showAdvancedPanels;
-
-    private void ToggleAdvancedPanels()
-    {
-        _showAdvancedPanels = !_showAdvancedPanels;
-    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -33,36 +33,6 @@
             <span class="ai-mode-active">@_displayActiveModel</span>
         </div>
 
-        <div class="ai-mode-options">
-            <label class="mode-btn @(_pendingProvider == "AzureOpenAI" ? "mode-btn-active" : "")">
-                <input type="radio" name="ai-provider" value="AzureOpenAI" checked="@(_pendingProvider == "AzureOpenAI")" @onchange='() => SelectProvider("AzureOpenAI")' />
-                <span class="mode-icon">☁</span>
-                <span class="mode-text">
-                    <strong>Remote AI</strong>
-                    <small>Azure OpenAI · GPT-5.4 Nano</small>
-                </span>
-            </label>
-            @if (_isDevelopment)
-            {
-                <label class="mode-btn @(_pendingProvider == "Ollama" ? "mode-btn-active" : "") @(!CanSelectOllama ? "is-disabled" : "")">
-                    <input type="radio" name="ai-provider" value="Ollama" checked="@(_pendingProvider == "Ollama")" disabled="@(!CanSelectOllama)" @onchange='() => SelectProvider("Ollama")' />
-                    <span class="mode-icon">🦙</span>
-                    <span class="mode-text">
-                        <strong>Ollama</strong>
-                        <small>@(_ollamaAvailable ? $"Local · {_pendingOllamaModel}" : "Not running")</small>
-                    </span>
-                </label>
-            }
-            <label class="mode-btn @(_pendingProvider == "BrowserLLM" ? "mode-btn-active" : "") @(!CanSelectBrowserLlm ? "is-disabled" : "")">
-                <input type="radio" name="ai-provider" value="BrowserLLM" checked="@(_pendingProvider == "BrowserLLM")" disabled="@(!CanSelectBrowserLlm)" @onchange='() => SelectProvider("BrowserLLM")' />
-                <span class="mode-icon">⚡</span>
-                <span class="mode-text">
-                    <strong>Local AI</strong>
-                    <small>On-device · WebGPU</small>
-                </span>
-            </label>
-        </div>
-
         <div class="ai-model-dropdown">
             <label class="ai-model-dropdown-label">Model</label>
             <select class="ai-model-dropdown-select" @bind="_pendingModelSelection" @bind:after="OnModelSelectionChanged">
@@ -89,7 +59,9 @@
                     <optgroup label="⚡ Browser · WebGPU">
                         @foreach (var model in _localModels)
                         {
-                            <option value="@($"browser:{model.Id}")">@model.Label</option>
+                            <option value="@($"browser:{model.Id}")" disabled="@(!model.Available)">
+                                @model.Label@(!model.Available ? " (not downloaded)" : "")
+                            </option>
                         }
                     </optgroup>
                 }
@@ -107,10 +79,6 @@
         {
             <pre class="clear-status">@_modelMessage</pre>
         }
-
-        <div class="ai-mode-footer">
-            <button class="ascii-btn compact-btn ai-mode-admin-btn" @onclick='() => Nav.NavigateTo("/admin/sounds")'>[ Sound Admin ]</button>
-        </div>
     </div>
 
     <div class="dropzone-host @(_uploaded ? "is-uploaded" : null)">

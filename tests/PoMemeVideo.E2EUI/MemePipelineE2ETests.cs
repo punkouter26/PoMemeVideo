@@ -76,12 +76,8 @@ public sealed class MemePipelineE2ETests
         await page.GotoAsync($"{BaseUrl}results");
         await page.WaitForSelectorAsync("h1:has-text('Video History')");
 
-        // ── Step 5: Engine fallback (no session GUID) ────────────────────────
+        // ── Step 5: Login page renders both auth options ─────────────────────
         var url = BaseUrl!.EndsWith("/") ? BaseUrl : BaseUrl + "/";
-        await page.GotoAsync($"{url}engine");
-        await page.WaitForSelectorAsync("text=No Session Selected");
-
-        // ── Step 6: Login page renders both auth options ─────────────────────
         await page.GotoAsync($"{url}login");
         await page.WaitForSelectorAsync("text=RANDOM GUEST");
         var microsoftBtn = await page.QuerySelectorAsync("text=SIGN IN WITH MICROSOFT");

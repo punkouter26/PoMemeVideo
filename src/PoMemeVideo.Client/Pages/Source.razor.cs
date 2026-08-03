@@ -50,8 +50,6 @@ public partial class Source
     // Unified model-selection dropdown (Remote / Ollama / Browser groups).
     private string _pendingModelSelection = "remote:gpt-5.4-nano";
     private string _dropdownHint = "";
-    private bool CanSelectBrowserLlm => _localModels.Count > 0;
-    private bool CanSelectOllama => _ollamaAvailable;
     private int CurrentStep => !_uploaded ? 1 : _visionInProgress ? 2 : 3;
 
     private ElementReference _videoRef;
@@ -236,7 +234,7 @@ public partial class Source
 
     private async Task OnInitiate()
     {
-        if (_activeProvider == "BrowserLLM" && _localModels.Count == 0)
+        if (_activeProvider == "BrowserLLM" && !_localModels.Any(model => model.Available))
         {
             if (_pendingProvider != "BrowserLLM")
             {
@@ -364,7 +362,7 @@ public partial class Source
             };
             UpdateDropdownHint();
 
-            if (_activeProvider == "BrowserLLM" && _localModels.Count == 0)
+            if (_activeProvider == "BrowserLLM" && !_localModels.Any(model => model.Available))
             {
                 // Keep active provider unchanged until user applies, but preselect a viable option.
                 _pendingProvider = "AzureOpenAI";
@@ -390,24 +388,6 @@ public partial class Source
                              : "No local models downloaded",
         _ => provider,
     };
-
-    private void SelectProvider(string provider)
-    {
-        if (provider == "BrowserLLM" && !CanSelectBrowserLlm)
-        {
-            _modelMessage = "LOCAL MODELS NOT FOUND - run: python SCRIPTS/download-models.py";
-            return;
-        }
-        if (provider == "Ollama" && !CanSelectOllama)
-        {
-            _modelMessage = "OLLAMA NOT RUNNING - start Ollama and refresh";
-            return;
-        }
-
-        _pendingProvider = provider;
-        RecomputeModelDirty();
-        _modelMessage = null;
-    }
 
     private void RecomputeModelDirty()
     {
@@ -528,7 +508,7 @@ public partial class Source
         string? OllamaModel,
         string[]? OllamaModels,
         bool IsDevelopment);
-    private sealed record LocalModelInfo(string Id, string Label);
+    private sealed record LocalModelInfo(string Id, string Label, bool Available);
     private sealed record FrameUploadResult(int FramesStored, VisionLabelItem[]? VisionLabels, VisionDiagnostics? VisionDiagnostics);
     private sealed record VisionDiagnostics(int FramesReceived, int FramesStored, bool AnalysisAttempted, string? AnalysisError, int LabelsDetected, string PlacementMode);
     private sealed record VisionLabelItem(double TimestampSeconds, string Label);

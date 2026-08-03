@@ -34,9 +34,9 @@ public static class ConfigEndpoints
             IWebHostEnvironment env) =>
         {
             var localModelIds = GetAvailableLocalModelIds(env);
-            var selectedBrowserLLMModel = localModelIds.Contains(settings.BrowserLLMModel, StringComparer.OrdinalIgnoreCase)
+            var selectedBrowserLLMModel = RuntimeAiSettings.LocalModelDisplayNames.ContainsKey(settings.BrowserLLMModel)
                 ? settings.BrowserLLMModel
-                : localModelIds.FirstOrDefault();
+                : RuntimeAiSettings.LocalModelDisplayNames.Keys.FirstOrDefault();
 
             // Probe Ollama only in Development to avoid blocking prod startup.
             string[]? ollamaModels = null;
@@ -73,10 +73,11 @@ public static class ConfigEndpoints
             {
                 provider = settings.Provider,
                 browserLLMModel = selectedBrowserLLMModel,
-                localModels = localModelIds.Select(id => new
+                localModels = RuntimeAiSettings.LocalModelDisplayNames.Select(model => new
                 {
-                    id,
-                    label = RuntimeAiSettings.LocalModelDisplayNames.TryGetValue(id, out var label) ? label : id,
+                    id = model.Key,
+                    label = model.Value,
+                    available = localModelIds.Contains(model.Key, StringComparer.OrdinalIgnoreCase),
                 }),
                 aiFoundryDeployment = selectedFoundry,
                 aiFoundryDeployments = allFoundryNames,

@@ -4,11 +4,17 @@
          - "GUEST<random> LOGGED IN" for guest identities (GUEST\d{8})
      - User email for Microsoft OAuth authenticated users + LOG OUT button
      - "[ GUEST ]" when no session is active
-   Styled with retro-terminal.css ASCII horizontal rule separator. *@
+   Styled with retro-terminal.css ASCII horizontal rule separator.
+
+   Auth state is sourced from CascadingAuthenticationState, so login/logout
+   triggers re-renders via AuthenticationStateChanged — no background polling. *@
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @inject NavRefreshService NavRefresh
+@inject AuthenticationStateProvider AuthProvider
 @implements IDisposable
+@implements IAsyncDisposable
 
 <nav class="retro-navbar" role="navigation" aria-label="Site navigation">
     <NavLink class="brand flicker" href="/" Match="NavLinkMatch.All">PoMemeVideo</NavLink>
@@ -17,11 +23,7 @@
         <NavLink href="/" Match="NavLinkMatch.All">[ CREATE ]</NavLink>
         <NavLink href="/admin/sounds">[ SOUNDS ]</NavLink>
         <NavLink href="/results">[ HISTORY ]</NavLink>
-        @if (!_isAuthenticated)
-        {
-            <NavLink href="/login">[ LOGIN ]</NavLink>
-        }
-        <a href="/scalar/" target="_blank" rel="noopener noreferrer" class="nav-api-link">[ API ]</a>
+        <a href="/scalar/" target="_blank" rel="noopener noreferrer" class="nav-api-link" hidden="@(!_isDevelopment)">[ API ]</a>
     </div>
 
     <div class="status-cluster" aria-label="Runtime status">
@@ -67,44 +69,44 @@
     private string? _aiDisplay;
     private string? _mockDisplay;
     private bool _isAuthenticated;
-    private System.Threading.Timer? _refreshTimer;
+    private bool _isDevelopment;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadAuthAsync();
         await LoadAiAsync();
-        await LoadMockAsync();
+        await LoadConfigAsync();
         NavRefresh.Subscribe(OnAiChangedAsync);
-        // Refresh auth state periodically to pick up logins/logouts.
-        // Keep this slower to reduce background polling across many open tabs.
-        _refreshTimer = new System.Threading.Timer(
-            async _ =>
-            {
-                await LoadAuthAsync();
-                await InvokeAsync(StateHasChanged);
-            },
-            null,
-            TimeSpan.FromSeconds(45),
-            TimeSpan.FromSeconds(90));
+
+        // React to login/logout via the authentication state provider instead of polling.
+        AuthProvider.AuthenticationStateChanged += OnAuthStateChanged;
+    }
+
+    private async void OnAuthStateChanged(Task<AuthenticationState> _)
+    {
+        await LoadAuthAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnAiChangedAsync()
     {
         await LoadAiAsync();
-        await LoadMockAsync();
+        await LoadConfigAsync();
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task LoadMockAsync()
+    private async Task LoadConfigAsync()
     {
         try
         {
             var config = await Http.GetFromJsonAsync<ConfigResponse>("/api/config");
             _mockDisplay = config?.UseMockAI == true ? "[ USING MOCK DATA ]" : null;
+            _isDevelopment = config?.IsDevelopment ?? false;
         }
         catch
         {
             _mockDisplay = null;
+            _isDevelopment = false;
         }
     }
 
@@ -187,7 +189,13 @@
     public void Dispose()
     {
         NavRefresh.Unsubscribe();
-        _refreshTimer?.Dispose();
+        AuthProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        await ValueTask.CompletedTask;
     }
 
     private sealed record AuthMeResponse(string? DisplayName, string? Email);
