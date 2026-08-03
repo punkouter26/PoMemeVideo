@@ -40,7 +40,7 @@
                     <div class="ascii-border-double">
                         <pre class="panel-header">[ OUTPUT VIDEO ]</pre>
                         <CrtMonitorFrame>
-                            <video class="output-video" autoplay controls @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
+                            <video class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
                                 <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
                                 Your browser does not support the video tag.
                             </video>

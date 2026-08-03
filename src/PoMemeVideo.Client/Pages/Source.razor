@@ -30,12 +30,11 @@
     <div class="ai-mode-card ascii-border-double reveal-in">
         <div class="ai-mode-header">
             <span class="ai-mode-label">AI Model</span>
-            <span class="ai-mode-active">@_displayActiveModel</span>
+            <span class="ai-mode-active">ACTIVE: @_displayActiveModel</span>
         </div>
 
-        <div class="ai-model-dropdown">
-            <label class="ai-model-dropdown-label">Model</label>
-            <select class="ai-model-dropdown-select" @bind="_pendingModelSelection" @bind:after="OnModelSelectionChanged">
+        <div class="ai-model-row">
+            <select class="ai-model-dropdown-select" @bind="_pendingModelSelection" @bind:after="OnModelSelectionChanged" aria-label="AI model selector">
                 @if (_foundryDeployments.Count > 0)
                 {
                     <optgroup label="☁ Remote · AI Foundry">
@@ -66,15 +65,15 @@
                     </optgroup>
                 }
             </select>
-            <span class="ai-model-dropdown-hint">@_dropdownHint</span>
+            @if (_modelDirty)
+            {
+                <button class="ascii-btn apply-model-btn" @onclick="ApplyModelAsync" disabled="@_modelApplying">
+                    @(_modelApplying ? "[ Applying… ]" : "[ Apply ]")
+                </button>
+            }
         </div>
 
-        @if (_modelDirty)
-        {
-            <button class="ascii-btn apply-model-btn" @onclick="ApplyModelAsync" disabled="@_modelApplying">
-                @(_modelApplying ? "[ Applying… ]" : "[ Apply Model ]")
-            </button>
-        }
+        <span class="ai-model-dropdown-hint">@_dropdownHint</span>
         @if (!string.IsNullOrWhiteSpace(_modelMessage))
         {
             <pre class="clear-status">@_modelMessage</pre>
