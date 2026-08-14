@@ -35,6 +35,9 @@
     <!-- Microsoft.Identity.Web / Mvc.Testing pull 10.0.7 (GHSA-23rf-6693-g89p, -8q5v-6pqq-x66h,
          -cvvh-rhrc-wg4q, -g8r8-53c2-pm3f, -mmjf-rqrv-855v). -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    <!-- Testcontainers 4.5.0 pulls SSH.NET 2024.2.0 (GHSA-q939-rpr3-3284, high). The advisory
+         covers everything <= 2025.1.0, so 2026.0.0 is the first fixed version — not 2025.x. -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
   </ItemGroup>
   <!-- Numerics / Tensors -->
   <ItemGroup>
