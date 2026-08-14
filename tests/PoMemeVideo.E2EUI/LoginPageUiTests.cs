@@ -23,10 +23,19 @@ public sealed class LoginPageUiTests
         var page = await browser.NewPageAsync();
 
         await page.GotoAsync(BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
-        // The auth wall redirects anonymous users to /login.
-        await page.WaitForURLAsync("**/login", new PageWaitForURLOptions { Timeout = 15_000 });
+        // The auth wall redirects anonymous users to /login. The trailing ** is load-bearing:
+        // the redirect carries ?returnUrl=..., and a bare "**/login" fails to match that, timing
+        // out on a redirect that actually happened.
+        await page.WaitForURLAsync("**/login**", new PageWaitForURLOptions { Timeout = 15_000 });
 
-        var heading = await page.TextContentAsync("body");
-        Assert.Contains("MICROSOFT", heading ?? "", StringComparison.OrdinalIgnoreCase);
+        // Reaching /login only means the server issued the redirect — the sign-in UI is rendered
+        // by Blazor WASM afterwards. Reading body text right away races that boot and returns the
+        // shell's inlined CSS, so wait for the button itself before asserting.
+        await page.WaitForSelectorAsync(
+            "text=SIGN IN WITH MICROSOFT",
+            new PageWaitForSelectorOptions { Timeout = 30_000 });
+
+        var body = await page.TextContentAsync("body");
+        Assert.Contains("MICROSOFT", body ?? "", StringComparison.OrdinalIgnoreCase);
     }
 }
