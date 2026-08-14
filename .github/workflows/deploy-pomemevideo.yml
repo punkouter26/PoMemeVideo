@@ -130,9 +130,14 @@ jobs:
           set -euo pipefail
           # --clean is explicit: its default is "determined by artifact type", and a merge-style
           # deploy would leave assemblies from earlier builds behind in wwwroot.
+          #
+          # --async true is deliberate. Synchronous mode waits out the container recycle that
+          # OneDeploy triggers after upload, and gives up at 10 minutes — which an F1 cold start
+          # of a ~350 MB package blows straight through, failing the step on a deployment that
+          # actually succeeded. The health gate below is the real verification.
           az webapp deploy \
             --resource-group "${RESOURCE_GROUP}" --name "${WEBAPP_NAME}" \
-            --src-path package.zip --type zip --clean true --async false
+            --src-path package.zip --type zip --clean true --async true
 
       - name: Health check gate
         shell: bash
@@ -141,9 +146,11 @@ jobs:
           HEALTH_URL="https://${WEBAPP_NAME}.azurewebsites.net/health/live"
           echo "Checking ${HEALTH_URL} for HTTP 200"
 
-          for attempt in {1..20}; do
+          # 60 x 15s = 15 min. Generous because this now absorbs the post-deploy container
+          # recycle as well, and F1 has no Always On to keep an instance warm.
+          for attempt in {1..60}; do
             status_code="$(curl -sS -o /dev/null -w "%{http_code}" "${HEALTH_URL}" || true)"
-            echo "Attempt ${attempt}/20: HTTP ${status_code}"
+            echo "Attempt ${attempt}/60: HTTP ${status_code}"
 
             if [ "${status_code}" = "200" ]; then
               echo "Health check passed."
@@ -153,7 +160,7 @@ jobs:
             sleep 15
           done
 
-          echo "Health check failed after 20 attempts. Dumping site state:"
+          echo "Health check failed after 60 attempts. Dumping site state:"
           az webapp show \
             --resource-group "${RESOURCE_GROUP}" \
             --name "${WEBAPP_NAME}" \
