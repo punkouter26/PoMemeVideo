@@ -1,3 +1,9 @@
+# NOT the deployment path. `deploy-pomemevideo.yml` publishes framework-dependent, bundles a
+# static ffmpeg into the output and ZIP-deploys it, because requiring a custom container is what
+# held the App Service plan at B1. This image is kept for local `docker run` and as the way back
+# to a container deploy if the free-tier constraints (60 CPU-min/day, no Always On) prove too
+# tight — it is not built by CI, so treat it as able to drift.
+
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src

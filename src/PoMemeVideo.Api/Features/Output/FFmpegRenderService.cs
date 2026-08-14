@@ -38,9 +38,12 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     {
         _blobService = blobService;
         _logger = logger;
-        _ffmpegBinPath = configuration["FFmpegBinPath"];
+        _ffmpegBinPath = configuration["FFmpegBinPath"] ?? ResolveBundledBinPath();
         if (!string.IsNullOrWhiteSpace(_ffmpegBinPath))
+        {
             _logger.LogInformation("FFmpegRenderService: using FFmpegBinPath = {Path}", _ffmpegBinPath);
+            EnsureExecutable(_ffmpegBinPath);
+        }
         _jobQueue = Channel.CreateBounded<RenderJob>(
             new BoundedChannelOptions(Environment.ProcessorCount)
             {
@@ -409,6 +412,56 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Locates the static ffmpeg/ffprobe bundled into the publish output under <c>ffmpeg/</c>.
+    /// The ZIP deploy ships those binaries precisely so the app does not need a container image
+    /// with ffmpeg installed system-wide — that container requirement is what forced the plan up
+    /// to B1. Returns null when the directory is absent (dev machines and the Docker image both
+    /// have ffmpeg on PATH), leaving the bare-name lookup in <see cref="BuildPsi"/> in charge.
+    /// </summary>
+    private static string? ResolveBundledBinPath()
+    {
+        var binDir = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
+        var exeName = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
+        return File.Exists(Path.Combine(binDir, exeName)) ? binDir : null;
+    }
+
+    /// <summary>
+    /// Restores the Unix executable bit on the bundled binaries. ZIP deployment is not a reliable
+    /// carrier for file modes — Kudu's extraction can drop them — and a non-executable ffmpeg
+    /// surfaces only at Process.Start as a bare "Permission denied" with no hint at the cause.
+    /// Idempotent, and a no-op when the package arrived with its modes intact.
+    /// </summary>
+    private void EnsureExecutable(string binDir)
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        const UnixFileMode executeBits =
+            UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
+
+        foreach (var exeName in new[] { "ffmpeg", "ffprobe" })
+        {
+            var path = Path.Combine(binDir, exeName);
+            if (!File.Exists(path))
+                continue;
+
+            try
+            {
+                var mode = File.GetUnixFileMode(path);
+                if ((mode & executeBits) != executeBits)
+                    File.SetUnixFileMode(path, mode | executeBits);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Read-only wwwroot (e.g. WEBSITE_RUN_FROM_PACKAGE=1). Renders will fail if the
+                // package did not already carry the bit, so say so loudly rather than throwing
+                // here and taking down startup for an app that may never render.
+                _logger.LogWarning(ex, "Could not mark {Path} executable; renders may fail", path);
+            }
+        }
     }
 
     /// <summary>Builds a ProcessStartInfo, using the full exe path when FFmpegBinPath is configured.</summary>
