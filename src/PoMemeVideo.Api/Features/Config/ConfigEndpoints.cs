@@ -270,11 +270,30 @@ public static class ConfigEndpoints
         string? AiFoundryDeployment,
         string? OllamaModel);
 
-    private static readonly string SettingsFilePath =
-        Path.Combine(Path.GetTempPath(), "pomemevideo-ai-settings.json");
+    /// <summary>
+    /// Resolves the persisted AI-settings file path. Off by default — the file lives under
+    /// <c>%LOCALAPPDATA%/PoMemeVideo</c> when the env var <c>PoMemeVideo__PersistAiSettings=true</c>
+    /// is set, otherwise persistence is skipped entirely. %TEMP% was rejected because reboots
+    /// silently drop the file (which masked the "provider flipped on me" bug we hit in dev).
+    /// </summary>
+    private static string? GetSettingsFilePath()
+    {
+        var enabled = Environment.GetEnvironmentVariable("PoMemeVideo__PersistAiSettings");
+        if (!string.Equals(enabled, "true", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "PoMemeVideo");
+        Directory.CreateDirectory(dir);
+        return Path.Combine(dir, "ai-settings.json");
+    }
 
     private static void PersistSettings(RuntimeAiSettings settings)
     {
+        var path = GetSettingsFilePath();
+        if (path is null) return;
+
         try
         {
             var data = new
@@ -284,7 +303,7 @@ public static class ConfigEndpoints
                 aiFoundryDeployment = settings.AiFoundryDeployment,
                 ollamaModel = settings.OllamaModel,
             };
-            File.WriteAllText(SettingsFilePath, JsonSerializer.Serialize(data));
+            File.WriteAllText(path, JsonSerializer.Serialize(data));
         }
         catch
         {
@@ -294,12 +313,13 @@ public static class ConfigEndpoints
 
     public static void RestoreSettings(RuntimeAiSettings settings)
     {
+        var path = GetSettingsFilePath();
+        if (path is null || !File.Exists(path))
+            return;
+
         try
         {
-            if (!File.Exists(SettingsFilePath))
-                return;
-
-            using var doc = JsonDocument.Parse(File.ReadAllText(SettingsFilePath));
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
             var root = doc.RootElement;
 
             if (root.TryGetProperty("provider", out var p) && p.GetString() is { } provider

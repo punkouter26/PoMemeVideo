@@ -1,0 +1,17 @@
+{
+  "Version": 1,
+  "ProjectRoot": "C:\\Users\\punko\\Downloads\\PoMemeVideo",
+  "Skills": [
+    "aspnet-core",
+    "blazor",
+    "configuring-opentelemetry-dotnet",
+    "coverage-analysis",
+    "coverlet",
+    "microsoft-extensions",
+    "minimal-api-file-upload",
+    "playwright-visual-testing",
+    "signalr",
+    "xunit"
+  ],
+  "UpdatedAt": "2026-08-24T03:00:55.8766056+00:00"
+}

@@ -2,25 +2,36 @@
 @page "/admin/sounds"
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject NotificationService Notification
+@inject IJSRuntime JS
 @implements IDisposable
 
-<PageTitle>PoMemeVideo — Sound Admin</PageTitle>
+<PageTitle>PoMemeVideo — Sound Library & Admin</PageTitle>
 
 <div class="sound-admin-page">
 
     <div class="page-hero">
-        <h1 class="hero-title">Sound Admin<span class="admin-page-badge">ADMIN</span></h1>
-        <p class="hero-sub">Browse, preview, and explore the full meme sound library</p>
+        <h1 class="hero-title">Sound Library<span class="admin-page-badge">ADMIN</span></h1>
+        <p class="hero-sub">Browse, search, and audition the full catalog of meme sound assets</p>
     </div>
 
     <div class="library-controls-row ascii-border-double reveal-in">
         <div class="search-bar">
             <input class="ascii-input"
-                   placeholder="Filter by tag (comma-separated)…"
+                   placeholder="Filter by tag (comma-separated, e.g. boom, reaction)…"
                    @bind="TagFilter"
                    @bind:event="oninput" />
             <button class="ascii-btn compact-btn" @onclick="LoadSounds" disabled="@_loading">Search</button>
             <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">Clear</button>
+        </div>
+
+        <div class="view-mode-toggle">
+            <button class="ascii-btn compact-btn @(_viewMode == ViewMode.Grid ? "active" : "")" @onclick="() => _viewMode = ViewMode.Grid">
+                [ 📋 DATA GRID ]
+            </button>
+            <button class="ascii-btn compact-btn @(_viewMode == ViewMode.Cards ? "active" : "")" @onclick="() => _viewMode = ViewMode.Cards">
+                [ 🎴 CARDS ]
+            </button>
         </div>
 
         @if (ActiveTags.Count > 0)
@@ -28,21 +39,29 @@
             <div class="active-tags" aria-label="Active filters">
                 @foreach (var tag in ActiveTags)
                 {
-                    <button class="sound-tag" @onclick="() => RemoveTag(tag)">#@tag ×</button>
+                    <RadzenBadge BadgeStyle="BadgeStyle.Primary" IsPill="true" class="cursor-pointer" @onclick="() => RemoveTag(tag)">
+                        #@tag &times;
+                    </RadzenBadge>
                 }
             </div>
         }
     </div>
 
-    @if (_loading)
+    @if (_loading && _sounds.Length == 0)
     {
-        <pre class="status">[ Loading sounds… ]</pre>
+        <div class="loading-wrap ascii-border-double">
+            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="height: 6px;" />
+            <pre class="status">[ Loading meme sounds from storage… ]</pre>
+        </div>
     }
     else if (_sounds.Length == 0)
     {
         <div class="empty-state ascii-border-double reveal-in">
             <pre class="status">[ No sounds found@(!string.IsNullOrWhiteSpace(_tagFilter) ? $" — no matches for '{_tagFilter}'" : " — library is empty") ]</pre>
             <div class="empty-actions">
+                <button class="ascii-btn compact-btn primary-action" @onclick="SeedDefaultSounds" disabled="@_seeding">
+                    @(_seeding ? "[ 🌱 Seeding… ]" : "[ 🌱 Seed Default Sounds ]")
+                </button>
                 <button class="ascii-btn compact-btn" @onclick="ClearFilters">Reset Filters</button>
                 <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>Go to Create</button>
             </div>
@@ -58,43 +77,101 @@
                 <button class="ascii-btn compact-btn" @onclick="NextPage" disabled="@(_page >= TotalPages - 1 || _loading)">[ NEXT ▶ ]</button>
             </div>
         </div>
-        <div class="sound-admin-grid">
-            @* Virtualize: the library grows with every seed run, so only render the cards
-               actually on screen rather than the whole page of results. *@
-            <Virtualize Items="_sounds" Context="sound" ItemSize="220">
-                <div class="sound-admin-card reveal-in">
-                    <p class="sound-admin-name">@sound.DisplayName</p>
-                    <div class="sound-admin-meta-grid">
-                        <span class="sound-meta-key">ID</span>
-                        <span class="sound-meta-val">@sound.SoundId.ToString()[..8]…</span>
-                        <span class="sound-meta-key">Duration</span>
-                        <span class="sound-meta-val">@((sound.DurationMs / 1000.0).ToString("F2"))s&nbsp;(@sound.DurationMs ms)</span>
-                    </div>
-                    @if (sound.ActionVectorTags.Length > 0)
-                    {
-                        <div class="sound-tag-row">
-                            @foreach (var tag in sound.ActionVectorTags)
-                            {
-                                <button class="sound-tag" @onclick='() => { TagFilter = tag; }' title="Filter by #@tag">#@tag</button>
-                            }
+
+        @if (_viewMode == ViewMode.Grid)
+        {
+            <div class="radzen-grid-container ascii-border-double reveal-in">
+                <RadzenDataGrid Data="@_sounds" TItem="SoundAssetDto" AllowSorting="true" AllowColumnResize="true"
+                                Responsive="true" class="retro-datagrid">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="SoundAssetDto" Property="DisplayName" Title="Sound Name" Width="220px">
+                            <Template Context="sound">
+                                <span class="grid-sound-name">@sound.DisplayName</span>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="SoundAssetDto" Property="DurationMs" Title="Duration" Width="120px">
+                            <Template Context="sound">
+                                <span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="SoundAssetDto" Title="Tags" Width="300px">
+                            <Template Context="sound">
+                                <div class="sound-tag-row">
+                                    @foreach (var tag in sound.ActionVectorTags)
+                                    {
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Info" IsPill="true" class="cursor-pointer"
+                                                     @onclick="() => { TagFilter = tag; }">
+                                            #@tag
+                                        </RadzenBadge>
+                                    }
+                                </div>
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="SoundAssetDto" Title="Audition / Play" Width="120px" TextAlign="TextAlign.Center">
+                            <Template Context="sound">
+                                <div class="retro-audio-player">
+                                    <audio id="grid-audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
+                                    <button class="ascii-btn compact-btn"
+                                            onclick="(function(btn){
+                                                var audio = document.getElementById('grid-audio-@sound.SoundId');
+                                                if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
+                                                document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                                document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
+                                                audio.play();
+                                                btn.textContent = '[ ■ ]';
+                                                audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
+                                            })(this)">[ &#9654; ]</button>
+                                </div>
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </div>
+        }
+        else
+        {
+            <div class="sound-admin-grid">
+                <Virtualize Items="_sounds" Context="sound" ItemSize="220">
+                    <div class="sound-admin-card reveal-in ascii-border-double vibe-glass-card">
+                        <p class="sound-admin-name">@sound.DisplayName</p>
+                        <div class="sound-admin-meta-grid">
+                            <span class="sound-meta-key">ID</span>
+                            <span class="sound-meta-val">@sound.SoundId.ToString()[..8]…</span>
+                            <span class="sound-meta-key">Duration</span>
+                            <span class="sound-meta-val">@((sound.DurationMs / 1000.0).ToString("F2"))s</span>
                         </div>
-                    }
-                    <div class="retro-audio-player">
-                        <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
-                        <button class="ascii-btn"
-                                onclick="(function(btn){
-                                    var audio = document.getElementById('audio-@sound.SoundId');
-                                    if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ \u25B6 ]'; return; }
-                                    document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
-                                    document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ \u25B6 ]'; });
-                                    audio.play();
-                                    btn.textContent = '[ \u25A0 ]';
-                                    audio.onended = function(){ btn.textContent = '[ \u25B6 ]'; };
-                                })(this)">[ &#9654; ]</button>
+                        @if (sound.ActionVectorTags.Length > 0)
+                        {
+                            <div class="sound-tag-row">
+                                @foreach (var tag in sound.ActionVectorTags)
+                                {
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Info" IsPill="true" class="cursor-pointer"
+                                                 @onclick='() => { TagFilter = tag; }'>
+                                        #@tag
+                                    </RadzenBadge>
+                                }
+                            </div>
+                        }
+                        <div class="retro-audio-player">
+                            <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
+                            <button class="ascii-btn"
+                                    onclick="(function(btn){
+                                        var audio = document.getElementById('audio-@sound.SoundId');
+                                        if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
+                                        document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                        document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
+                                        audio.play();
+                                        btn.textContent = '[ ■ ]';
+                                        audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
+                                    })(this)">[ &#9654; ]</button>
+                        </div>
                     </div>
-                </div>
-            </Virtualize>
-        </div>
+                </Virtualize>
+            </div>
+        }
     }
 
     @if (!string.IsNullOrEmpty(_errorMessage))
@@ -104,6 +181,8 @@
 </div>
 
 @code {
+    private enum ViewMode { Grid, Cards }
+    private ViewMode _viewMode = ViewMode.Grid;
     private SoundAssetDto[] _sounds = [];
     private int _totalCount;
     private bool _loading;
@@ -136,6 +215,36 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSounds();
+    }
+
+    private bool _seeding;
+
+    private async Task SeedDefaultSounds()
+    {
+        _seeding = true;
+        StateHasChanged();
+        try
+        {
+            var resp = await Http.PostAsync("/api/memelibrary/seed", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                Notification.Notify(NotificationSeverity.Success, "Seeding Complete", "Default meme sound assets loaded into library.", 3000);
+                await LoadSounds();
+            }
+            else
+            {
+                Notification.Notify(NotificationSeverity.Error, "Seed Failed", $"HTTP {(int)resp.StatusCode}", 3000);
+            }
+        }
+        catch (Exception ex)
+        {
+            Notification.Notify(NotificationSeverity.Error, "Seed Failed", ex.Message, 3000);
+        }
+        finally
+        {
+            _seeding = false;
+            StateHasChanged();
+        }
     }
 
     private async Task DebouncedLoadAsync()

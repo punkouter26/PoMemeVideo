@@ -262,20 +262,20 @@ Local dev uses `dev` environment (real AI calls).
 
 ## 14. Azure Deployment (current truth)
 
-- **App resource group:** `PoMemeVideo` — holds `app-pomemevideo` (Web App) and `stpomemevideo` (Table/Blob storage).
-- **App Service Plan:** `asp-PoShared-f1` (**F1 Linux**, free) in the **`PoShared`** RG — a *shared* plan intended to host multiple Po* apps.
-  - **Why F1 is reachable at all:** the app shells out to native `ffmpeg`/`ffprobe`. Installing those system-wide required a **custom Linux container**, and custom containers require **≥ B1** — which is why the plan sat at B1. The container requirement is gone: CI now bundles a **statically linked ffmpeg + ffprobe into the publish output** under `ffmpeg/` and **ZIP-deploys** against the built-in `DOTNETCORE|10.0` runtime.
-  - **What F1 costs you** — these are live constraints, not footnotes:
-    - **60 CPU-minutes/day, hard quota.** Video encoding is CPU-bound; the app stops serving (HTTP 403) once the quota trips and resets at UTC midnight. This is the binding limit on how many renders/day are possible, and it is *far* tighter than B1's.
-    - **No Always On.** The site unloads after ~20 min idle, so the first request after a lull pays a cold start.
-    - **1 GB storage.** The deployed package is ~348 MB (71 MB app + 277 MB ffmpeg/ffprobe). Render scratch files land in `Path.GetTempPath()` → container-local `/tmp`, *not* `/home`, so they do not draw against this quota.
-  - **Going back to B1** if the quota proves too tight: the `Dockerfile` is still valid and still installs ffmpeg. Restore the container deploy, then flip `linuxFxVersion` back to `DOCKER|…` and re-add the `DOCKER_REGISTRY_SERVER_*` settings.
-  - Region note: `PoShared` RG metadata is `eastus2`, but the plan/app run in **westus2** (co-locates with storage; also where the former B1 plan had quota).
-- **Identity:** **system-assigned** managed identity with get/list on `kv-poshared` secrets (no UAMI, no `AZURE_CLIENT_ID`). `DefaultAzureCredential` selects it automatically.
-- **Secrets vault:** `kv-poshared` (access-policy model, *not* RBAC). App-specific secrets are prefixed `PoMemeVideo--`.
-- **CI/CD:** GitHub Actions `deploy-pomemevideo.yml` publishes framework-dependent → downloads a **pinned static ffmpeg** (release tag + archive name + SHA-256, all three in the workflow `env:`) into `publish/ffmpeg/` → zips → `az webapp deploy --type zip`. No tests run in CI (by rule). `azure.yaml` is a legacy azd manifest; there is no `infra/` Bicep dir.
-  - The pinned build must be the **gpl** variant — the render pipeline encodes with `libx264`, which the lgpl builds omit. CI asserts this (`ffmpeg -encoders | grep libx264`) so a wrong-variant bump fails the build instead of failing every render at runtime.
-  - `FFmpegBinPath` (config) still wins when set; with it unset, `FFmpegRenderService.ResolveBundledBinPath()` finds `ffmpeg/` next to the app assembly. `EnsureExecutable` re-applies the Unix execute bit at startup, because ZIP extraction is not a reliable carrier of file modes. Do **not** set `WEBSITE_RUN_FROM_PACKAGE=1` — the read-only mount blocks that fallback.
+- **App RG:** `PoMemeVideo` (web app + storage); shared **plan RG** `PoShared`.
+- **Plan:** `asp-PoShared-f1` (**F1 Linux**, free tier in **westus2**). Renders count against a
+  hard **60 CPU-min/day** quota — once it trips, the app returns 403 until UTC midnight. There is
+  no Always On (cold start after ~20 min idle) and 1 GB storage. CI ships a pinned **gpl** static
+  ffmpeg in `publish/ffmpeg/` so the app can encode without a system install.
+- **Identity:** system-assigned MI with get/list on `kv-poshared` (no UAMI, no `AZURE_CLIENT_ID`).
+- **Secrets vault:** `kv-poshared` (access-policy, not RBAC); app-specific prefix `PoMemeVideo--`.
+- **CI/CD:** `deploy-pomemevideo.yml` publishes framework-dependent, bundles ffmpeg, ZIP-deploys
+  via `az webapp deploy`. No tests run in CI (by rule). `azure.yaml` is a legacy azd manifest;
+  there is no `infra/` Bicep dir. **Do not** set `WEBSITE_RUN_FROM_PACKAGE=1` — the read-only mount
+  blocks the ffmpeg bit-fixup at startup.
+- **Bumping back to B1:** the `Dockerfile` is still valid and still installs ffmpeg; restore the
+  container deploy, flip `linuxFxVersion` to `DOCKER|…`, re-add the `DOCKER_REGISTRY_SERVER_*`
+  app settings.
 
 ---
 

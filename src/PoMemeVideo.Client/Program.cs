@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.JSInterop;
 using PoMemeVideo.Client;
 using PoMemeVideo.Client.Services;
+using Radzen;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -21,6 +22,14 @@ builder.Services.AddScoped(sp => new HttpClient(
 });
 builder.Services.AddScoped<BlobUploadService>();
 builder.Services.AddSingleton<NavRefreshService>();
+builder.Services.AddScoped<Vibe3DService>();
+builder.Services.AddScoped<AppThemeService>();
+
+// Radzen core UI services
+builder.Services.AddScoped<DialogService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<TooltipService>();
+builder.Services.AddScoped<ContextMenuService>();
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();

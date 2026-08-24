@@ -1,0 +1,19 @@
+@inject Vibe3DService Vibe3D
+@implements IAsyncDisposable
+
+<canvas id="vibe-aurora-canvas" class="vibe-aurora-bg" aria-hidden="true"></canvas>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Vibe3D.InitAuroraAsync("vibe-aurora-canvas");
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
+    }
+}

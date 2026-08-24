@@ -38,6 +38,12 @@ public class BlobStorageService : IBlobStorageService
         await blobClient.UploadAsync(content, new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } }, cancellationToken);
     }
 
+    public async Task UploadFileAsync(string path, string localFilePath, string contentType, CancellationToken cancellationToken = default)
+    {
+        await using var stream = File.OpenRead(localFilePath);
+        await UploadBlobAsync(path, stream, contentType, cancellationToken);
+    }
+
     public async IAsyncEnumerable<string> ListBlobsByPrefixAsync(string prefix, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var (containerName, blobPrefix) = SplitPath(prefix);
@@ -65,13 +71,6 @@ public class BlobStorageService : IBlobStorageService
             throw new ArgumentException($"Blob path must include a container prefix: {path}", nameof(path));
         return (path[..slash], path[(slash + 1)..]);
     }
-
-    /// <summary>
-    /// Returns a BlobContainerClient, creating the container if it doesn't exist.
-    /// Used by FFmpegRenderService to upload rendered output.
-    /// </summary>
-    public BlobContainerClient GetContainerClientPublic(string containerName)
-        => _factory.GetContainerClient(containerName);
 }
 
 public static class BlobStorageServiceExtensions

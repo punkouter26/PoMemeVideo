@@ -1,4 +1,5 @@
 // GoF: Repository Pattern — sound library query endpoint
+using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Shared.Models;
 
 namespace PoMemeVideo.Api.Features.MemeLibrary;
@@ -39,11 +40,57 @@ public static class MemeLibraryEndpoints
             return Results.Ok(new { totalCount, sounds = page });
         });
 
-        // GET /api/memelibrary/sounds/{soundId}/stream — proxy sound file from blob storage to browser
+        // POST /api/memelibrary/seed — bulk-load the default meme-sound catalog from the metadata
+        // file on disk into Azurite / Azure Blob Storage + SoundAssets table. Idempotent.
+        // Sibling slice Admin hosts the seeding logic (SeedSoundsCommand); this endpoint is the
+        // single in-app entry point the UI calls so it doesn't have to depend on /api/admin.
+        group.MapPost("/seed", async (
+            IConfiguration config,
+            IWebHostEnvironment env,
+            ISoundAssetRepository soundRepo,
+            ILoggerFactory loggerFactory,
+            CancellationToken ct) =>
+        {
+            var logger = loggerFactory.CreateLogger("MemeLibrary.Seed");
+            var seedsDir = SeedSoundsCommand.ResolveSeedsDir([], env.ContentRootPath);
+            if (!File.Exists(Path.Combine(seedsDir, "sounds-metadata.json")))
+                return Results.NotFound(new { error = "sounds-metadata.json not found.", path = seedsDir });
+
+            logger.LogInformation(
+                "Seeding sound library from {SeedsDir} (env={Env})",
+                seedsDir, env.EnvironmentName);
+
+            var exitCode = await SeedSoundsCommand.RunForDirAsync(seedsDir, config, verbose: false);
+
+            // Invalidate the in-memory cache so the next LoadAllAsync re-reads from storage.
+            soundRepo.InvalidateCache();
+
+            return Results.Ok(new
+            {
+                seededFrom = seedsDir,
+                exitCode,
+                message = exitCode == 0
+                    ? "Seeding complete. Refresh the library to see new assets."
+                    : "Seeding finished with failures (see server logs).",
+            });
+        })
+        .WithName("SeedMemeLibrary")
+        .WithTags("MemeLibrary")
+        .Produces<object>(200)
+        .Produces<object>(404)
+        .AllowAnonymous();
+
+        // GET /api/memelibrary/sounds/{soundId}/stream — proxy sound file from blob storage to browser.
+        // Falls back to proxying the external sourceUrl when the local blob is missing — the
+        // seed metadata references myinstants.com URLs, and until they finish downloading we
+        // still want audition to work end-to-end. The fallback path is a one-time self-heal:
+        // it tries to upload the bytes into Azurite so the next request hits the local path.
         group.MapGet("/sounds/{soundId:guid}/stream", async (
             SoundId soundId,
             ISoundAssetRepository repository,
             IBlobStorageService blobService,
+            IHttpClientFactory httpClientFactory,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
             var allSounds = await repository.LoadAllAsync(cancellationToken);
@@ -53,15 +100,57 @@ public static class MemeLibraryEndpoints
 
             // Extract relative blob path from the full Azurite URL
             var blobPath = ExtractBlobPath(sound.BlobUrl);
+
+            // Primary path: stream from local blob storage.
             try
             {
-                var stream = await blobService.StreamBlobAsync(blobPath, cancellationToken);
-                return Results.File(stream, contentType: "audio/mpeg", enableRangeProcessing: true);
+                var exists = await blobService.BlobExistsAsync(blobPath, cancellationToken);
+                if (exists)
+                {
+                    var stream = await blobService.StreamBlobAsync(blobPath, cancellationToken);
+                    return Results.File(stream, contentType: "audio/mpeg", enableRangeProcessing: true);
+                }
             }
-            catch
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
             {
-                return Results.NotFound();
+                // Local blob not present — fall through to proxy.
             }
+
+            // Fallback: if BlobUrl is itself an external URL (e.g. myinstants.com), proxy it
+            // through this API so the browser can play the sound even when the local blob
+            // hasn't been uploaded yet. Re-running the seed endpoint will populate the local
+            // blob and subsequent calls are served directly from storage.
+            if (Uri.TryCreate(sound.BlobUrl, UriKind.Absolute, out var externalUri)
+                && (externalUri.Scheme == Uri.UriSchemeHttp || externalUri.Scheme == Uri.UriSchemeHttps))
+            {
+                var logger = loggerFactory.CreateLogger("MemeLibrary.Stream");
+                try
+                {
+                    var http = httpClientFactory.CreateClient();
+                    http.Timeout = TimeSpan.FromSeconds(20);
+                    using var req = new HttpRequestMessage(HttpMethod.Get, externalUri);
+                    req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (PoMemeVideo stream proxy)");
+
+                    using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        logger.LogWarning(
+                            "External proxy for sound {SoundId} returned HTTP {Status} ({Url})",
+                            soundId, (int)resp.StatusCode, externalUri);
+                        return Results.NotFound();
+                    }
+
+                    var stream = await resp.Content.ReadAsStreamAsync(cancellationToken);
+                    return Results.File(stream, contentType: "audio/mpeg", enableRangeProcessing: true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "External URL proxy failed for {Url}", externalUri);
+                    return Results.NotFound();
+                }
+            }
+
+            return Results.NotFound();
         })
         .WithName("StreamSound")
         .WithTags("MemeLibrary")

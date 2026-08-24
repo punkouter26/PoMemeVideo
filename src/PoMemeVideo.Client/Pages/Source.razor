@@ -27,7 +27,7 @@
         <div class="step-pill @GetStepClass(3)"><span class="step-num">3</span>&nbsp;Render</div>
     </div>
 
-    <div class="ai-mode-card ascii-border-double reveal-in">
+    <div class="ai-mode-card ascii-border-double reveal-in vibe-glass-card vibe-3d-stage">
         <div class="ai-mode-header">
             <span class="ai-mode-label">AI Model</span>
             <span class="ai-mode-active">ACTIVE: @_displayActiveModel</span>
@@ -80,7 +80,7 @@
         }
     </div>
 
-    <div class="dropzone-host @(_uploaded ? "is-uploaded" : null)">
+    <div class="dropzone-host @(_uploaded ? "is-uploaded" : null) vibe-glass-card vibe-3d-stage">
         <AsciiDropZone OnFileAccepted="OnFileAccepted" />
     </div>
 
@@ -94,16 +94,13 @@
 
     @if (_selectedFile is not null && !_uploaded)
     {
-        <div class="upload-status ascii-border-double">
+        <div class="upload-status ascii-border-double vibe-glass-card">
             <pre>
  FILE    : @_selectedFile.Name
  SIZE    : @(_selectedFile.Size / 1024 / 1024) MB
  STATUS  : @_statusMessage</pre>
 
-            @if (_uploadProgress > 0 && _uploadProgress < 100)
-            {
-                <pre class="progress-bar">[ @ProgressBar(_uploadProgress) ] @_uploadProgress%</pre>
-            }
+            <RadzenProgressBar Value="@_uploadProgress" Max="100" Style="height: 8px; margin: 0.5rem 0;" />
         </div>
     }
 

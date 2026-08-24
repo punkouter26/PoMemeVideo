@@ -497,16 +497,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
     private async Task UploadFileToBlobAsync(string filePath, string blobPath, CancellationToken ct)
     {
-        // blobPath format: "sessions/{sessionId}/output.mp4" → container=sessions, blob={sessionId}/output.mp4
-        var slash = blobPath.IndexOf('/');
-        var container = blobPath[..slash];
-        var blobName = blobPath[(slash + 1)..];
-
-        var containerClient = _blobService.GetContainerClientPublic(container);
-        var blobClient = containerClient.GetBlobClient(blobName);
-
-        await using var stream = File.OpenRead(filePath);
-        await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: ct);
+        await _blobService.UploadFileAsync(blobPath, filePath, "video/mp4", ct);
     }
 
     public async ValueTask DisposeAsync()

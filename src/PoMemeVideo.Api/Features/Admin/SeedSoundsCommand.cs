@@ -14,43 +14,51 @@ namespace PoMemeVideo.Api.Features.Admin;
 /// </summary>
 public static class SeedSoundsCommand
 {
-    private const string ContainerName = StorageNames.Containers.Sounds;
-    private const string TableName = "SoundAssets";
-    private const string PartitionKey = "library";
+    internal const string ContainerName = StorageNames.Containers.Sounds;
+    internal const string TableName = StorageNames.Tables.SoundAssets;
+    internal const string PartitionKey = "library";
 
     public static async Task<int> RunAsync(string[] args, IConfiguration config)
     {
-        // --seeds-dir override; try several candidate paths when not specified
-        var cwd = Directory.GetCurrentDirectory();
-        var seedsDir = GetArg(args, "--seeds-dir")
-                    ?? new[]
-                    {
-                        Path.Combine(cwd, "tools", "meme-sounds"),
-                        Path.Combine(cwd, "SCRIPTS", "meme-sounds"),
-                        Path.GetFullPath(Path.Combine(cwd, "..", "..", "SCRIPTS", "meme-sounds")),
-                        Path.GetFullPath(Path.Combine(cwd, "..", "..", "tools", "meme-sounds")),
-                    }.FirstOrDefault(d => File.Exists(Path.Combine(d, "sounds-metadata.json")))
-                    ?? Path.Combine(cwd, "tools", "meme-sounds");
+        var seedsDir = ResolveSeedsDir(args, Directory.GetCurrentDirectory());
+        return await RunForDirAsync(seedsDir, config, verbose: true);
+    }
 
+    /// <summary>
+    /// Library-loading path used by both the CLI verb and the in-process HTTP seed endpoint
+    /// (POST /api/memelibrary/seed). Resolves <c>seedsDir</c> relative to <paramref name="contentRoot"/>
+    /// so the running web host can find the metadata no matter the working directory.
+    /// </summary>
+    public static async Task<int> RunForDirAsync(string seedsDir, IConfiguration config, bool verbose)
+    {
         var metaFile = Path.Combine(seedsDir, "sounds-metadata.json");
 
-        Console.WriteLine("╔══════════════════════════════════════════════════╗");
-        Console.WriteLine("║  PoMemeVideo // SOUND LIBRARY SEEDER             ║");
-        Console.WriteLine("╚══════════════════════════════════════════════════╝");
-        Console.WriteLine();
+        if (verbose)
+        {
+            Console.WriteLine("╔══════════════════════════════════════════════════╗");
+            Console.WriteLine("║  PoMemeVideo // SOUND LIBRARY SEEDER             ║");
+            Console.WriteLine("╚══════════════════════════════════════════════════╝");
+            Console.WriteLine();
+        }
 
         if (!File.Exists(metaFile))
         {
-            Console.Error.WriteLine($"✗ Metadata file not found: {metaFile}");
-            Console.Error.WriteLine("  Run tools/download-meme-sounds.py first, or pass --seeds-dir <path>.");
+            if (verbose)
+            {
+                Console.Error.WriteLine($"✗ Metadata file not found: {metaFile}");
+                Console.Error.WriteLine("  Run tools/download-meme-sounds.py first, or pass --seeds-dir <path>.");
+            }
             return 1;
         }
 
         // ── Parse metadata ───────────────────────────────────────────────────
         var json = await File.ReadAllTextAsync(metaFile);
         var meta = JsonSerializer.Deserialize<SoundsMetadata>(json, JsonOptions)!;
-        Console.WriteLine($"  Found {meta.Sounds.Count} sounds in metadata.");
-        Console.WriteLine();
+        if (verbose)
+        {
+            Console.WriteLine($"  Found {meta.Sounds.Count} sounds in metadata.");
+            Console.WriteLine();
+        }
 
         // ── Connect to storage ───────────────────────────────────────────────
         var connStr = config.GetConnectionString("AzureStorage")
@@ -63,43 +71,44 @@ public static class SeedSoundsCommand
         // Ensure container exists
         var containerClient = blobServiceClient.GetBlobContainerClient(ContainerName);
         await containerClient.CreateIfNotExistsAsync();
-        Console.WriteLine($"  ✓ Blob container '{ContainerName}' ready.");
+        if (verbose) Console.WriteLine($"  ✓ Blob container '{ContainerName}' ready.");
 
         // Ensure table exists
         await tableServiceClient.CreateTableIfNotExistsAsync(TableName);
         var tableClient = tableServiceClient.GetTableClient(TableName);
-        Console.WriteLine($"  ✓ Table '{TableName}' ready.");
-        Console.WriteLine();
+        if (verbose) Console.WriteLine($"  ✓ Table '{TableName}' ready.");
+        if (verbose) Console.WriteLine();
 
-        // ── Build vocabulary for embeddings ──────────────────────────────────
-        // Vocabulary is derived from all unique tags across the entire library (deterministic sort).
-        var vocabulary = meta.Sounds
-            .SelectMany(s => s.ActionVectorTags)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        // ── Seed each sound ──────────────────────────────────────────────────
         int seeded = 0, skipped = 0, failed = 0;
 
         foreach (var entry in meta.Sounds)
         {
             var soundId = DeriveStableGuid(entry.Id ?? entry.Filename);
 
-            // Check idempotency — skip if already seeded
+            // Skip only when the row AND its blob already point at our local container — i.e.
+            // a previous successful run. A row whose BlobUrl still references an external
+            // source (e.g. freesound.org) is *not* considered seeded and will be re-uploaded +
+            // have its BlobUrl rewritten. This keeps the library coherent across format changes
+            // and prevents "the row says freesound but the local blob is the one we want" splits.
             try
             {
-                await tableClient.GetEntityAsync<TableEntity>(PartitionKey, soundId.ToString());
-                Console.WriteLine($"  [SKIP] {entry.DisplayName}");
-                skipped++;
-                continue;
+                var existing = await tableClient.GetEntityAsync<TableEntity>(PartitionKey, soundId.ToString());
+                var existingUrl = existing.Value.GetString("BlobUrl") ?? string.Empty;
+                var blobExists = await containerClient.GetBlobClient(entry.Filename).ExistsAsync();
+                if (blobExists && existingUrl.Contains("/devstoreaccount", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (verbose) Console.WriteLine($"  [SKIP] {entry.DisplayName}");
+                    skipped++;
+                    continue;
+                }
+                // Row exists but the local blob is missing OR the row still points at an external URL.
             }
             catch (Azure.RequestFailedException ex) when (ex.Status == 404)
             {
                 // Not found — proceed with seed
             }
 
-            // Upload blob if local file exists
+            // Upload blob: local file preferred, source URL fallback
             var localFile = Path.Combine(seedsDir, entry.Filename);
             string blobUrl;
 
@@ -116,14 +125,53 @@ public static class SeedSoundsCommand
                 }
                 blobUrl = blobClient.Uri.ToString();
             }
+            else if (!string.IsNullOrWhiteSpace(entry.SourceUrl))
+            {
+                // Self-host: download from source URL into our blob container. Keeps the stream
+                // endpoint self-contained (no outbound proxy required at runtime).
+                var blobClient = containerClient.GetBlobClient(entry.Filename);
+                if (!await blobClient.ExistsAsync())
+                {
+                    try
+                    {
+                        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                        using var req = new HttpRequestMessage(HttpMethod.Get, entry.SourceUrl);
+                        req.Headers.UserAgent.ParseAdd("Mozilla/5.0 (PoMemeVideo sound seeder)");
+                        using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+                        if (resp.IsSuccessStatusCode)
+                        {
+                            await using var stream = await resp.Content.ReadAsStreamAsync();
+                            await blobClient.UploadAsync(stream, new BlobHttpHeaders { ContentType = "audio/mpeg" });
+                        }
+                        else if (verbose)
+                        {
+                            Console.WriteLine($"  [WARN] HTTP {(int)resp.StatusCode} fetching {entry.SourceUrl}");
+                        }
+                    }
+                    catch (Exception ex) when (verbose)
+                    {
+                        Console.WriteLine($"  [WARN] Could not download {entry.SourceUrl}: {ex.Message}");
+                    }
+                }
+
+                blobUrl = blobClient.Uri.ToString();
+                if (!await containerClient.GetBlobClient(entry.Filename).ExistsAsync())
+                {
+                    if (verbose) Console.WriteLine($"  [WARN] Blob missing after fetch, using sourceUrl metadata: {entry.Filename}");
+                    blobUrl = entry.SourceUrl!;
+                    failed++;
+                    continue;
+                }
+            }
             else
             {
-                // Use sourceUrl as fallback blob reference for metadata-only seeds
-                blobUrl = entry.SourceUrl ?? $"blob://sounds/{entry.Filename}";
-                Console.WriteLine($"  [WARN] MP3 not found locally, using sourceUrl: {entry.Filename}");
+                if (verbose) Console.WriteLine($"  [WARN] MP3 + sourceUrl both missing: {entry.Filename}");
+                failed++;
+                continue;
             }
 
-            // Insert table row
+            // Insert (or upsert) table row — even on refresh we rewrite the row so the BlobUrl
+            // always points at our local container.
             var entity = new TableEntity(PartitionKey, soundId.ToString())
             {
                 ["DisplayName"] = entry.DisplayName,
@@ -133,17 +181,52 @@ public static class SeedSoundsCommand
                 ["Priority"] = entry.Priority,
             };
 
-            await tableClient.AddEntityAsync(entity);
-            Console.WriteLine($"  [SEED] {entry.DisplayName}");
-            seeded++;
+            try
+            {
+                await tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace);
+                if (verbose) Console.WriteLine($"  [SEED] {entry.DisplayName}");
+                seeded++;
+            }
+            catch (Exception ex) when (verbose)
+            {
+                Console.WriteLine($"  [FAIL] {entry.DisplayName}: {ex.Message}");
+                failed++;
+            }
         }
 
-        Console.WriteLine();
-        Console.WriteLine($"╔══════════════════════════════════════════════════╗");
-        Console.WriteLine($"║  DONE — Seeded: {seeded,4} | Skipped: {skipped,4} | Failed: {failed,4}  ║");
-        Console.WriteLine($"╚══════════════════════════════════════════════════╝");
+        if (verbose)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"╔══════════════════════════════════════════════════╗");
+            Console.WriteLine($"║  DONE — Seeded: {seeded,4} | Skipped: {skipped,4} | Failed: {failed,4}  ║");
+            Console.WriteLine($"╚══════════════════════════════════════════════════╝");
+        }
 
         return failed > 0 ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Locates the directory containing <c>sounds-metadata.json</c>. Tries the explicit override,
+    /// then a few well-known relative locations so the running API finds the metadata regardless
+    /// of working directory.
+    /// </summary>
+    public static string ResolveSeedsDir(string[] args, string cwd)
+    {
+        var explicitDir = GetArg(args, "--seeds-dir");
+        if (!string.IsNullOrWhiteSpace(explicitDir))
+            return explicitDir!;
+
+        var candidates = new[]
+        {
+            Path.Combine(cwd, "tools", "meme-sounds"),
+            Path.Combine(cwd, "SCRIPTS", "meme-sounds"),
+            Path.GetFullPath(Path.Combine(cwd, "..", "..", "SCRIPTS", "meme-sounds")),
+            Path.GetFullPath(Path.Combine(cwd, "..", "..", "tools", "meme-sounds")),
+            Path.GetFullPath(Path.Combine(cwd, "..", "..", "..", "SCRIPTS", "meme-sounds")),
+        };
+
+        return candidates.FirstOrDefault(d => File.Exists(Path.Combine(d, "sounds-metadata.json")))
+               ?? Path.Combine(cwd, "tools", "meme-sounds");
     }
 
     // Derives a stable UUID-v5 from the sound slug — same slug always produces the same GUID.
@@ -166,7 +249,7 @@ public static class SeedSoundsCommand
         return idx >= 0 && idx + 1 < args.Length ? args[idx + 1] : null;
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

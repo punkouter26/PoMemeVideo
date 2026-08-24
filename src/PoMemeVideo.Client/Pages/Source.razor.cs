@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using PoMemeVideo.Client.Components;
+using PoMemeVideo.Client.Services;
+using Radzen;
 
 namespace PoMemeVideo.Client.Pages;
 
@@ -54,9 +56,12 @@ public partial class Source
 
     private ElementReference _videoRef;
     private DitheredKeyframeStrip? _keyframeStrip;
+    [Inject] private Vibe3DService Vibe3D { get; set; } = default!;
+    [Inject] private NotificationService Notification { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
+        await Vibe3D.SetAuroraStateAsync("idle");
         await Task.WhenAll(LoadAiModelStateAsync(), CheckSoundLibraryAsync());
     }
 
@@ -85,6 +90,7 @@ public partial class Source
         _statusMessage = "REQUESTING SAS TOKEN...";
         _visionFallbackMessage = "AI VISION: no triggers detected - time-based placement will be used";
         StateHasChanged();
+        await Vibe3D.SetAuroraStateAsync("analyzing");
 
         try
         {

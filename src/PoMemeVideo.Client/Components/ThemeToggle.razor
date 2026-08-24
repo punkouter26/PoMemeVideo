@@ -1,0 +1,28 @@
+@inject AppThemeService Theme
+@implements IDisposable
+
+<div class="theme-toggle-cluster">
+    <button class="ascii-btn theme-btn" @onclick="Theme.CycleThemeAsync" title="Switch accessible visual theme (WCAG AAA)">
+        [ 🎨 @GetThemeLabel(Theme.CurrentTheme) ]
+    </button>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Theme.OnThemeChanged += StateHasChanged;
+    }
+
+    private string GetThemeLabel(string theme) => theme switch
+    {
+        "high-contrast-amber" => "THEME: AMBER (AAA)",
+        "vaporwave-neon" => "THEME: VAPORWAVE",
+        "oled-black" => "THEME: OLED BLACK",
+        _ => "THEME: CYBER GREEN"
+    };
+
+    public void Dispose()
+    {
+        Theme.OnThemeChanged -= StateHasChanged;
+    }
+}

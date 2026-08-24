@@ -1,3 +1,4 @@
+using PoMemeVideo.Shared.Enums;
 using PoMemeVideo.Shared.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -196,6 +197,43 @@ public static class IngestionEndpoints
         .WithTags("Ingestion")
         .Produces<object>(200)
         .Produces<object>(404);
+
+        // GET /api/ingestion/sessions?status=… — list the current user's sessions,
+        // optionally filtered by status. Used by the History page.
+        group.MapGet("/sessions", async (
+            IVideoSessionRepository repository,
+            HttpContext httpContext,
+            string? status,
+            CancellationToken ct) =>
+        {
+            var userId = ResolveUserId(httpContext);
+            var all = await repository.ListCompletedAsync(userId, ct);
+
+            if (!string.IsNullOrWhiteSpace(status)
+                && Enum.TryParse<SessionStatus>(status, ignoreCase: true, out var wanted))
+            {
+                all = all.Where(s => s.Status == wanted).ToList();
+            }
+
+            var dtos = all.Select(s => new VideoSessionDto
+            {
+                SessionId = s.SessionId.Value,
+                UserId = s.UserId.Value,
+                SourceBlobPath = s.SourceBlobPath,
+                VideoDurationSeconds = s.VideoDurationSeconds,
+                AggressiveVisuals = s.AggressiveVisuals,
+                Status = s.Status,
+                ErrorMessage = s.ErrorMessage,
+                CreatedAt = s.CreatedAt,
+                CompletedAt = s.CompletedAt,
+                OutputBlobPath = s.OutputBlobPath,
+            }).ToList();
+
+            return Results.Ok(dtos);
+        })
+        .WithName("ListSessions")
+        .WithTags("Ingestion")
+        .Produces<List<VideoSessionDto>>(200);
 
         // GET /api/ingestion/sessions/{sessionId} — retrieve session status
         group.MapGet("/sessions/{sessionId:guid}", async (

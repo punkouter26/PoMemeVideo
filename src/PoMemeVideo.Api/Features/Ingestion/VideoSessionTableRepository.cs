@@ -8,8 +8,14 @@ namespace PoMemeVideo.Api.Features.Ingestion;
 
 internal sealed class VideoSessionTableEntity : ITableEntity
 {
-    public string PartitionKey { get; set; } = string.Empty; // UserId
-    public string RowKey { get; set; } = string.Empty;       // SessionId
+    /// <summary>
+    /// Constant partition key. Per-user isolation is enforced by the <c>OwnerUserId</c>
+    /// property (the row-level authorization filter used by every lookup), NOT by the
+    /// partition key — because dev/ANON identities can rotate per request and the
+    /// cookie-issued GUID is the wrong thing to hash a row on.
+    /// </summary>
+    public string PartitionKey { get; set; } = PartitionKeyValue;
+    public string RowKey { get; set; } = string.Empty; // SessionId
     public DateTimeOffset? Timestamp { get; set; }
     public ETag ETag { get; set; }
 
@@ -21,6 +27,11 @@ internal sealed class VideoSessionTableEntity : ITableEntity
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? OutputBlobPath { get; set; }
+
+    /// <summary>Owner of this session — used to authorize lookups.</summary>
+    public string OwnerUserId { get; set; } = string.Empty;
+
+    public const string PartitionKeyValue = "sessions";
 }
 
 public sealed class VideoSessionTableRepository : IVideoSessionRepository
@@ -42,24 +53,20 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
 
     public async Task<VideoSession?> GetByIdAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var response = await _table.GetEntityAsync<VideoSessionTableEntity>(
-                partitionKey: userId.ToString(),
-                rowKey: sessionId.ToString(),
-                cancellationToken: cancellationToken);
-            return ToDomain(response.Value);
-        }
-        catch (RequestFailedException ex) when (ex.Status == 404)
-        {
+        var entity = await GetEntityAsync(sessionId, cancellationToken);
+        if (entity is null) return null;
+
+        // Owner check: prevents cross-user reads even though PK is constant.
+        if (!IsOwner(entity, userId))
             return null;
-        }
+
+        return ToDomain(entity);
     }
 
     public async Task<IReadOnlyList<VideoSession>> ListCompletedAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var results = new List<VideoSession>();
-        var filter = $"PartitionKey eq '{userId}' and Status eq 'Complete'";
+        var filter = $"PartitionKey eq '{VideoSessionTableEntity.PartitionKeyValue}' and Status eq 'Complete' and OwnerUserId eq '{userId.Value:D}'";
         await foreach (var entity in _table.QueryAsync<VideoSessionTableEntity>(filter, cancellationToken: cancellationToken))
         {
             results.Add(ToDomain(entity));
@@ -76,12 +83,8 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         bool aggressiveVisuals,
         CancellationToken cancellationToken = default)
     {
-        var response = await _table.GetEntityAsync<VideoSessionTableEntity>(
-            partitionKey: userId.ToString(),
-            rowKey: sessionId.ToString(),
-            cancellationToken: cancellationToken);
+        var entity = await RequireOwnedAsync(sessionId, userId, cancellationToken);
 
-        var entity = response.Value;
         entity.SourceBlobPath = sourceBlobPath;
         entity.VideoDurationSeconds = videoDurationSeconds;
         entity.AggressiveVisuals = aggressiveVisuals;
@@ -98,12 +101,8 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         double? videoDurationSeconds = null,
         CancellationToken cancellationToken = default)
     {
-        var response = await _table.GetEntityAsync<VideoSessionTableEntity>(
-            partitionKey: userId.ToString(),
-            rowKey: sessionId.ToString(),
-            cancellationToken: cancellationToken);
+        var entity = await RequireOwnedAsync(sessionId, userId, cancellationToken);
 
-        var entity = response.Value;
         entity.Status = status.ToString();
         entity.ErrorMessage = errorMessage;
 
@@ -123,15 +122,42 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
 
     public async Task DeleteAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken = default)
     {
-        await _table.DeleteEntityAsync(
-            partitionKey: userId.ToString(),
-            rowKey: sessionId.ToString(),
-            cancellationToken: cancellationToken);
+        var entity = await RequireOwnedAsync(sessionId, userId, cancellationToken);
+        await _table.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, entity.ETag, cancellationToken);
     }
+
+    private async Task<VideoSessionTableEntity?> GetEntityAsync(SessionId sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _table.GetEntityAsync<VideoSessionTableEntity>(
+                partitionKey: VideoSessionTableEntity.PartitionKeyValue,
+                rowKey: sessionId.ToString(),
+                cancellationToken: cancellationToken);
+            return response.Value;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
+    }
+
+    private async Task<VideoSessionTableEntity> RequireOwnedAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken)
+    {
+        var entity = await GetEntityAsync(sessionId, cancellationToken)
+            ?? throw new SessionNotFoundException(sessionId);
+
+        if (!IsOwner(entity, userId))
+            throw new SessionNotFoundException(sessionId);
+
+        return entity;
+    }
+
+    private static bool IsOwner(VideoSessionTableEntity entity, UserId userId)
+        => Guid.TryParse(entity.OwnerUserId, out var ownerId) && ownerId == userId.Value;
 
     private static VideoSessionTableEntity ToEntity(VideoSession s) => new()
     {
-        PartitionKey = s.UserId.ToString(),
         RowKey = s.SessionId.ToString(),
         SourceBlobPath = s.SourceBlobPath,
         VideoDurationSeconds = s.VideoDurationSeconds,
@@ -141,12 +167,13 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         CreatedAt = s.CreatedAt,
         CompletedAt = s.CompletedAt,
         OutputBlobPath = s.OutputBlobPath,
+        OwnerUserId = s.UserId.Value.ToString("D"),
     };
 
     private static VideoSession ToDomain(VideoSessionTableEntity e) => new()
     {
         SessionId = new SessionId(Guid.Parse(e.RowKey)),
-        UserId = new UserId(Guid.Parse(e.PartitionKey)),
+        UserId = Guid.TryParse(e.OwnerUserId, out var ownerId) ? new UserId(ownerId) : UserId.Empty,
         SourceBlobPath = e.SourceBlobPath,
         VideoDurationSeconds = e.VideoDurationSeconds,
         AggressiveVisuals = e.AggressiveVisuals,
@@ -156,6 +183,17 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         CompletedAt = e.CompletedAt,
         OutputBlobPath = e.OutputBlobPath,
     };
+}
+
+public sealed class SessionNotFoundException : Exception
+{
+    public SessionId SessionId { get; }
+
+    public SessionNotFoundException(SessionId sessionId)
+        : base($"Session {sessionId} not found.")
+    {
+        SessionId = sessionId;
+    }
 }
 
 public static class VideoSessionTableRepositoryExtensions

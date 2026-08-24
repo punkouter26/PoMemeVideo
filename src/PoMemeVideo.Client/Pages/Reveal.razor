@@ -2,10 +2,16 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject Vibe3DService Vibe3D
+@inject NotificationService Notification
 @using PoMemeVideo.Shared.Models
+@using PoMemeVideo.Shared.Enums
+@using PoMemeVideo.Client.Components
+@using Radzen
+@using Radzen.Blazor
 @implements IAsyncDisposable
 
-<PageTitle>PoMemeVideo — Review</PageTitle>
+<PageTitle>PoMemeVideo — Review &amp; Studio</PageTitle>
 
 <div class="reveal-page">
     <MockDataBanner />
@@ -18,13 +24,16 @@
     }
 
     <div class="page-hero">
-        <h1 class="hero-title">Review Your Video</h1>
+        <h1 class="hero-title">Review &amp; Cue Studio</h1>
         <p class="hero-sub">Session: @SessionId</p>
     </div>
 
     @if (_loading)
     {
-        <pre class="reveal-loading">[ Loading… ]</pre>
+        <div class="loading-wrap ascii-border-double">
+            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="height: 6px;" />
+            <pre class="reveal-loading">[ Loading video session &amp; director script… ]</pre>
+        </div>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -37,10 +46,10 @@
             <div class="video-panel">
                 @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
                 {
-                    <div class="ascii-border-double">
+                    <div class="ascii-border-double vibe-3d-stage vibe-glass-card">
                         <pre class="panel-header">[ OUTPUT VIDEO ]</pre>
                         <CrtMonitorFrame>
-                            <video class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
+                            <video id="reveal-output-video" class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
                                 <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
                                 Your browser does not support the video tag.
                             </video>
@@ -69,58 +78,70 @@
             </div>
 
             <!-- Director Script Panel -->
-            <div class="script-panel-reveal ascii-border-double">
-                <pre class="panel-header">[ AI DIRECTOR'S SCRIPT ]</pre>
-                <p class="reveal-script-subtitle">What was added to your video and why</p>
+            <div class="script-panel-reveal ascii-border-double vibe-3d-stage vibe-glass-card">
+                <div class="script-header-row">
+                    <pre class="panel-header">[ AI DIRECTOR'S SCRIPT ]</pre>
+                    <button class="ascii-btn compact-btn @(_editMode ? "active" : "")" @onclick="() => _editMode = !_editMode">
+                        @(_editMode ? "[ 💾 SAVE / VIEW ]" : "[ ✏️ EDIT CUES ]")
+                    </button>
+                </div>
+                <p class="reveal-script-subtitle">What was added to your video and why — fine-tune timing below</p>
+
                 @if (_script is not null && _script.Entries.Count > 0)
                 {
                     <div class="script-scroll">
                         @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
                         {
-                            <div class="cut-block">
-                                <pre class="cut-rule">┌─ CUT @idx ── @((entry.TimestampMs / 1000.0).ToString("F1"))s ─────────────────────────┐</pre>
-                                <pre class="cut-scene">  SCENE   : @(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</pre>
-                                <div class="cut-sound">
-                                    <span>  SOUND   : @(string.IsNullOrWhiteSpace(entry.SoundName) || entry.SoundName.Length < 2 ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
-                                    <audio id="reveal-audio-@entry.SoundId-@idx" src="/api/memelibrary/sounds/@entry.SoundId/stream" preload="none"></audio>
-                                    <button class="ascii-btn reveal-play-btn"
-                                            onclick="(function(btn){
-                                                var audio = document.getElementById('reveal-audio-@entry.SoundId-@idx');
-                                                if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ \u25B6 ]'; return; }
-                                                document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
-                                                document.querySelectorAll('.reveal-play-btn').forEach(function(b){ b.textContent = '[ \u25B6 ]'; });
-                                                audio.play();
-                                                btn.textContent = '[ \u25A0 ]';
-                                                audio.onended = function(){ btn.textContent = '[ \u25B6 ]'; };
-                                            })(this)">[ &#9654; ]</button>
+                            <div class="cut-block ascii-border-double">
+                                <div class="cut-header-bar">
+                                    <span class="cut-title">CUT @idx</span>
+                                    @if (_editMode)
+                                    {
+                                        <div class="cut-edit-timing">
+                                            <span class="edit-label">TIMESTAMP (ms):</span>
+                                            <RadzenNumeric TValue="long"
+                                                           Value="@GetTiming(idx, entry.TimestampMs)"
+                                                           Change="@(val => SetTiming(idx, val))"
+                                                           Min="0" Step="100" Style="width: 110px;" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="cut-time">@((GetTiming(idx, entry.TimestampMs) / 1000.0).ToString("F1"))s</span>
+                                    }
                                 </div>
-                                <pre class="cut-why">  WHY     : @(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</pre>
-                                <pre class="cut-effect">  EFFECT  : @(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</pre>
-                                <pre class="cut-rule">└──────────────────────────────────────────────────────────┘</pre>
+
+                                <div class="cut-details">
+                                    <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
+                                    <div class="cut-sound-row">
+                                        <span class="cut-k">SOUND:</span>
+                                        <span class="cut-v sound-name">@(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
+                                        <audio id="reveal-audio-@entry.SoundId-@idx" src="/api/memelibrary/sounds/@entry.SoundId/stream" preload="none"></audio>
+                                        <button class="ascii-btn compact-btn reveal-play-btn"
+                                                onclick="(function(btn){
+                                                    var audio = document.getElementById('reveal-audio-@entry.SoundId-@idx');
+                                                    if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
+                                                    document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                                    document.querySelectorAll('.reveal-play-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
+                                                    audio.play();
+                                                    btn.textContent = '[ ■ ]';
+                                                    audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
+                                                })(this)">[ &#9654; PLAY ]</button>
+                                    </div>
+                                    <div class="cut-row"><span class="cut-k">WHY:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</span></div>
+                                    <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
+                                </div>
                             </div>
                         }
                     </div>
                 }
                 else if (_script is not null)
                 {
-                    @if (_script.TotalSoundCount == 0)
-                    {
-                        <pre class="script-empty-hint">[ No script entries — sound library was empty at render time ]
-  Run: python SCRIPTS/seed-meme-sounds.py
-  Then create a new video to hear the difference.</pre>
-                    }
-                    else
-                    {
-                        <pre class="script-empty">[ No script entries generated for this session ]</pre>
-                    }
+                    <pre class="script-empty">[ No script entries generated for this session ]</pre>
                 }
                 else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
                 {
                     <pre class="script-status">@_scriptStatusMessage</pre>
-                }
-                else
-                {
-                    <pre class="script-empty">[ Script unavailable ]</pre>
                 }
             </div>
 
@@ -129,40 +150,56 @@
                 <div class="reveal-actions-primary">
                     <button class="ascii-btn download-btn" @onclick="DownloadVideo">[ ⬇ Download Video ]</button>
                     <button class="ascii-btn compact-btn" @onclick="DownloadScript">[ Download Script ]</button>
+                    <button class="ascii-btn compact-btn" @onclick="ShareVideo">[ 📤 Share Video ]</button>
+                    <button class="ascii-btn compact-btn" @onclick="ToggleRawJson">[ @(_showJson ? "Hide JSON" : "Show JSON") ]</button>
                 </div>
                 <div class="reveal-actions-secondary">
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[ + Create Another ]</button>
                 </div>
-                @if (!string.IsNullOrWhiteSpace(_statusMessage))
-                {
-                    <pre class="reveal-status-message">@_statusMessage</pre>
-                }
             </div>
-        </div>
 
-        @if (_session.Status == SessionStatus.Error)
-        {
-            <pre class="error-box">[ ENGINE ERROR ] @(_session.ErrorMessage ?? "Unknown engine error")</pre>
-        }
+            @if (_showJson && !string.IsNullOrWhiteSpace(_scriptJson))
+            {
+                <div class="json-panel ascii-border-double reveal-in vibe-glass-card">
+                    <pre class="panel-header">[ RAW DIRECTOR SCRIPT JSON ]</pre>
+                    <pre class="json-content">@_scriptJson</pre>
+                </div>
+            }
+        </div>
     }
 </div>
 
 @code {
-    [Parameter] public Guid SessionId { get; set; }
+    [Parameter]
+    public Guid SessionId { get; set; }
 
-    private bool _loading = true;
-    private string? _error;
     private VideoSessionDto? _session;
     private DirectorScriptDto? _script;
-    private string _scriptJson = "";
+    private bool _loading = true;
+    private string? _error;
     private string? _scriptStatusMessage;
-    private string? _statusMessage;
+    private string? _scriptJson;
+    private bool _showJson;
+    private bool _editMode;
+    private bool _showCompleteFlash;
     private bool _videoLoadFailed;
     private IJSObjectReference? _revealJs;
-    private bool _showCompleteFlash;
+    private readonly Dictionary<int, long> _editedTimings = [];
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadSessionAsync();
+    }
+
+    private long GetTiming(int idx, long defaultVal) =>
+        _editedTimings.TryGetValue(idx, out var val) ? val : defaultVal;
+
+    private void SetTiming(int idx, long val) => _editedTimings[idx] = val;
+
+    private void ToggleRawJson() => _showJson = !_showJson;
+
+    private async Task LoadSessionAsync()
     {
         _loading = true;
         _error = null;
@@ -172,7 +209,6 @@
             _revealJs = await JS.InvokeAsync<IJSObjectReference>("import", "/js/reveal.js");
             await _revealJs.InvokeVoidAsync("playTransition");
 
-            // Load session data
             var sessionResponse = await Http.GetAsync($"/api/ingestion/sessions/{SessionId}");
             if (!sessionResponse.IsSuccessStatusCode)
             {
@@ -187,7 +223,6 @@
                 return;
             }
 
-            // Load director script
             try
             {
                 var scriptResponse = await Http.GetAsync($"/api/output/sessions/{SessionId}/script");
@@ -219,6 +254,9 @@
             if (_session?.Status == SessionStatus.Complete)
             {
                 _showCompleteFlash = true;
+                _ = Vibe3D.SetAuroraStateAsync("complete");
+                _ = Vibe3D.TriggerCelebrationBurstAsync();
+                Notification.Notify(NotificationSeverity.Success, "Render Complete", "Your meme video is ready for playback & download!", 4000);
                 _ = Task.Delay(3500).ContinueWith(_ => InvokeAsync(() =>
                 {
                     _showCompleteFlash = false;
@@ -232,60 +270,88 @@
     {
         if (_session?.OutputBlobPath is null)
         {
-            _statusMessage = "Video not ready";
+            Notification.Notify(NotificationSeverity.Warning, "Download", "Video is not ready yet.", 2500);
             return;
         }
 
         try
         {
-            var module = await EnsureRevealModuleAsync();
-            await module.InvokeVoidAsync("navigateTo", $"/api/output/sessions/{SessionId}/download/video");
-            _statusMessage = "Video downloading...";
+            var downloadUrl = $"/api/output/sessions/{SessionId}/download";
+            var fileName = $"pomemevideo_{SessionId:N}.mp4";
+            await JS.InvokeVoidAsync("eval", $@"
+                (function() {{
+                    var a = document.createElement('a');
+                    a.href = '{downloadUrl}';
+                    a.download = '{fileName}';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }})();
+            ");
+            Notification.Notify(NotificationSeverity.Success, "Download Started", fileName, 3000);
         }
         catch (Exception ex)
         {
-            _statusMessage = $"Error: {ex.Message}";
+            Notification.Notify(NotificationSeverity.Error, "Download Failed", ex.Message, 4000);
         }
     }
 
     private async Task DownloadScript()
     {
+        if (_scriptJson is null) return;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(_scriptJson);
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"script_{SessionId:N}.json";
+        await JS.InvokeVoidAsync("eval", $@"
+            (function() {{
+                var a = document.createElement('a');
+                a.href = 'data:application/json;base64,{base64}';
+                a.download = '{fileName}';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }})();
+        ");
+        Notification.Notify(NotificationSeverity.Info, "Script Downloaded", fileName, 2500);
+    }
+
+    private async Task ShareVideo()
+    {
+        var shareUrl = Nav.Uri;
+        var shareText = "Check out my AI Meme Video on PoMemeVideo!";
         try
         {
-            var module = await EnsureRevealModuleAsync();
-            await module.InvokeVoidAsync("navigateTo", $"/api/output/sessions/{SessionId}/download/script");
-            _statusMessage = "Script downloading...";
+            await JS.InvokeVoidAsync("eval", $@"
+                (async function() {{
+                    if (navigator.share) {{
+                        try {{
+                            await navigator.share({{
+                                title: 'PoMemeVideo Review',
+                                text: '{shareText}',
+                                url: '{shareUrl}'
+                            }});
+                        }} catch (e) {{}}
+                    }} else if (navigator.clipboard) {{
+                        await navigator.clipboard.writeText('{shareUrl}');
+                    }}
+                }})();
+            ");
+            Notification.Notify(NotificationSeverity.Success, "Share Ready", "Video link copied to clipboard!", 2500);
         }
         catch (Exception ex)
         {
-            _statusMessage = $"Error: {ex.Message}";
+            Notification.Notify(NotificationSeverity.Info, "Share", ex.Message, 2500);
         }
     }
 
-    private void OnVideoLoaded()
-    {
-        _videoLoadFailed = false;
-    }
-
-    private void OnVideoError()
-    {
-        _videoLoadFailed = true;
-        _statusMessage = "Inline video playback failed. Try direct stream or download.";
-    }
-
-    private async Task<IJSObjectReference> EnsureRevealModuleAsync()
-    {
-        _revealJs ??= await JS.InvokeAsync<IJSObjectReference>("import", "/js/reveal.js");
-        return _revealJs;
-    }
+    private void OnVideoLoaded() => _videoLoadFailed = false;
+    private void OnVideoError() => _videoLoadFailed = true;
 
     public async ValueTask DisposeAsync()
     {
-        if (_revealJs is null)
-            return;
-
-        await _revealJs.DisposeAsync();
+        if (_revealJs is not null)
+        {
+            try { await _revealJs.DisposeAsync(); } catch { }
+        }
     }
 }
-
-
