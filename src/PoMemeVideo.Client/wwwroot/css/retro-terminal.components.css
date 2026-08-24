@@ -387,6 +387,30 @@ pre {
     display: block;
 }
 
+/*
+ * The CRT overlay sits on top of the <video> via absolute positioning so the video
+ * element itself is NOT inside an SVG-filtered ancestor — Chromium drops audio when
+ * a <video> is wrapped in a filter: url(#...) ancestor (webkitAudioDecodedByteCount=0,
+ * captureStream() returns no audio tracks). The overlay is pointer-events: none so it
+ * does not block clicks on the player controls. The overlay contains CrtMonitorFrame's
+ * .crt-frame, which carries the SVG bulge filter — so the visual distortion happens
+ * on the overlay layer, not the <video>.
+ */
+.video-crt-wrap {
+    position: relative;
+    width: 100%;
+}
+.video-crt-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.video-crt-overlay-inner {
+    width: 100%;
+    height: 100%;
+}
+
 .reveal-meta {
     margin-top: 0.75rem;
     border-top: 1px solid rgba(0, 255, 65, 0.35);

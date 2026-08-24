@@ -251,7 +251,10 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         // speedup — important on the constrained B1 host where slower presets stall the render.
         sb.Append(" -c:v libx264 -preset veryfast -crf 23");
         if (buildAudioMix || sourceHasAudio)
-            sb.Append(" -c:a aac -b:a 192k");
+            // -ac 2 forces stereo output. Without it amix produces the same channel count as the
+            // first input (often 5.1 from phone videos) and Chromium silently fails to decode the
+            // audio track, so the resulting MP4 has zero sound when played in <video>.
+            sb.Append(" -c:a aac -b:a 192k -ac 2");
         // Cap the output to the source video's duration. amix=duration=longest stretches the
         // mixed audio to the longest *sound clip* (after its adelay), so a meme sound placed
         // near the end can run past the video — leaving the output longer than the source with

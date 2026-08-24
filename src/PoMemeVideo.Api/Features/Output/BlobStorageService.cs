@@ -18,8 +18,14 @@ public class BlobStorageService : IBlobStorageService
     {
         var (containerName, blobName) = SplitPath(path);
         var blobClient = _factory.GetContainerClient(containerName).GetBlobClient(blobName);
-        var response = await blobClient.DownloadStreamingAsync(cancellationToken: cancellationToken);
-        return response.Value.Content;
+        // Use OpenReadAsync (seekable, length-known) instead of DownloadStreamingAsync
+        // (a network stream with no known size). Without a known length, Kestrel serves the
+        // response with Transfer-Encoding: chunked and no Content-Length header. Chromium
+        // then refuses to buffer past the first chunk — the browser stops fetching after
+        // ~2 seconds of video, the audio track never decodes, and the user sees video but
+        // hears silence. enableRangeProcessing: true on Results.File also requires a
+        // seekable length-known stream to advertise Accept-Ranges: bytes.
+        return await blobClient.OpenReadAsync(cancellationToken: cancellationToken);
     }
 
     public async Task<bool> BlobExistsAsync(string path, CancellationToken cancellationToken = default)

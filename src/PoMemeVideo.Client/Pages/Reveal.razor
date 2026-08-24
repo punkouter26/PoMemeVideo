@@ -48,12 +48,25 @@
                 {
                     <div class="ascii-border-double vibe-3d-stage vibe-glass-card">
                         <pre class="panel-header">[ OUTPUT VIDEO ]</pre>
-                        <CrtMonitorFrame>
+                        @*
+                          The <video> sits OUTSIDE the CrtMonitorFrame. When Chromium wraps a
+                          <video> in any ancestor with `filter: url(#...)`, it silently drops
+                          the audio track (webkitAudioDecodedByteCount stays at 0;
+                          captureStream() returns no audio tracks) — the user sees video but
+                          hears nothing. The decorative CRT bulge is applied to a sibling
+                          overlay layer instead so the video keeps full audio playback.
+                        *@
+                        <div class="video-crt-wrap">
                             <video id="reveal-output-video" class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
                                 <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
                                 Your browser does not support the video tag.
                             </video>
-                        </CrtMonitorFrame>
+                            <div class="video-crt-overlay" aria-hidden="true">
+                                <CrtMonitorFrame>
+                                    <div class="video-crt-overlay-inner"></div>
+                                </CrtMonitorFrame>
+                            </div>
+                        </div>
 
                         <div class="reveal-meta">
                             <pre> STATUS     : @_session.Status</pre>
