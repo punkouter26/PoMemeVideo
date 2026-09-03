@@ -59,8 +59,11 @@ MODEL/
 ## Downloaded ML models (large binary files)
 models/
 
-## Meme sound MP3s (downloaded locally via SCRIPTS/download-meme-sounds.py, not committed)
-SCRIPTS/meme-sounds/*.mp3
+## Meme sound MP3s (downloaded locally via scripts/download-meme-sounds.py, not committed).
+## The path is case-sensitive to git on Linux and macOS: the old `SCRIPTS/` spelling matched
+## on Windows only, so the ~200 downloaded clips were untracked here but not ignored on a CI
+## runner. sounds-metadata.json is committed; the audio it describes is not.
+scripts/meme-sounds/*.mp3
 
 ## Secrets and config (never commit)
 # appsettings.Development.json intentionally NOT ignored — it contains only the

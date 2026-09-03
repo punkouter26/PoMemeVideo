@@ -165,4 +165,7 @@ The one permitted `style` attribute is a **CSS custom property carrying a per-re
 - Show the GUEST login button when `ASPNETCORE_ENVIRONMENT == Production`.
 - Reintroduce technical-layer projects/folders — keep code in feature slices.
 - Add test steps to `deploy-pomemevideo.yml` — the deploy workflow builds and deploys only, by
-  rule. Tests belong in `ci.yml`, which gates pushes and PRs against `master`.
+  rule. Tests belong in `ci.yml`, which gates pushes and PRs against `master` — but only with
+  build + test budgets + **unit tests**. The integration and E2E jobs in that file are
+  `workflow_dispatch`-only; adding one to the push path puts an Azurite service container back on
+  every commit. Run CI manually when you need the full suite.

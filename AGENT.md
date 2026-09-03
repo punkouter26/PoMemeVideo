@@ -289,12 +289,21 @@ Local dev uses `dev` environment (real AI calls).
 - **App RG:** `PoMemeVideo` (web app + storage); shared **plan RG** `PoShared`.
 - **Plan:** `asp-PoShared-f1` (**F1 Linux**, free tier in **westus2**). Renders count against a
   hard **60 CPU-min/day** quota — once it trips, the app returns 403 until UTC midnight. There is
-  no Always On (cold start after ~20 min idle) and 1 GB storage. CI ships a pinned **gpl** static
-  ffmpeg in `publish/ffmpeg/` so the app can encode without a system install.
+  no Always On (cold start after ~20 min idle) and 1 GB storage. The deploy workflow ships a
+  **gpl** static ffmpeg in `publish/ffmpeg/` so the app can encode without a system install. It
+  tracks BtbN's rolling `n8.1-latest` build rather than a dated `autobuild-*` tag: those tags are
+  pruned after about two weeks, and a pin to one is a deploy with an expiry date (it duly expired
+  and took every deploy down until 2026-09-03). A rolling tag admits no SHA-256 pin, so the
+  workflow verifies the binary behaviourally instead — libx264 present, plus a real one-frame
+  h264 encode read back with ffprobe.
 - **Identity:** system-assigned MI with get/list on `kv-poshared` (no UAMI, no `AZURE_CLIENT_ID`).
 - **Secrets vault:** `kv-poshared` (access-policy, not RBAC); app-specific prefix `PoMemeVideo--`.
 - **CI/CD:** `deploy-pomemevideo.yml` publishes framework-dependent, bundles ffmpeg, ZIP-deploys
-  via `az webapp deploy`. No tests run in CI (by rule). `azure.yaml` is a legacy azd manifest;
+  via `az webapp deploy`. No tests run in the deploy workflow (by rule) — tests live in `ci.yml`,
+  which is split in two tiers: build + test-budget + **unit tests** on every push and PR, and the
+  integration / API-E2E / UI-E2E jobs `workflow_dispatch`-only (each needs an Azurite service
+  container, and the UI one a published app and a browser). Run CI manually for the full suite
+  after touching storage, auth or the render pipeline. `azure.yaml` is a legacy azd manifest;
   there is no `infra/` Bicep dir. **Do not** set `WEBSITE_RUN_FROM_PACKAGE=1` — the read-only mount
   blocks the ffmpeg bit-fixup at startup.
 - **Bumping back to B1:** the `Dockerfile` is still valid and still installs ffmpeg; restore the

@@ -74,19 +74,6 @@ python scripts/download-meme-sounds.py
 
 ---
 
-## download-all-sounds.py
-
-**Purpose:** Re-downloads every `.mp3` listed in an existing `meme-sounds/sounds-metadata.json`,
-in parallel, skipping files already present. Run `download-meme-sounds.py` first to produce that
-metadata file.
-
-**Usage:**
-```bash
-python scripts/download-all-sounds.py
-```
-
----
-
 ## download-models.py
 
 **Purpose:** Downloads ONNX/embedding models listed in `model-manifest.json` into the local `MODEL/` directory used by the BrowserLLM feature.
@@ -117,17 +104,6 @@ format vs. `https://<account>.blob.core.windows.net/…` for real Azure). Re-run
 
 ---
 
-## deploy-meme-sounds.py
-
-**Purpose:** Deploys meme sound files from `scripts/meme-sounds/` to Azure Blob Storage in the target resource group. Requires `az login` and correct subscription context.
-
-**Usage:**
-```bash
-python scripts/deploy-meme-sounds.py
-```
-
----
-
 ## model-manifest.json
 
 Configuration file listing model names, download URLs, and target paths used by `download-models.py`.
@@ -136,4 +112,13 @@ Configuration file listing model names, download URLs, and target paths used by 
 
 ## meme-sounds/
 
-Directory containing the raw `.mp3` audio files and `sounds-metadata.json` used for seeding.
+Directory containing the raw `.mp3` audio files and `sounds-metadata.json` used for seeding. Only
+the metadata is committed — the audio is gitignored and fetched by `download-meme-sounds.py`.
+
+---
+
+## Deploying sounds to real Azure Storage
+
+There is no separate deploy script. `seed-meme-sounds.py --connection-string "<real azure>"`
+uploads the blobs and writes the table rows against whatever account the connection string names,
+and computes the right `BlobUrl` form for it. Re-runs are idempotent.

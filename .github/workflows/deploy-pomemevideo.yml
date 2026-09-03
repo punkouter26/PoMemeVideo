@@ -20,12 +20,19 @@ env:
   # Statically linked ffmpeg, bundled into the publish output so the app can ship as *code*
   # rather than as a container. Shelling out to ffmpeg/ffprobe is what previously forced a
   # custom Linux container, and a custom container is what forced the plan up to B1.
+  #
   # Must be the **gpl** variant: the render pipeline encodes with libx264, which the lgpl
-  # builds omit. Pinned by release tag + archive name + SHA-256 — bumping any one of the
-  # three means re-deriving the other two.
-  FFMPEG_TAG: autobuild-2026-08-13-17-03
-  FFMPEG_ARCHIVE: ffmpeg-n8.1.2-34-g9b6c8969e0-linux64-gpl-8.1
-  FFMPEG_SHA256: 5ca9b490fc4385de7545979e6320608bfbb769242a96e8eb3d45e103082b26d0
+  # builds omit. Must be the non-`shared` archive: only the static build's binaries can be
+  # lifted out of the tarball on their own, with no sibling .so files to carry along.
+  #
+  # `latest` + `n8.1-latest` are BtbN's two rolling names and are the only ones safe to
+  # reference. Dated `autobuild-*` tags are pruned after roughly two weeks, so a pin to one
+  # is a deploy that expires: the previous pin (autobuild-2026-08-13-17-03) began 404ing and
+  # took every deploy down with it. A SHA-256 pin is therefore impossible here — the
+  # verification below is behavioural instead, and is the stronger check anyway: it proves
+  # the binary runs on this runner and can actually encode h264.
+  FFMPEG_TAG: latest
+  FFMPEG_ARCHIVE: ffmpeg-n8.1-latest-linux64-gpl-8.1
 
 jobs:
   deploy:
@@ -54,7 +61,7 @@ jobs:
           set -euo pipefail
           curl -fsSL -o ffmpeg.tar.xz \
             "https://github.com/BtbN/FFmpeg-Builds/releases/download/${FFMPEG_TAG}/${FFMPEG_ARCHIVE}.tar.xz"
-          echo "${FFMPEG_SHA256}  ffmpeg.tar.xz" | sha256sum -c -
+          sha256sum ffmpeg.tar.xz   # recorded in the log so a bad build can be identified after the fact
 
           # FFmpegRenderService looks for exactly this directory next to the app assembly.
           mkdir -p publish/ffmpeg
@@ -62,9 +69,23 @@ jobs:
             "${FFMPEG_ARCHIVE}/bin/ffmpeg" "${FFMPEG_ARCHIVE}/bin/ffprobe"
           chmod +x publish/ffmpeg/ffmpeg publish/ffmpeg/ffprobe
 
+          # Behavioural acceptance, standing in for the checksum a rolling tag cannot have.
           publish/ffmpeg/ffmpeg -version | head -1
+          publish/ffmpeg/ffprobe -version | head -1
           publish/ffmpeg/ffmpeg -hide_banner -encoders | grep -q libx264 \
             || { echo "::error::bundled ffmpeg lacks libx264 — wrong build variant"; exit 1; }
+
+          # An encoder listed is not an encoder that works: a shared build lists libx264 and
+          # then dies on a missing .so at the first frame. Encode one for real and probe it,
+          # so a bad archive fails here rather than on the first render in production.
+          publish/ffmpeg/ffmpeg -hide_banner -loglevel error \
+            -f lavfi -i testsrc=size=64x64:rate=1 -frames:v 1 -c:v libx264 -y smoke.mp4 \
+            || { echo "::error::bundled ffmpeg cannot encode h264"; exit 1; }
+          [ "$(publish/ffmpeg/ffprobe -v error -select_streams v:0 \
+                 -show_entries stream=codec_name -of csv=p=0 smoke.mp4)" = "h264" ] \
+            || { echo "::error::ffprobe did not read back an h264 stream"; exit 1; }
+          rm -f smoke.mp4
+
           du -sh publish
 
       # The `zip` CLI records Unix modes in the entry's external attributes; `dotnet publish

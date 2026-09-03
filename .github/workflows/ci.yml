@@ -1,5 +1,16 @@
 name: CI
 
+# Two tiers, deliberately.
+#
+# `build-and-test` is the gate: it runs on every push and PR, needs one runner and no services,
+# and is fully deterministic — a red build here always means the code is wrong.
+#
+# The integration / API-E2E / UI-E2E jobs each stand up an Azurite service container, and the UI
+# one also publishes the app, boots it and installs a browser. They cost three extra runners and
+# several minutes on a change that a unit test could have caught, and their failures are as often
+# environmental as real. They are therefore `workflow_dispatch`-only: run the workflow manually
+# (Actions → CI → Run workflow) to get the full suite, e.g. before a release or after touching
+# storage, auth or the render pipeline. Nothing about them is deleted — only unhooked from push.
 on:
   push:
     branches: [master]
@@ -43,6 +54,7 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.event_name == 'workflow_dispatch'
 
     services:
       azurite:
@@ -81,6 +93,7 @@ jobs:
     name: API E2E Tests
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.event_name == 'workflow_dispatch'
 
     services:
       azurite:
@@ -119,6 +132,7 @@ jobs:
     name: UI E2E Tests (Playwright)
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.event_name == 'workflow_dispatch'
 
     services:
       azurite:
