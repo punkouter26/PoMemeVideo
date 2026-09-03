@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;

@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (0 warnings, 0 errors)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Check test budgets
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File scripts/check-test-budgets.ps1
+
+      - name: Unit tests
+        run: dotnet test tests/PoMemeVideo.UnitTests --no-build --configuration Release --verbosity normal
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:latest
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+        options: >-
+          --health-cmd "nc -z localhost 10000"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Integration tests
+        run: dotnet test tests/PoMemeVideo.IntegrationTests --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__AzureStorage: "UseDevelopmentStorage=true"
+
+  api-e2e-tests:
+    name: API E2E Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:latest
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+        options: >-
+          --health-cmd "nc -z localhost 10000"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: API E2E tests
+        run: dotnet test tests/PoMemeVideo.E2EAPI --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__AzureStorage: "UseDevelopmentStorage=true"

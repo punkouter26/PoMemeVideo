@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using PoMemeVideo.Client.Components;
 using PoMemeVideo.Client.Services;
-using Radzen;
 
 namespace PoMemeVideo.Client.Pages;
 
@@ -28,7 +27,7 @@ public partial class Source
     private readonly List<VisionLabel> _visionLabels = [];
     private bool _visionAnalysed;
     private string _visionFallbackMessage = "AI VISION: no triggers detected - time-based placement will be used";
-    private string _displayActiveModel = "UNKNOWN";
+    private string _displayActiveModel = "Azure OpenAI · GPT-5.4 Nano";
 
     private bool _isDevelopment;
     private bool _soundLibraryEmpty;
@@ -57,7 +56,26 @@ public partial class Source
     private ElementReference _videoRef;
     private DitheredKeyframeStrip? _keyframeStrip;
     [Inject] private Vibe3DService Vibe3D { get; set; } = default!;
-    [Inject] private NotificationService Notification { get; set; } = default!;
+
+    private string _aspectRatio = "original";
+    private string _memePersona = "Standard";
+    private double _trimStart;
+    private double _trimEnd;
+
+    private void SetAspectRatio(string ratio)
+    {
+        _aspectRatio = ratio;
+    }
+
+    private void OnPersonaChanged()
+    {
+    }
+
+    private void OnTrimChanged()
+    {
+        if (_trimEnd <= _trimStart)
+            _trimEnd = Math.Min(_videoDurationSeconds, _trimStart + 1.0);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -128,6 +146,8 @@ public partial class Source
             StateHasChanged();
 
             _videoDurationSeconds = await LoadVideoDurationAsync(file);
+            _trimStart = 0;
+            _trimEnd = _videoDurationSeconds;
 
             _statusMessage = "CONFIRMING SESSION...";
             StateHasChanged();
@@ -138,6 +158,10 @@ public partial class Source
                 blobPath = _blobPath,
                 videoDurationSeconds = _videoDurationSeconds,
                 aggressiveVisuals = _aggressiveVisuals,
+                trimStartSeconds = (double?)null,
+                trimDurationSeconds = (double?)null,
+                memePersona = _memePersona,
+                aspectRatio = _aspectRatio,
             });
 
             if (!confirmResponse.IsSuccessStatusCode)
@@ -270,16 +294,23 @@ public partial class Source
         {
             _statusMessage = "SAVING SESSION OPTIONS...";
 
-            if (_uploaded && _confirmedAggressiveVisuals != _aggressiveVisuals)
+            if (_uploaded)
             {
-                var response = await Http.PutAsJsonAsync($"/api/ingestion/sessions/{_sessionId}/options", new
+                var confirmResponse = await Http.PostAsJsonAsync("/api/ingestion/sessions", new
                 {
+                    sessionId = _sessionId,
+                    blobPath = _blobPath,
+                    videoDurationSeconds = _videoDurationSeconds,
                     aggressiveVisuals = _aggressiveVisuals,
+                    trimStartSeconds = _trimStart > 0 ? (double?)_trimStart : null,
+                    trimDurationSeconds = (_trimEnd > _trimStart && _trimEnd < _videoDurationSeconds) ? (double?)(_trimEnd - _trimStart) : null,
+                    memePersona = _memePersona,
+                    aspectRatio = _aspectRatio,
                 });
 
-                if (!response.IsSuccessStatusCode)
+                if (!confirmResponse.IsSuccessStatusCode)
                 {
-                    _errorMessage = await BuildErrorMessageAsync(response, "FAILED TO SAVE SESSION OPTIONS");
+                    _errorMessage = await BuildErrorMessageAsync(confirmResponse, "FAILED TO SAVE SESSION OPTIONS");
                     _statusMessage = "READY";
                     return;
                 }
@@ -380,7 +411,7 @@ public partial class Source
         }
         catch
         {
-            _displayActiveModel = "UNKNOWN";
+            _displayActiveModel = "Azure OpenAI (Default)";
         }
     }
 

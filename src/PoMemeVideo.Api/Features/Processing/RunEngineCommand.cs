@@ -106,10 +106,6 @@ public sealed partial class RunEngineCommand
 
         await _sessions.UpdateStatusAsync(sessionId, userId, SessionStatus.Processing, cancellationToken: cancellationToken);
 
-        // Start hardware-metrics background timer
-        using var metricsCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var metricsTask = EmitHardwareMetricsAsync(sessionId, metricsCts.Token);
-
         try
         {
             await _notifier.DirectorLogAsync(sessionId, "DIRECTOR ONLINE. INITIALISING ENGINE...", cancellationToken);
@@ -242,7 +238,7 @@ public sealed partial class RunEngineCommand
             // Audit timing events
             foreach (var d in decisions)
             {
-                await _notifier.AuditAsync(sessionId,
+                await _notifier.DirectorLogAsync(sessionId,
                     d.PlacementType != PlacementType.Triggered
                         ? d.AuditMessage
                         : $"PLACED: {d.SelectedSound.DisplayName} @ {d.ApprovedTimestampMs}ms [{d.PlacementType}]",
@@ -343,6 +339,8 @@ public sealed partial class RunEngineCommand
                         : $"[FALLBACK] Direct semantic match for '{(i < approvedLabels.Length ? approvedLabels[i].Label : d.SelectedSound.DisplayName)}'.",
                     SceneDescription = i < approvedLabels.Length ? approvedLabels[i].Label : string.Empty,
                     PlacementType = d.PlacementType,
+                    CaptionText = i == 0 ? "WAIT FOR IT..." : i == decisions.Count - 1 ? "EMOTIONAL DAMAGE" : null,
+                    CaptionPosition = "Top",
                 }).ToArray();
             }
 
@@ -359,6 +357,14 @@ public sealed partial class RunEngineCommand
             {
                 scriptEntries[i].TimestampMs = decisions[i].ApprovedTimestampMs;
                 scriptEntries[i].PlacementType = decisions[i].PlacementType;
+            }
+
+            // Progressive cue dispatch: stream individual approved cues to client UI live feed
+            foreach (var entry in scriptEntries)
+            {
+                await _notifier.DirectorLogAsync(sessionId,
+                    $"CUE APPROVED: [{entry.SoundName}] @ {entry.TimestampMs}ms — {(string.IsNullOrWhiteSpace(entry.CaptionText) ? entry.SelectionRationale : $"\"{entry.CaptionText}\"")}",
+                    cancellationToken);
             }
 
             // Persist DirectorScript
@@ -396,22 +402,6 @@ public sealed partial class RunEngineCommand
             await _sessions.UpdateStatusAsync(sessionId, userId, SessionStatus.Error, ex.Message, cancellationToken: default);
             await _notifier.ErrorAsync(sessionId, $"ENGINE ERROR: {ex.Message}", default);
             throw;
-        }
-        finally
-        {
-            await metricsCts.CancelAsync();
-            try { await metricsTask; } catch (OperationCanceledException) { }
-        }
-    }
-
-    private async Task EmitHardwareMetricsAsync(SessionId sessionId, CancellationToken cancellationToken)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        while (await timer.WaitForNextTickAsync(cancellationToken))
-        {
-            var inferenceLatencyMs = 50.0 + Random.Shared.NextDouble() * 150.0;
-            var cpuLoadPercent = 20.0 + Random.Shared.NextDouble() * 60.0;
-            await _notifier.HardwareMetricsAsync(sessionId, inferenceLatencyMs, cpuLoadPercent, cancellationToken);
         }
     }
 
@@ -503,5 +493,7 @@ public sealed partial class RunEngineCommand
         EffectIntensity = entry.EffectIntensity,
         OverlayAssetId = entry.OverlayAssetId,
         PlacementType = entry.PlacementType,
+        CaptionText = entry.CaptionText,
+        CaptionPosition = entry.CaptionPosition,
     };
 }

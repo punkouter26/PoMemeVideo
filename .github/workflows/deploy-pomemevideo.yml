@@ -92,26 +92,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Leftovers from the container deploy. `appsettings delete` errors on a name that is
-          # not present, and after the first successful run none of these are — so filter against
-          # what actually exists or every subsequent deploy fails here.
-          existing="$(az webapp config appsettings list \
-            --resource-group "${RESOURCE_GROUP}" --name "${WEBAPP_NAME}" \
-            --query "[].name" -o tsv)"
-          stale=""
-          for name in DOCKER_REGISTRY_SERVER_URL DOCKER_REGISTRY_SERVER_USERNAME \
-                      DOCKER_REGISTRY_SERVER_PASSWORD WEBSITES_ENABLE_APP_SERVICE_STORAGE; do
-            if printf '%s\n' "${existing}" | grep -qx "${name}"; then
-              stale="${stale} ${name}"
-            fi
-          done
-          if [ -n "${stale}" ]; then
-            echo "Removing container-era settings:${stale}"
-            az webapp config appsettings delete \
-              --resource-group "${RESOURCE_GROUP}" --name "${WEBAPP_NAME}" \
-              --setting-names ${stale} --query "[].name" -o tsv
-          fi
-
           # Always On does not exist below B1; leaving it set blocks assignment to an F1 plan.
           # The startup file is pinned rather than left to auto-detection, which scans the output
           # for an entry assembly and has PoMemeVideo.Client.dll sitting right next to the host.

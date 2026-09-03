@@ -13,7 +13,10 @@ public record RenderJob(
     string SourceBlobPath,
     string OutputBlobPath,
     bool AggressiveVisuals,
-    IReadOnlyList<RenderSoundEntry> SoundEntries)
+    IReadOnlyList<RenderSoundEntry> SoundEntries,
+    double? TrimStartSeconds = null,
+    double? TrimDurationSeconds = null,
+    string? AspectRatio = null)
 {
     /// <summary>Internal completion signal set by FFmpegRenderService when done.</summary>
     public TaskCompletionSource Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -26,4 +29,6 @@ public record RenderSoundEntry(
     string SoundBlobUrl,
     string? VisualEffect,
     double? EffectIntensity,
-    string? OverlayAssetId);
+    string? OverlayAssetId,
+    string? CaptionText = null,
+    string? CaptionPosition = null);

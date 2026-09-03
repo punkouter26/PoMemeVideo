@@ -14,4 +14,8 @@ public class VideoSessionDto
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? CompletedAt { get; init; }
     public string? OutputBlobPath { get; init; }
+    public double? TrimStartSeconds { get; init; }
+    public double? TrimDurationSeconds { get; init; }
+    public string? MemePersona { get; init; }
+    public string? AspectRatio { get; init; }
 }

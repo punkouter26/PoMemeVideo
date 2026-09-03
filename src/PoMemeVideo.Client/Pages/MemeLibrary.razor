@@ -1,28 +1,45 @@
+@page "/memelibrary"
 @page "/library"
-@page "/admin/sounds"
 @inject HttpClient Http
 @inject NavigationManager Nav
-@inject NotificationService Notification
 @inject IJSRuntime JS
+@using Microsoft.AspNetCore.Components.Forms
+@using PoMemeVideo.Shared.Models
 @implements IDisposable
 
-<PageTitle>PoMemeVideo — Sound Library & Admin</PageTitle>
+<PageTitle>PoMemeVideo — Sound Library</PageTitle>
 
 <div class="sound-admin-page">
 
     <div class="page-hero">
-        <h1 class="hero-title">Sound Library<span class="admin-page-badge">ADMIN</span></h1>
+        <h1 class="hero-title">Sound Library</h1>
         <p class="hero-sub">Browse, search, and audition the full catalog of meme sound assets</p>
     </div>
 
+    @if (!string.IsNullOrEmpty(_statusNotification))
+    {
+        <div class="ascii-panel reveal-in" style="margin-bottom: 1rem; border-color: #00ff41;">
+            <pre class="status" style="margin: 0; padding: 0.5rem;">@_statusNotification</pre>
+        </div>
+    }
+
     <div class="library-controls-row ascii-border-double reveal-in">
-        <div class="search-bar">
+        <div class="search-bar" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; flex: 1;">
             <input class="ascii-input"
-                   placeholder="Filter by tag (comma-separated, e.g. boom, reaction)…"
+                   placeholder="Search name or keywords…"
+                   style="min-width: 180px; flex: 1;"
+                   @bind="SearchQuery"
+                   @bind:event="oninput" />
+            <input class="ascii-input"
+                   placeholder="Filter by tags (comma-separated)…"
+                   style="min-width: 180px; flex: 1;"
                    @bind="TagFilter"
                    @bind:event="oninput" />
             <button class="ascii-btn compact-btn" @onclick="LoadSounds" disabled="@_loading">Search</button>
             <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">Clear</button>
+            <button class="ascii-btn compact-btn" style="border-color: #00ffdc; color: #00ffdc;" @onclick="ToggleUploadModal">
+                @(_showUploadModal ? "[ ✕ Close ]" : "[ ⬆ Upload Sound ]")
+            </button>
         </div>
 
         <div class="view-mode-toggle">
@@ -37,98 +54,127 @@
         @if (ActiveTags.Count > 0)
         {
             <div class="active-tags" aria-label="Active filters">
+                <span class="active-tags-label">Filtering by:</span>
                 @foreach (var tag in ActiveTags)
                 {
-                    <RadzenBadge BadgeStyle="BadgeStyle.Primary" IsPill="true" class="cursor-pointer" @onclick="() => RemoveTag(tag)">
-                        #@tag &times;
-                    </RadzenBadge>
+                    <span class="ascii-tag cursor-pointer" @onclick="() => RemoveTag(tag)">
+                        #@tag ✕
+                    </span>
                 }
             </div>
         }
     </div>
 
-    @if (_loading && _sounds.Length == 0)
+    @if (_showUploadModal)
     {
-        <div class="loading-wrap ascii-border-double">
-            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="height: 6px;" />
-            <pre class="status">[ Loading meme sounds from storage… ]</pre>
+        <div class="upload-modal-panel ascii-border-double reveal-in vibe-glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <span style="font-family: var(--font-mono); color: #00ffdc; font-weight: bold;">[ ⬆ UPLOAD CUSTOM MEME SOUND ]</span>
+                <button class="ascii-btn compact-btn" @onclick="ToggleUploadModal">[ ✕ ]</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 500px;">
+                <div>
+                    <label class="input-label" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #88ffaa;">AUDIO FILE (.mp3, .wav, .ogg, max 15MB)</label>
+                    <InputFile OnChange="OnSoundFileSelected" accept=".mp3,.wav,.ogg,audio/*" class="ascii-input" style="width: 100%;" />
+                </div>
+                <div>
+                    <label class="input-label" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #88ffaa;">DISPLAY NAME</label>
+                    <input class="ascii-input" placeholder="e.g. Vine Boom Ultra" @bind="_uploadName" style="width: 100%;" />
+                </div>
+                <div>
+                    <label class="input-label" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #88ffaa;">ACTION TAGS (comma-separated)</label>
+                    <input class="ascii-input" placeholder="e.g. punch, shock, bass" @bind="_uploadTags" style="width: 100%;" />
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button class="ascii-btn primary-action compact-btn" @onclick="UploadCustomSoundAsync" disabled="@(_uploadFile is null || _uploading)">
+                        @(_uploading ? "[ ⏳ Uploading… ]" : "[ 💾 Save Sound ]")
+                    </button>
+                    <button class="ascii-btn compact-btn" @onclick="ToggleUploadModal">[ Cancel ]</button>
+                </div>
+                @if (!string.IsNullOrEmpty(_uploadMessage))
+                {
+                    <pre class="status" style="margin-top: 0.5rem;">@_uploadMessage</pre>
+                }
+            </div>
+        </div>
+    }
+
+    @if (_loading)
+    {
+        <div class="loading-state ascii-border-double">
+            <div class="retro-progress-bar"><div class="retro-progress-fill indeterminate"></div></div>
+            <pre class="loading-text">[ Querying sound asset catalogue… ]</pre>
         </div>
     }
     else if (_sounds.Length == 0)
     {
         <div class="empty-state ascii-border-double reveal-in">
-            <pre class="status">[ No sounds found@(!string.IsNullOrWhiteSpace(_tagFilter) ? $" — no matches for '{_tagFilter}'" : " — library is empty") ]</pre>
+            <pre class="empty-text">[ No sound assets found ]</pre>
+            <p class="empty-sub">No sounds match the current filter criteria.</p>
             <div class="empty-actions">
-                <button class="ascii-btn compact-btn primary-action" @onclick="SeedDefaultSounds" disabled="@_seeding">
-                    @(_seeding ? "[ 🌱 Seeding… ]" : "[ 🌱 Seed Default Sounds ]")
+                <button class="ascii-btn" @onclick="ClearFilters">[ Clear Filters ]</button>
+                <button class="ascii-btn" style="border-color: #00ffdc; color: #00ffdc;" @onclick="SeedDefaultSounds" disabled="@_seeding">
+                    @(_seeding ? "[ ⏳ Seeding… ]" : "[ ⚡ Seed Default Meme Sounds ]")
                 </button>
-                <button class="ascii-btn compact-btn" @onclick="ClearFilters">Reset Filters</button>
-                <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>Go to Create</button>
             </div>
         </div>
     }
     else
     {
-        <div class="admin-count-bar">
-            <pre class="status">[ @_totalCount sounds total — showing @(_page * PageSize + 1)–@(_page * PageSize + _sounds.Length) ]</pre>
+        <div class="results-meta-row">
+            <span class="count-badge">@_totalCount total sound@(_totalCount == 1 ? "" : "s")</span>
             <div class="pagination-controls">
                 <button class="ascii-btn compact-btn" @onclick="PrevPage" disabled="@(_page == 0 || _loading)">[ ◀ PREV ]</button>
-                <span class="page-indicator">page @(_page + 1) / @TotalPages</span>
+                <span class="page-indicator">Page @(_page + 1) of @TotalPages</span>
                 <button class="ascii-btn compact-btn" @onclick="NextPage" disabled="@(_page >= TotalPages - 1 || _loading)">[ NEXT ▶ ]</button>
             </div>
         </div>
 
         @if (_viewMode == ViewMode.Grid)
         {
-            <div class="radzen-grid-container ascii-border-double reveal-in">
-                <RadzenDataGrid Data="@_sounds" TItem="SoundAssetDto" AllowSorting="true" AllowColumnResize="true"
-                                Responsive="true" class="retro-datagrid">
-                    <Columns>
-                        <RadzenDataGridColumn TItem="SoundAssetDto" Property="DisplayName" Title="Sound Name" Width="220px">
-                            <Template Context="sound">
-                                <span class="grid-sound-name">@sound.DisplayName</span>
-                            </Template>
-                        </RadzenDataGridColumn>
-
-                        <RadzenDataGridColumn TItem="SoundAssetDto" Property="DurationMs" Title="Duration" Width="120px">
-                            <Template Context="sound">
-                                <span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span>
-                            </Template>
-                        </RadzenDataGridColumn>
-
-                        <RadzenDataGridColumn TItem="SoundAssetDto" Title="Tags" Width="300px">
-                            <Template Context="sound">
-                                <div class="sound-tag-row">
-                                    @foreach (var tag in sound.ActionVectorTags)
-                                    {
-                                        <RadzenBadge BadgeStyle="BadgeStyle.Info" IsPill="true" class="cursor-pointer"
-                                                     @onclick="() => { TagFilter = tag; }">
-                                            #@tag
-                                        </RadzenBadge>
-                                    }
-                                </div>
-                            </Template>
-                        </RadzenDataGridColumn>
-
-                        <RadzenDataGridColumn TItem="SoundAssetDto" Title="Audition / Play" Width="120px" TextAlign="TextAlign.Center">
-                            <Template Context="sound">
-                                <div class="retro-audio-player">
-                                    <audio id="grid-audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
-                                    <button class="ascii-btn compact-btn"
-                                            onclick="(function(btn){
-                                                var audio = document.getElementById('grid-audio-@sound.SoundId');
-                                                if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
-                                                document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
-                                                document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
-                                                audio.play();
-                                                btn.textContent = '[ ■ ]';
-                                                audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
-                                            })(this)">[ &#9654; ]</button>
-                                </div>
-                            </Template>
-                        </RadzenDataGridColumn>
-                    </Columns>
-                </RadzenDataGrid>
+            <div class="radzen-grid-container ascii-border-double reveal-in" style="overflow-x: auto;">
+                <table class="retro-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #00ff41; text-align: left;">
+                            <th style="padding: 0.5rem; width: 220px;">Sound Name</th>
+                            <th style="padding: 0.5rem; width: 120px;">Duration</th>
+                            <th style="padding: 0.5rem;">Tags</th>
+                            <th style="padding: 0.5rem; width: 120px; text-align: center;">Audition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sound in _sounds)
+                        {
+                            <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.2);">
+                                <td style="padding: 0.5rem;"><span class="grid-sound-name">@sound.DisplayName</span></td>
+                                <td style="padding: 0.5rem;"><span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span></td>
+                                <td style="padding: 0.5rem;">
+                                    <div class="sound-tag-row">
+                                        @foreach (var tag in sound.ActionVectorTags)
+                                        {
+                                            <span class="ascii-tag cursor-pointer" @onclick="() => { TagFilter = tag; }">#@tag</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td style="padding: 0.5rem; text-align: center;">
+                                    <div class="retro-audio-player">
+                                        <audio id="grid-audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
+                                        <button class="ascii-btn compact-btn"
+                                                onclick="(function(btn){
+                                                    var audio = document.getElementById('grid-audio-@sound.SoundId');
+                                                    if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
+                                                    document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                                    document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
+                                                    audio.play();
+                                                    btn.textContent = '[ ■ ]';
+                                                    audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
+                                                })(this)">[ &#9654; ]</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         }
         else
@@ -148,10 +194,9 @@
                             <div class="sound-tag-row">
                                 @foreach (var tag in sound.ActionVectorTags)
                                 {
-                                    <RadzenBadge BadgeStyle="BadgeStyle.Info" IsPill="true" class="cursor-pointer"
-                                                 @onclick='() => { TagFilter = tag; }'>
+                                    <span class="ascii-tag cursor-pointer" @onclick='() => { TagFilter = tag; }'>
                                         #@tag
-                                    </RadzenBadge>
+                                    </span>
                                 }
                             </div>
                         }
@@ -176,45 +221,130 @@
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <pre class="page-error">⚠ @_errorMessage</pre>
+        <div class="error-banner ascii-border-double">
+            <pre class="error-text">[ ERROR ] @_errorMessage</pre>
+        </div>
     }
+
 </div>
 
 @code {
     private enum ViewMode { Grid, Cards }
+
     private ViewMode _viewMode = ViewMode.Grid;
     private SoundAssetDto[] _sounds = [];
     private int _totalCount;
-    private bool _loading;
-    private string _tagFilter = string.Empty;
-    private string? _errorMessage;
-    private CancellationTokenSource? _debounceCts;
     private int _page;
-    private const int PageSize = 20;
-    private int TotalPages => _totalCount == 0 ? 1 : (int)Math.Ceiling(_totalCount / (double)PageSize);
+    private const int PageSize = 25;
+    private bool _loading;
+    private string? _errorMessage;
+    private string? _statusNotification;
+
+    private string _searchQuery = string.Empty;
+    private string _tagFilter = string.Empty;
+
+    // Upload Modal State
+    private bool _showUploadModal;
+    private IBrowserFile? _uploadFile;
+    private string _uploadName = string.Empty;
+    private string _uploadTags = string.Empty;
+    private bool _uploading;
+    private string? _uploadMessage;
+
+    private CancellationTokenSource? _debounceCts;
+
+    private int TotalPages => (int)Math.Ceiling((double)_totalCount / PageSize);
+
+    private IReadOnlyList<string> ActiveTags => string.IsNullOrWhiteSpace(_tagFilter)
+        ? []
+        : _tagFilter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private string SearchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            if (_searchQuery == value) return;
+            _searchQuery = value;
+            _page = 0;
+            _ = DebouncedLoadAsync();
+        }
+    }
 
     private string TagFilter
     {
         get => _tagFilter;
         set
         {
-            if (string.Equals(_tagFilter, value, StringComparison.Ordinal))
-                return;
-
+            if (_tagFilter == value) return;
             _tagFilter = value;
             _page = 0;
             _ = DebouncedLoadAsync();
         }
     }
 
-    private List<string> ActiveTags => _tagFilter
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToList();
-
     protected override async Task OnInitializedAsync()
     {
         await LoadSounds();
+    }
+
+    private void ToggleUploadModal()
+    {
+        _showUploadModal = !_showUploadModal;
+    }
+
+    private void OnSoundFileSelected(InputFileChangeEventArgs e)
+    {
+        _uploadFile = e.File;
+        if (string.IsNullOrWhiteSpace(_uploadName))
+        {
+            _uploadName = System.IO.Path.GetFileNameWithoutExtension(e.File.Name);
+        }
+    }
+
+    private async Task UploadCustomSoundAsync()
+    {
+        if (_uploadFile is null) return;
+        _uploading = true;
+        _uploadMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            using var stream = _uploadFile.OpenReadStream(maxAllowedSize: 15 * 1024 * 1024);
+            var streamContent = new StreamContent(stream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_uploadFile.ContentType ?? "audio/mpeg");
+            content.Add(streamContent, "file", _uploadFile.Name);
+            if (!string.IsNullOrWhiteSpace(_uploadName))
+                content.Add(new StringContent(_uploadName), "displayName");
+            if (!string.IsNullOrWhiteSpace(_uploadTags))
+                content.Add(new StringContent(_uploadTags), "tags");
+
+            var resp = await Http.PostAsync("/api/memelibrary/upload", content);
+            if (resp.IsSuccessStatusCode)
+            {
+                _statusNotification = $"[ UPLOAD COMPLETE: Sound '{_uploadName ?? _uploadFile.Name}' saved! ]";
+                _showUploadModal = false;
+                _uploadFile = null;
+                _uploadName = string.Empty;
+                _uploadTags = string.Empty;
+                await LoadSounds();
+            }
+            else
+            {
+                _uploadMessage = $"Upload failed: HTTP {(int)resp.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _uploadMessage = $"Upload error: {ex.Message}";
+        }
+        finally
+        {
+            _uploading = false;
+            StateHasChanged();
+        }
     }
 
     private bool _seeding;
@@ -228,17 +358,17 @@
             var resp = await Http.PostAsync("/api/memelibrary/seed", null);
             if (resp.IsSuccessStatusCode)
             {
-                Notification.Notify(NotificationSeverity.Success, "Seeding Complete", "Default meme sound assets loaded into library.", 3000);
+                _statusNotification = "[ SEEDING COMPLETE: Default meme sound assets loaded into library. ]";
                 await LoadSounds();
             }
             else
             {
-                Notification.Notify(NotificationSeverity.Error, "Seed Failed", $"HTTP {(int)resp.StatusCode}", 3000);
+                _errorMessage = $"Seed Failed: HTTP {(int)resp.StatusCode}";
             }
         }
         catch (Exception ex)
         {
-            Notification.Notify(NotificationSeverity.Error, "Seed Failed", ex.Message, 3000);
+            _errorMessage = $"Seed Failed: {ex.Message}";
         }
         finally
         {
@@ -284,9 +414,15 @@
         try
         {
             var offset = _page * PageSize;
-            var url = string.IsNullOrWhiteSpace(_tagFilter)
-                ? $"/api/memelibrary/sounds?offset={offset}&limit={PageSize}"
-                : $"/api/memelibrary/sounds?tags={Uri.EscapeDataString(_tagFilter)}&offset={offset}&limit={PageSize}";
+            var queryParams = new List<string> { $"offset={offset}", $"limit={PageSize}" };
+
+            if (!string.IsNullOrWhiteSpace(_tagFilter))
+                queryParams.Add($"tags={Uri.EscapeDataString(_tagFilter)}");
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+                queryParams.Add($"query={Uri.EscapeDataString(_searchQuery)}");
+
+            var url = $"/api/memelibrary/sounds?{string.Join('&', queryParams)}";
 
             var response = await Http.GetFromJsonAsync<SoundsResponse>(url);
             _sounds = response?.Sounds ?? [];

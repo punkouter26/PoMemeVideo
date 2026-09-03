@@ -6,6 +6,15 @@ body {
     color: var(--term-primary);
     font-family: 'Courier New', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
     min-height: 100vh;
+    min-height: 100dvh;
+    max-width: 100vw;
+    overflow-x: hidden;
+}
+
+:focus-visible {
+    outline: 2px solid var(--term-primary) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 10px rgba(0, 245, 106, 0.7) !important;
 }
 
 h1,
@@ -32,4 +41,15 @@ pre {
     color: var(--term-primary);
     margin: 0;
     white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* ── Zero-CLS Aspect Ratio & Wireframe Placeholder ──────────── */
+.video-crt-wrap,
+.history-card-preview {
+    aspect-ratio: 16 / 9;
+    background: #020704;
+    position: relative;
+    contain: layout paint;
 }

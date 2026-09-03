@@ -16,9 +16,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
-    <PackageReference Include="Radzen.Blazor" />
-    <!-- Force safe version of Radzen's transitive dep (GHSA-4cv2-4hjh-77rx fixed in >=1.4.0) -->
-    <PackageReference Include="System.Linq.Dynamic.Core" />
   </ItemGroup>
 
   <ItemGroup>

@@ -58,6 +58,22 @@ public sealed class SoundAssetTableRepository : ISoundAssetRepository
         return assets;
     }
 
+    public async Task AddSoundAsync(SoundAsset asset, CancellationToken cancellationToken = default)
+    {
+        var client = _factory.GetTableClient(TableName);
+        var entity = new TableEntity(PartitionKey, asset.SoundId.ToString())
+        {
+            ["DisplayName"] = asset.DisplayName,
+            ["DurationMs"] = asset.DurationMs,
+            ["Tags"] = string.Join(",", asset.ActionVectorTags),
+            ["BlobUrl"] = asset.BlobUrl,
+            ["Priority"] = asset.Priority,
+            ["UseCase"] = asset.UseCase
+        };
+        await client.UpsertEntityAsync(entity, TableUpdateMode.Replace, cancellationToken);
+        InvalidateCache();
+    }
+
     /// <remarks>Fire-and-forget: the contract is synchronous and eviction is not ordered work.</remarks>
     public void InvalidateCache() => _ = _cache.RemoveAsync(CacheKey).AsTask();
 }

@@ -74,7 +74,7 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
     {
         var labelsJson = JsonSerializer.Serialize(
             visionLabels.Select(v => new { v.TimestampSeconds, v.Label }), JsonOpts);
-        var soundsJson = DirectorPrompt.SerializeSounds(topCandidates, JsonOpts);
+        var soundsCompact = DirectorPrompt.SerializeSoundsCompact(topCandidates);
 
         _logger.LogInformation(
             "Session {SessionId}: Azure director start. VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, Endpoint={Endpoint}, Deployment={Deployment}, HasRealVision={HasRealVision}",
@@ -85,19 +85,23 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
             _deployment,
             hasRealVisionData);
 
-        var prompt = DirectorPrompt.Build(labelsJson, soundsJson, hasRealVisionData);
+        var prompt = DirectorPrompt.Build(labelsJson, soundsCompact, hasRealVisionData);
 
+        // Partition into invariant system prefix (for Azure OpenAI prompt caching) and dynamic request
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("You are an expert meme video director. Respond only with valid JSON."),
+            new SystemChatMessage(
+                "You are an expert meme video director. Available meme sounds catalog:\n" +
+                soundsCompact +
+                "\nRespond only with a JSON array or { \"entries\": [...] }."),
             new UserChatMessage(prompt),
         };
 
         _logger.LogDebug(
-            "Session {SessionId}: Azure director payload sizes. LabelsJsonChars={LabelsChars}, SoundsJsonChars={SoundsChars}, PromptChars={PromptChars}",
+            "Session {SessionId}: Azure director payload sizes. LabelsJsonChars={LabelsChars}, SoundsCompactChars={SoundsChars}, PromptChars={PromptChars}",
             sessionId,
             labelsJson.Length,
-            soundsJson.Length,
+            soundsCompact.Length,
             prompt.Length);
 
         using var timeoutCts = _directorTimeoutSeconds > 0
@@ -117,7 +121,12 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
         ChatCompletion response;
         try
         {
-            response = await _chatClient.CompleteChatAsync(messages, cancellationToken: effectiveToken);
+            var chatOptions = new ChatCompletionOptions
+            {
+                Temperature = 0.6f,
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat(),
+            };
+            response = await _chatClient.CompleteChatAsync(messages, chatOptions, cancellationToken: effectiveToken);
         }
         catch (OperationCanceledException) when (timeoutCts is not null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {

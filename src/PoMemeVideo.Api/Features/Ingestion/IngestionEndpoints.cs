@@ -78,6 +78,10 @@ public static class IngestionEndpoints
             session.SourceBlobPath = request.BlobPath;
             session.VideoDurationSeconds = request.VideoDurationSeconds;
             session.AggressiveVisuals = request.AggressiveVisuals;
+            session.TrimStartSeconds = request.TrimStartSeconds;
+            session.TrimDurationSeconds = request.TrimDurationSeconds;
+            session.MemePersona = request.MemePersona;
+            session.AspectRatio = request.AspectRatio;
 
             await repository.UpdateMetadataAsync(
                 session.SessionId,
@@ -85,6 +89,10 @@ public static class IngestionEndpoints
                 session.SourceBlobPath,
                 session.VideoDurationSeconds,
                 session.AggressiveVisuals,
+                session.TrimStartSeconds,
+                session.TrimDurationSeconds,
+                session.MemePersona,
+                session.AspectRatio,
                 ct);
 
             return Results.Created(
@@ -115,7 +123,7 @@ public static class IngestionEndpoints
                 session.SourceBlobPath,
                 session.VideoDurationSeconds,
                 request.AggressiveVisuals,
-                ct);
+                cancellationToken: ct);
 
             return Results.Ok(new { sessionId, aggressiveVisuals = request.AggressiveVisuals });
         })
@@ -227,6 +235,10 @@ public static class IngestionEndpoints
                 CreatedAt = s.CreatedAt,
                 CompletedAt = s.CompletedAt,
                 OutputBlobPath = s.OutputBlobPath,
+                TrimStartSeconds = s.TrimStartSeconds,
+                TrimDurationSeconds = s.TrimDurationSeconds,
+                MemePersona = s.MemePersona,
+                AspectRatio = s.AspectRatio,
             }).ToList();
 
             return Results.Ok(dtos);
@@ -260,6 +272,10 @@ public static class IngestionEndpoints
                 CreatedAt = session.CreatedAt,
                 CompletedAt = session.CompletedAt,
                 OutputBlobPath = session.OutputBlobPath,
+                TrimStartSeconds = session.TrimStartSeconds,
+                TrimDurationSeconds = session.TrimDurationSeconds,
+                MemePersona = session.MemePersona,
+                AspectRatio = session.AspectRatio,
             };
 
             return Results.Ok(dto);
@@ -289,7 +305,11 @@ public sealed record SessionConfirmRequest(
     Guid SessionId,
     string BlobPath,
     double VideoDurationSeconds,
-    bool AggressiveVisuals);
+    bool AggressiveVisuals,
+    double? TrimStartSeconds = null,
+    double? TrimDurationSeconds = null,
+    string? MemePersona = null,
+    string? AspectRatio = null);
 
 public sealed record SessionOptionsRequest(bool AggressiveVisuals);
 

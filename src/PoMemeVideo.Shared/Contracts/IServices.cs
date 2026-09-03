@@ -83,8 +83,6 @@ public interface IEngineNotifier
 {
     Task DirectorLogAsync(SessionId sessionId, string message, CancellationToken cancellationToken = default);
     Task DirectorScriptAsync(SessionId sessionId, ScriptEntryDto entry, CancellationToken cancellationToken = default);
-    Task AuditAsync(SessionId sessionId, string message, CancellationToken cancellationToken = default);
-    Task HardwareMetricsAsync(SessionId sessionId, double inferenceLatencyMs, double cpuLoadPercent, CancellationToken cancellationToken = default);
     Task CompleteAsync(SessionId sessionId, string outputBlobPath, CancellationToken cancellationToken = default);
     Task ErrorAsync(SessionId sessionId, string errorMessage, CancellationToken cancellationToken = default);
 

@@ -80,6 +80,7 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
             {
                 builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
                 builder.UseSetting("KeyVault:Uri", ""); // skip KV in CI/test
+                builder.UseSetting("SkipAutoSeed", "true");
 
                 builder.ConfigureServices(services =>
                 {

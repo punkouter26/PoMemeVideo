@@ -59,13 +59,32 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
             return [];
 
         var allResults = new List<(double TimestampSeconds, string Label)>();
+        var tasks = new List<Task<(double TimestampSeconds, string Label)[]>>();
+        using var semaphore = new SemaphoreSlim(3);
 
         for (var batchStart = 0; batchStart < keyframeBase64Images.Length; batchStart += VisionBatchSize)
         {
             var batch = keyframeBase64Images.Skip(batchStart).Take(VisionBatchSize).ToArray();
             var batchOffsetSeconds = batchStart * FrameIntervalSeconds;
-            var batchResults = await AnalyseBatchAsync(batch, batchOffsetSeconds, cancellationToken);
-            allResults.AddRange(batchResults);
+
+            tasks.Add(Task.Run(async () =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    return await AnalyseBatchAsync(batch, batchOffsetSeconds, cancellationToken);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }, cancellationToken));
+        }
+
+        var batchOutputs = await Task.WhenAll(tasks);
+        foreach (var batchResult in batchOutputs)
+        {
+            allResults.AddRange(batchResult);
         }
 
         _logger.LogInformation("GPT-5.4 Nano Vision total: {Count} label(s) from {Batches} batch(es): {Labels}",
@@ -73,7 +92,7 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
             (int)Math.Ceiling(keyframeBase64Images.Length / (double)VisionBatchSize),
             string.Join(", ", allResults.Select(x => $"t={x.TimestampSeconds:F1}s→{x.Label}")));
 
-        return [.. allResults];
+        return [.. allResults.OrderBy(x => x.TimestampSeconds)];
     }
 
     private async Task<(double TimestampSeconds, string Label)[]> AnalyseBatchAsync(

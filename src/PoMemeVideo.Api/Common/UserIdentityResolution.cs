@@ -64,6 +64,13 @@ public static class UserIdentityResolution
     {
         // Priority order:
         //   1. Real auth claims (OIDC / Guest sign-in) — never override an authenticated user.
+        var identityType = httpContext.User.FindFirstValue("identity_type");
+        if (httpContext.User.Identity?.IsAuthenticated == true
+            && !string.Equals(identityType, "ANON", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         //   2. The on-disk ANON id — the canonical identity for this dev box. Survives browser
         //      context changes and API restarts. The cookie is just a per-context cache.
         //   3. The dev-anon cookie — only used when no file exists yet (i.e. first run after
@@ -71,17 +78,6 @@ public static class UserIdentityResolution
         //      and ignored.
         //   4. Mint a fresh GUID and persist it.
         var existing = (UserId?)null;
-
-        // Only honor NameIdentifier if it came from a *real* identity — not the dev ANON one
-        // we minted on an earlier request and shoved into the principal via SignInAsync. The
-        // "identity_type" claim distinguishes the two: ANON (dev), GUEST (guest login), OIDC.
-        var identityType = httpContext.User.FindFirstValue("identity_type");
-        var nameId = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!string.Equals(identityType, "ANON", StringComparison.OrdinalIgnoreCase)
-            && Guid.TryParse(nameId, out var g))
-        {
-            existing = new UserId(g);
-        }
 
         if (existing is null)
         {

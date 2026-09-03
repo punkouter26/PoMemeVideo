@@ -76,15 +76,40 @@ public sealed class SemanticMatchingService : ISemanticMatchingService
             .ToList();
     }
 
-    /// <summary>Splits free text into lowercase word tokens, dropping short noise words.</summary>
+    private static readonly Dictionary<string, string[]> s_conceptSynonyms = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["fall"] = ["fail", "trip", "stumble", "slip", "slapstick", "drop"],
+        ["falling"] = ["fail", "trip", "stumble", "slip", "slapstick", "drop"],
+        ["crash"] = ["explosion", "impact", "hit", "smash", "boom", "wreck"],
+        ["crashing"] = ["explosion", "impact", "hit", "smash", "boom", "wreck"],
+        ["fight"] = ["punch", "hit", "battle", "action", "slap", "mlg"],
+        ["fighting"] = ["punch", "hit", "battle", "action", "slap", "mlg"],
+        ["scared"] = ["scream", "shock", "horror", "fear", "surprise"],
+        ["surprised"] = ["shock", "scream", "reaction", "wow", "vine-boom"],
+        ["dancing"] = ["music", "groove", "celebration", "party", "vibe"],
+        ["laughing"] = ["funny", "comedy", "sitcom", "giggle", "humor"],
+    };
+
+    /// <summary>Splits free text into lowercase word tokens and expands with concept synonyms.</summary>
     private static IEnumerable<string> Tokenize(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return [];
 
-        return text
+        var raw = text
             .Split(t => !char.IsLetterOrDigit(t))
-            .Where(t => t.Length >= MinTokenLength);
+            .Where(t => t.Length >= MinTokenLength)
+            .ToList();
+
+        var result = new HashSet<string>(raw, StringComparer.OrdinalIgnoreCase);
+        foreach (var t in raw)
+        {
+            if (s_conceptSynonyms.TryGetValue(t, out var syns))
+            {
+                foreach (var s in syns) result.Add(s);
+            }
+        }
+        return result;
     }
 
     private static SearchIndex BuildIndex(IReadOnlyList<SoundAsset> sounds)

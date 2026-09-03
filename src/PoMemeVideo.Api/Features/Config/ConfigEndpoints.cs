@@ -178,9 +178,15 @@ public static class ConfigEndpoints
             if (!env.IsDevelopment())
                 return Results.BadRequest(new { error = "Model download is only available in Development." });
 
-            var scriptsDir = Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "SCRIPTS"));
+            var scriptsDir = new[]
+            {
+                Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "scripts")),
+                Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "SCRIPTS")),
+                Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "..", "scripts")),
+                Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "..", "SCRIPTS")),
+            }.FirstOrDefault(Directory.Exists) ?? Path.GetFullPath(Path.Combine(env.ContentRootPath, "..", "..", "scripts"));
             if (!Directory.Exists(scriptsDir))
-                return Results.BadRequest(new { error = "SCRIPTS directory not found.", path = scriptsDir });
+                return Results.BadRequest(new { error = "scripts directory not found.", path = scriptsDir });
 
             var downloadScript = Path.Combine(scriptsDir, "download-models.py");
             if (!File.Exists(downloadScript))

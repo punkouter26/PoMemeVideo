@@ -1,6 +1,141 @@
-@PoMemeVideo.Api_HostAddress = http://localhost:7000
+### PoMemeVideo API — Consolidated HTTP requests
+### Use with VS Code REST Client or JetBrains HTTP Client
+### All slices in one file; per-slice files are deleted.
 
-GET {{PoMemeVideo.Api_HostAddress}}/weatherforecast/
+@host = http://localhost:7000
+@sessionId = 00000000-0000-0000-0000-000000000001
+
+# ═══════════════════════════════════════════════════════
+#  AUTH
+# ═══════════════════════════════════════════════════════
+
+### POST /auth/guest — Create GUEST identity (dev only)
+POST {{host}}/auth/guest
+Content-Type: application/json
+
+###
+
+### POST /auth/anon — Backward-compatible alias
+POST {{host}}/auth/anon
+Content-Type: application/json
+
+###
+
+### GET /api/auth/me — Current signed-in user
+GET {{host}}/api/auth/me
+
+###
+
+### POST /auth/logout — Sign out
+POST {{host}}/auth/logout
+
+###
+
+# ═══════════════════════════════════════════════════════
+#  CONFIG
+# ═══════════════════════════════════════════════════════
+
+### GET /api/config — Feature flags and environment info
+GET {{host}}/api/config
+
+###
+
+# ═══════════════════════════════════════════════════════
+#  INGESTION
+# ═══════════════════════════════════════════════════════
+
+### POST /api/ingestion/sas — Generate SAS token for video upload (mp4)
+POST {{host}}/api/ingestion/sas
+Content-Type: application/json
+
+{
+    "fileName": "my-video.mp4",
+    "fileSizeBytes": 104857600
+}
+
+###
+
+### POST /api/ingestion/sas — Invalid extension (expect 400 INVALID_EXTENSION)
+POST {{host}}/api/ingestion/sas
+Content-Type: application/json
+
+{
+    "fileName": "exploit.exe",
+    "fileSizeBytes": 1024
+}
+
+###
+
+### POST /api/ingestion/sessions — Confirm session after upload
+POST {{host}}/api/ingestion/sessions
+Content-Type: application/json
+
+{
+    "sessionId": "{{sessionId}}",
+    "blobPath": "sessions/{{sessionId}}/source.mp4",
+    "videoDurationSeconds": 42.5,
+    "aggressiveVisuals": true
+}
+
+###
+
+### GET /api/ingestion/sessions/{id} — Get session status
+GET {{host}}/api/ingestion/sessions/{{sessionId}}
+
+###
+
+# ═══════════════════════════════════════════════════════
+#  PROCESSING
+# ═══════════════════════════════════════════════════════
+
+### POST /api/processing/sessions/{id}/initiate — Start engine
+POST {{host}}/api/processing/sessions/{{sessionId}}/initiate
+Content-Type: application/json
+
+###
+
+# ═══════════════════════════════════════════════════════
+#  OUTPUT
+# ═══════════════════════════════════════════════════════
+
+### GET /api/output/sessions/{id}/script — Director's Script
+GET {{host}}/api/output/sessions/{{sessionId}}/script
+
+###
+
+### GET /api/output/sessions/{id}/download/video — Download output MP4
+GET {{host}}/api/output/sessions/{{sessionId}}/download/video
+
+###
+
+### GET /api/output/sessions/{id}/download/script — Download script JSON
+GET {{host}}/api/output/sessions/{{sessionId}}/download/script
+
+###
+
+### DELETE /api/output/sessions/{id} — Delete session and all blobs
+DELETE {{host}}/api/output/sessions/{{sessionId}}
+
+###
+
+# ═══════════════════════════════════════════════════════
+#  MEME LIBRARY
+# ═══════════════════════════════════════════════════════
+
+### GET /api/memelibrary/sounds — List all sounds
+GET {{host}}/api/memelibrary/sounds
 Accept: application/json
+
+###
+
+### GET /api/memelibrary/sounds — Filtered by tags
+GET {{host}}/api/memelibrary/sounds?tags=impact,boom&limit=10
+Accept: application/json
+
+###
+
+### POST /api/memelibrary/seed — Seed sound library from disk
+POST {{host}}/api/memelibrary/seed
+Content-Type: application/json
 
 ###

@@ -3,12 +3,9 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject Vibe3DService Vibe3D
-@inject NotificationService Notification
 @using PoMemeVideo.Shared.Models
 @using PoMemeVideo.Shared.Enums
 @using PoMemeVideo.Client.Components
-@using Radzen
-@using Radzen.Blazor
 @implements IAsyncDisposable
 
 <PageTitle>PoMemeVideo — Review &amp; Studio</PageTitle>
@@ -23,6 +20,13 @@
         </div>
     }
 
+    @if (!string.IsNullOrEmpty(_statusBanner))
+    {
+        <div class="ascii-panel reveal-in" style="margin-bottom: 1rem; border-color: #00ff41;">
+            <pre class="status" style="margin: 0; padding: 0.5rem;">@_statusBanner</pre>
+        </div>
+    }
+
     <div class="page-hero">
         <h1 class="hero-title">Review &amp; Cue Studio</h1>
         <p class="hero-sub">Session: @SessionId</p>
@@ -31,7 +35,7 @@
     @if (_loading)
     {
         <div class="loading-wrap ascii-border-double">
-            <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="height: 6px;" />
+            <div class="retro-progress-bar"><div class="retro-progress-fill indeterminate"></div></div>
             <pre class="reveal-loading">[ Loading video session &amp; director script… ]</pre>
         </div>
     }
@@ -42,31 +46,61 @@
     else if (_session is not null)
     {
         <div class="reveal-grid">
-            <!-- Video Player -->
+            <!-- Video Player & Split Comparison -->
             <div class="video-panel">
                 @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
                 {
-                    <div class="ascii-border-double vibe-3d-stage vibe-glass-card">
-                        <pre class="panel-header">[ OUTPUT VIDEO ]</pre>
-                        @*
-                          The <video> sits OUTSIDE the CrtMonitorFrame. When Chromium wraps a
-                          <video> in any ancestor with `filter: url(#...)`, it silently drops
-                          the audio track (webkitAudioDecodedByteCount stays at 0;
-                          captureStream() returns no audio tracks) — the user sees video but
-                          hears nothing. The decorative CRT bulge is applied to a sibling
-                          overlay layer instead so the video keeps full audio playback.
-                        *@
-                        <div class="video-crt-wrap">
-                            <video id="reveal-output-video" class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
-                                <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
-                                Your browser does not support the video tag.
-                            </video>
-                            <div class="video-crt-overlay" aria-hidden="true">
-                                <CrtMonitorFrame>
-                                    <div class="video-crt-overlay-inner"></div>
-                                </CrtMonitorFrame>
+                    <div class="ascii-border-double vibe-3d-stage vibe-glass-card @(_theaterMode ? "theater-mode-stage" : "")">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <pre class="panel-header" style="margin: 0;">[ @(_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO")) ]</pre>
+                            <div style="display: flex; gap: 0.4rem; align-items: center;">
+                                <button class="ascii-btn compact-btn @(_showSplitPlayer ? "active" : "")" @onclick="ToggleSplitPlayer">
+                                    @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Split Before/After ]")
+                                </button>
+                                <button class="ascii-btn compact-btn @(_theaterMode ? "active" : "")" @onclick="ToggleTheaterMode" title="Toggle Fullscreen Theater Presentation">
+                                    @(_theaterMode ? "[ ✕ Exit Theater ]" : "[ ⛶ Theater Mode ]")
+                                </button>
                             </div>
                         </div>
+
+                        @if (_showSplitPlayer)
+                        {
+                            <div class="split-master-toolbar ascii-border-double" style="display: flex; gap: 0.5rem; align-items: center; justify-content: center; margin-bottom: 0.75rem; padding: 0.4rem; flex-wrap: wrap; background: rgba(0,20,10,0.5);">
+                                <span style="font-size: 0.75rem; color: var(--rt-accent-cyan, #00ffdc);">MASTER SYNC:</span>
+                                <button class="ascii-btn compact-btn" @onclick="MasterPlaySync">[ ▶ PLAY BOTH ]</button>
+                                <button class="ascii-btn compact-btn" @onclick="MasterPauseSync">[ ⏸ PAUSE BOTH ]</button>
+                                <button class="ascii-btn compact-btn" @onclick="MasterRestartSync">[ ⏮ RESTART ]</button>
+                            </div>
+
+                            <div class="split-player-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+                                <div class="split-side ascii-border-double" style="padding: 0.5rem; background: rgba(0,0,0,0.3);">
+                                    <div style="font-size: 0.8rem; color: var(--rt-text-dim, #888); margin-bottom: 0.25rem;">ORIGINAL SOURCE</div>
+                                    <video id="split-source-video" class="output-video" controls playsinline style="width: 100%; border-radius: 4px;">
+                                        <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
+                                    </video>
+                                </div>
+                                <div class="split-side ascii-border-double" style="padding: 0.5rem; background: rgba(0,0,0,0.3);">
+                                    <div style="font-size: 0.8rem; color: var(--rt-accent-cyan, #00ffdc); margin-bottom: 0.25rem;">AI MEME OUTPUT</div>
+                                    <video id="split-meme-video" class="output-video" controls playsinline style="width: 100%; border-radius: 4px;">
+                                        <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
+                                    </video>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="video-crt-wrap">
+                                <video id="reveal-output-video" class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
+                                    <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
+                                    Your browser does not support the video tag.
+                                </video>
+                                <div class="video-crt-overlay" aria-hidden="true">
+                                    <CrtMonitorFrame>
+                                        <div class="video-crt-overlay-inner"></div>
+                                    </CrtMonitorFrame>
+                                </div>
+                            </div>
+                        }
 
                         <div class="reveal-meta">
                             <pre> STATUS     : @_session.Status</pre>
@@ -90,32 +124,43 @@
                 }
             </div>
 
-            <!-- Director Script Panel -->
+            <!-- Director Script Cue Studio -->
             <div class="script-panel-reveal ascii-border-double vibe-3d-stage vibe-glass-card">
-                <div class="script-header-row">
-                    <pre class="panel-header">[ AI DIRECTOR'S SCRIPT ]</pre>
-                    <button class="ascii-btn compact-btn @(_editMode ? "active" : "")" @onclick="() => _editMode = !_editMode">
-                        @(_editMode ? "[ 💾 SAVE / VIEW ]" : "[ ✏️ EDIT CUES ]")
-                    </button>
+                <div class="script-header-row" style="display: flex; justify-content: space-between; align-items: center;">
+                    <pre class="panel-header" style="margin: 0;">[ AI DIRECTOR'S SCRIPT & CUE STUDIO ]</pre>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="ascii-btn compact-btn @(_editMode ? "active" : "")" @onclick="ToggleEditMode">
+                            @(_editMode ? "[ 💾 EXIT STUDIO ]" : "[ ✏️ CUE STUDIO ]")
+                        </button>
+                    </div>
                 </div>
-                <p class="reveal-script-subtitle">What was added to your video and why — fine-tune timing below</p>
+                <p class="reveal-script-subtitle">Fine-tune meme hits, punchline text captions, and triggers below</p>
 
                 @if (_script is not null && _script.Entries.Count > 0)
                 {
                     <div class="script-scroll">
                         @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
                         {
-                            <div class="cut-block ascii-border-double">
-                                <div class="cut-header-bar">
-                                    <span class="cut-title">CUT @idx</span>
+                            <div class="cut-block ascii-border-double" style="margin-bottom: 0.75rem;">
+                                <div class="cut-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                        <span class="cut-title">HIT @idx</span>
+                                        @if (_editMode)
+                                        {
+                                            <button class="ascii-btn compact-btn" disabled="@(idx <= 1)" @onclick="() => MoveCue(idx - 1, -1)" title="Move earlier in timeline">▲</button>
+                                            <button class="ascii-btn compact-btn" disabled="@(idx >= _script.Entries.Count)" @onclick="() => MoveCue(idx - 1, 1)" title="Move later in timeline">▼</button>
+                                        }
+                                    </div>
                                     @if (_editMode)
                                     {
-                                        <div class="cut-edit-timing">
-                                            <span class="edit-label">TIMESTAMP (ms):</span>
-                                            <RadzenNumeric TValue="long"
-                                                           Value="@GetTiming(idx, entry.TimestampMs)"
-                                                           Change="@(val => SetTiming(idx, val))"
-                                                           Min="0" Step="100" Style="width: 110px;" />
+                                        <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                                            <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, -250)" title="Shift -250ms">-250ms</button>
+                                            <input type="number" class="ascii-input"
+                                                   value="@GetTiming(idx, entry.TimestampMs)"
+                                                   @onchange="@(e => { if (long.TryParse(e.Value?.ToString(), out var v)) SetTiming(idx, v); })"
+                                                   min="0" step="100" style="width: 90px; text-align: right;" />
+                                            <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, 250)" title="Shift +250ms">+250ms</button>
+                                            <button class="ascii-btn compact-btn" style="color: #ff3366;" @onclick="() => RemoveCue(idx - 1)">[ ✕ ]</button>
                                         </div>
                                     }
                                     else
@@ -125,7 +170,6 @@
                                 </div>
 
                                 <div class="cut-details">
-                                    <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
                                     <div class="cut-sound-row">
                                         <span class="cut-k">SOUND:</span>
                                         <span class="cut-v sound-name">@(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
@@ -141,9 +185,50 @@
                                                     audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
                                                 })(this)">[ &#9654; PLAY ]</button>
                                     </div>
-                                    <div class="cut-row"><span class="cut-k">WHY:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SelectionRationale) ? "—" : entry.SelectionRationale)</span></div>
-                                    <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
+
+                                    @if (_editMode)
+                                    {
+                                        <div class="cut-row" style="margin-top: 0.5rem;">
+                                            <span class="cut-k">CAPTION:</span>
+                                            <input type="text" class="ascii-input" style="flex: 1; padding: 0.2rem 0.4rem; font-size: 0.8rem;"
+                                                   placeholder="OPTIONAL PUNCHLINE (e.g. BRO THOUGHT)"
+                                                   @bind="entry.CaptionText" />
+                                            <select style="font-size: 0.8rem; margin-left: 0.5rem;" @bind="entry.CaptionPosition">
+                                                <option value="Top">Top</option>
+                                                <option value="Bottom">Bottom</option>
+                                                <option value="Center">Center</option>
+                                            </select>
+                                        </div>
+                                        <div class="cut-row" style="margin-top: 0.25rem;">
+                                            <span class="cut-k">EFFECT:</span>
+                                            <select style="font-size: 0.8rem;" @bind="entry.VisualEffect">
+                                                <option value="">None</option>
+                                                <option value="@VisualEffectType.DeepFry">DeepFry</option>
+                                                <option value="@VisualEffectType.MotionBlur">MotionBlur</option>
+                                                <option value="@VisualEffectType.SnapZoom">SnapZoom</option>
+                                            </select>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @if (!string.IsNullOrWhiteSpace(entry.CaptionText))
+                                        {
+                                            <div class="cut-row"><span class="cut-k">CAPTION:</span> <span class="cut-v" style="color: #ffe600; font-weight: bold;">"@entry.CaptionText" (@(entry.CaptionPosition ?? "Top"))</span></div>
+                                        }
+                                        <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
+                                        <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
+                                    }
                                 </div>
+                            </div>
+                        }
+
+                        @if (_editMode)
+                        {
+                            <div style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
+                                <button class="ascii-btn compact-btn" @onclick="AddCue">[ ➕ Add Cue ]</button>
+                                <button class="ascii-btn primary-action" @onclick="ReRenderAsync" disabled="@_rerendering" style="border-color: #00ffdc; color: #00ffdc;">
+                                    @(_rerendering ? "[ ⏳ Re-Rendering… ]" : "[ ⚡ RE-RENDER WITH MODIFIED CUES ]")
+                                </button>
                             </div>
                         }
                     </div>
@@ -151,6 +236,10 @@
                 else if (_script is not null)
                 {
                     <pre class="script-empty">[ No script entries generated for this session ]</pre>
+                    @if (_editMode)
+                    {
+                        <button class="ascii-btn compact-btn" @onclick="AddCue" style="margin-top: 0.5rem;">[ ➕ Add First Cue ]</button>
+                    }
                 }
                 else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
                 {
@@ -160,13 +249,19 @@
 
             <!-- Actions Panel -->
             <div class="controls-panel">
-                <div class="reveal-actions-primary">
-                    <button class="ascii-btn download-btn" @onclick="DownloadVideo">[ ⬇ Download Video ]</button>
+                <div class="reveal-actions-primary" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    <button class="ascii-btn download-btn" @onclick="DownloadVideo">[ ⬇ Download MP4 ]</button>
+                    <button class="ascii-btn compact-btn" @onclick="ExportGifAsync" disabled="@_exportingGif">
+                        @(_exportingGif ? "[ ⏳ Exporting GIF… ]" : "[ 🎞 Export GIF ]")
+                    </button>
+                    <button class="ascii-btn compact-btn" @onclick="ExportPunchlineAsync" disabled="@_exportingPunchline">
+                        @(_exportingPunchline ? "[ ⏳ Exporting Clip… ]" : "[ 🎯 5s Punchline Clip ]")
+                    </button>
                     <button class="ascii-btn compact-btn" @onclick="DownloadScript">[ Download Script ]</button>
                     <button class="ascii-btn compact-btn" @onclick="ShareVideo">[ 📤 Share Video ]</button>
                     <button class="ascii-btn compact-btn" @onclick="ToggleRawJson">[ @(_showJson ? "Hide JSON" : "Show JSON") ]</button>
                 </div>
-                <div class="reveal-actions-secondary">
+                <div class="reveal-actions-secondary" style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[ + Create Another ]</button>
                 </div>
@@ -197,12 +292,240 @@
     private bool _editMode;
     private bool _showCompleteFlash;
     private bool _videoLoadFailed;
+    private bool _showSplitPlayer;
+    private bool _theaterMode;
+    private bool _exportingGif;
+    private bool _exportingPunchline;
+    private bool _rerendering;
     private IJSObjectReference? _revealJs;
     private readonly Dictionary<int, long> _editedTimings = [];
+    private string? _statusBanner;
+
+    private void SetStatus(string msg)
+    {
+        _statusBanner = msg;
+        StateHasChanged();
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadSessionAsync();
+    }
+
+    private void ToggleTheaterMode()
+    {
+        _theaterMode = !_theaterMode;
+    }
+
+    private async Task ToggleSplitPlayer()
+    {
+        _showSplitPlayer = !_showSplitPlayer;
+        if (_showSplitPlayer && _revealJs is not null)
+        {
+            await Task.Delay(100);
+            try
+            {
+                await _revealJs.InvokeVoidAsync("setupDualVideoSync", "split-source-video", "split-meme-video");
+            }
+            catch { }
+        }
+    }
+
+    private async Task MasterPlaySync()
+    {
+        if (_revealJs is not null)
+        {
+            await _revealJs.InvokeVoidAsync("masterPlay", "split-source-video", "split-meme-video");
+        }
+    }
+
+    private async Task MasterPauseSync()
+    {
+        if (_revealJs is not null)
+        {
+            await _revealJs.InvokeVoidAsync("masterPause", "split-source-video", "split-meme-video");
+        }
+    }
+
+    private async Task MasterRestartSync()
+    {
+        if (_revealJs is not null)
+        {
+            await _revealJs.InvokeVoidAsync("masterSeek", "split-source-video", "split-meme-video", 0);
+            await _revealJs.InvokeVoidAsync("masterPlay", "split-source-video", "split-meme-video");
+        }
+    }
+
+    private void NudgeTiming(int idx, long deltaMs)
+    {
+        if (_script is null || idx <= 0 || idx > _script.Entries.Count) return;
+        var current = GetTiming(idx, _script.Entries[idx - 1].TimestampMs);
+        var next = Math.Max(0, current + deltaMs);
+        SetTiming(idx, next);
+        StateHasChanged();
+    }
+
+    private void MoveCue(int index, int direction)
+    {
+        if (_script is null) return;
+        var targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= _script.Entries.Count) return;
+
+        var item = _script.Entries[index];
+        _script.Entries.RemoveAt(index);
+        _script.Entries.Insert(targetIndex, item);
+        StateHasChanged();
+    }
+
+    private void ToggleEditMode()
+    {
+        _editMode = !_editMode;
+    }
+
+    private void AddCue()
+    {
+        if (_script is null) return;
+        var lastMs = _script.Entries.Count > 0 ? _script.Entries.Max(e => e.TimestampMs) + 1500 : 1000;
+        _script.Entries.Add(new ScriptEntryDto
+        {
+            EntryId = Guid.NewGuid(),
+            SessionId = SessionId,
+            TimestampMs = lastMs,
+            SoundId = _script.Entries.FirstOrDefault()?.SoundId ?? Guid.NewGuid(),
+            SoundName = "vine-boom",
+            CaptionText = "NEW CUE",
+            CaptionPosition = "Top",
+            VisualEffect = VisualEffectType.SnapZoom,
+        });
+        StateHasChanged();
+    }
+
+    private void RemoveCue(int idx)
+    {
+        if (_script is null || idx < 0 || idx >= _script.Entries.Count) return;
+        _script.Entries.RemoveAt(idx);
+        StateHasChanged();
+    }
+
+    private async Task ReRenderAsync()
+    {
+        if (_script is null) return;
+        _rerendering = true;
+        StateHasChanged();
+
+        try
+        {
+            // Apply edited timings
+            for (var i = 0; i < _script.Entries.Count; i++)
+            {
+                var cutIdx = i + 1;
+                if (_editedTimings.TryGetValue(cutIdx, out var newTime))
+                {
+                    var oldEntry = _script.Entries[i];
+                    _script.Entries[i] = new ScriptEntryDto
+                    {
+                        EntryId = oldEntry.EntryId,
+                        SessionId = oldEntry.SessionId,
+                        TimestampMs = newTime,
+                        SoundId = oldEntry.SoundId,
+                        SoundName = oldEntry.SoundName,
+                        ActionVectorTags = oldEntry.ActionVectorTags,
+                        SceneDescription = oldEntry.SceneDescription,
+                        SelectionRationale = oldEntry.SelectionRationale,
+                        IsIronic = oldEntry.IsIronic,
+                        VisualEffect = oldEntry.VisualEffect,
+                        EffectIntensity = oldEntry.EffectIntensity,
+                        OverlayAssetId = oldEntry.OverlayAssetId,
+                        PlacementType = oldEntry.PlacementType,
+                        CaptionText = oldEntry.CaptionText,
+                        CaptionPosition = oldEntry.CaptionPosition,
+                    };
+                }
+            }
+
+            var resp = await Http.PostAsJsonAsync($"/api/output/sessions/{SessionId}/rerender", _script);
+            if (resp.IsSuccessStatusCode)
+            {
+                Nav.NavigateTo($"/engine/{SessionId}");
+            }
+            else
+            {
+                SetStatus($"[ RE-RENDER FAILED: Status {(int)resp.StatusCode} ]");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"[ RE-RENDER ERROR: {ex.Message} ]");
+        }
+        finally
+        {
+            _rerendering = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExportGifAsync()
+    {
+        _exportingGif = true;
+        StateHasChanged();
+
+        try
+        {
+            var downloadUrl = $"/api/output/sessions/{SessionId}/export/gif";
+            var fileName = $"pomeme_{SessionId:N}.gif";
+            await JS.InvokeVoidAsync("eval", $@"
+                (function() {{
+                    var a = document.createElement('a');
+                    a.href = '{downloadUrl}';
+                    a.download = '{fileName}';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }})();
+            ");
+            SetStatus($"[ GIF EXPORTED: {fileName} ]");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"[ GIF EXPORT FAILED: {ex.Message} ]");
+        }
+        finally
+        {
+            _exportingGif = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExportPunchlineAsync()
+    {
+        _exportingPunchline = true;
+        StateHasChanged();
+
+        try
+        {
+            var downloadUrl = $"/api/output/sessions/{SessionId}/export/punchline";
+            var fileName = $"punchline_{SessionId:N}.mp4";
+            await JS.InvokeVoidAsync("eval", $@"
+                (function() {{
+                    var a = document.createElement('a');
+                    a.href = '{downloadUrl}';
+                    a.download = '{fileName}';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }})();
+            ");
+            SetStatus($"[ PUNCHLINE CLIP EXPORTED: {fileName} ]");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"[ PUNCHLINE CLIP FAILED: {ex.Message} ]");
+        }
+        finally
+        {
+            _exportingPunchline = false;
+            StateHasChanged();
+        }
     }
 
     private long GetTiming(int idx, long defaultVal) =>
@@ -269,7 +592,7 @@
                 _showCompleteFlash = true;
                 _ = Vibe3D.SetAuroraStateAsync("complete");
                 _ = Vibe3D.TriggerCelebrationBurstAsync();
-                Notification.Notify(NotificationSeverity.Success, "Render Complete", "Your meme video is ready for playback & download!", 4000);
+                SetStatus("[ RENDER COMPLETE: Your meme video is ready for playback & download! ]");
                 _ = Task.Delay(3500).ContinueWith(_ => InvokeAsync(() =>
                 {
                     _showCompleteFlash = false;
@@ -283,7 +606,7 @@
     {
         if (_session?.OutputBlobPath is null)
         {
-            Notification.Notify(NotificationSeverity.Warning, "Download", "Video is not ready yet.", 2500);
+            SetStatus("[ DOWNLOAD: Video is not ready yet. ]");
             return;
         }
 
@@ -301,11 +624,11 @@
                     document.body.removeChild(a);
                 }})();
             ");
-            Notification.Notify(NotificationSeverity.Success, "Download Started", fileName, 3000);
+            SetStatus($"[ DOWNLOAD STARTED: {fileName} ]");
         }
         catch (Exception ex)
         {
-            Notification.Notify(NotificationSeverity.Error, "Download Failed", ex.Message, 4000);
+            SetStatus($"[ DOWNLOAD FAILED: {ex.Message} ]");
         }
     }
 
@@ -325,7 +648,7 @@
                 document.body.removeChild(a);
             }})();
         ");
-        Notification.Notify(NotificationSeverity.Info, "Script Downloaded", fileName, 2500);
+        SetStatus($"[ SCRIPT DOWNLOADED: {fileName} ]");
     }
 
     private async Task ShareVideo()
@@ -349,11 +672,11 @@
                     }}
                 }})();
             ");
-            Notification.Notify(NotificationSeverity.Success, "Share Ready", "Video link copied to clipboard!", 2500);
+            SetStatus("[ SHARE READY: Video link copied to clipboard! ]");
         }
         catch (Exception ex)
         {
-            Notification.Notify(NotificationSeverity.Info, "Share", ex.Message, 2500);
+            SetStatus($"[ SHARE: {ex.Message} ]");
         }
     }
 

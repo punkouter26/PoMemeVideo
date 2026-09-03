@@ -1,5 +1,4 @@
 // GoF: Repository Pattern — sound library query endpoint
-using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Shared.Models;
 
 namespace PoMemeVideo.Api.Features.MemeLibrary;
@@ -13,22 +12,32 @@ public static class MemeLibraryEndpoints
         group.MapGet("/sounds", async (
             ISoundAssetRepository repository,
             string? tags,
+            string? query,
             int limit = 20,
             int offset = 0,
             CancellationToken cancellationToken = default) =>
         {
             var allSounds = await repository.LoadAllAsync(cancellationToken);
 
-            var filtered = string.IsNullOrWhiteSpace(tags)
-                ? allSounds
-                : allSounds.Where(s =>
-                {
-                    var requestedTags = tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    return requestedTags.Any(t => s.ActionVectorTags.Contains(t, StringComparer.OrdinalIgnoreCase));
-                }).ToList();
+            var filtered = allSounds.AsEnumerable();
 
-            var totalCount = filtered.Count;
-            var page = filtered.Skip(Math.Max(0, offset)).Take(Math.Min(limit, 100)).Select(s => new SoundAssetDto
+            if (!string.IsNullOrWhiteSpace(tags))
+            {
+                var requestedTags = tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                filtered = filtered.Where(s => requestedTags.Any(t => s.ActionVectorTags.Contains(t, StringComparer.OrdinalIgnoreCase)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                var q = query.Trim();
+                filtered = filtered.Where(s =>
+                    s.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    s.ActionVectorTags.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            var list = filtered.ToList();
+            var totalCount = list.Count;
+            var page = list.Skip(Math.Max(0, offset)).Take(Math.Min(limit, 100)).Select(s => new SoundAssetDto
             {
                 SoundId = s.SoundId.Value,
                 DisplayName = s.DisplayName,
@@ -39,6 +48,61 @@ public static class MemeLibraryEndpoints
 
             return Results.Ok(new { totalCount, sounds = page });
         });
+
+        // POST /api/memelibrary/upload — upload custom meme sound
+        group.MapPost("/upload", async (
+            IFormFile file,
+            string? displayName,
+            string? tags,
+            ISoundAssetRepository repository,
+            IBlobStorageService blobService,
+            CancellationToken cancellationToken) =>
+        {
+            if (file is null || file.Length == 0)
+                return Results.BadRequest(new { error = "No audio file provided." });
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext != ".mp3" && ext != ".wav" && ext != ".ogg")
+                return Results.BadRequest(new { error = "Only .mp3, .wav, and .ogg files are supported." });
+
+            var soundId = SoundId.New();
+            var blobPath = $"sounds/{soundId}{ext}";
+
+            using (var stream = file.OpenReadStream())
+            {
+                await blobService.UploadBlobAsync(blobPath, stream, file.ContentType ?? "audio/mpeg", cancellationToken);
+            }
+
+            var parsedTags = string.IsNullOrWhiteSpace(tags)
+                ? ["custom", "user-upload"]
+                : tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                      .Append("custom")
+                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                      .ToArray();
+
+            var asset = new SoundAsset
+            {
+                SoundId = soundId,
+                DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path.GetFileNameWithoutExtension(file.FileName) : displayName.Trim(),
+                DurationMs = 2500,
+                ActionVectorTags = parsedTags,
+                BlobUrl = blobPath,
+                Priority = false,
+                UseCase = "custom-upload"
+            };
+
+            await repository.AddSoundAsync(asset, cancellationToken);
+
+            return Results.Created($"/api/memelibrary/sounds/{soundId}/stream", new SoundAssetDto
+            {
+                SoundId = soundId.Value,
+                DisplayName = asset.DisplayName,
+                DurationMs = asset.DurationMs,
+                ActionVectorTags = asset.ActionVectorTags,
+                BlobUrl = asset.BlobUrl
+            });
+        })
+        .DisableAntiforgery();
 
         // POST /api/memelibrary/seed — bulk-load the default meme-sound catalog from the metadata
         // file on disk into Azurite / Azure Blob Storage + SoundAssets table. Idempotent.

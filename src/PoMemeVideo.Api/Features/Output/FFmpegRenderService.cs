@@ -118,7 +118,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             var sourceHasAudio = await ProbeHasAudioStreamAsync(sourcePath, cancellationToken);
 
             // ── 2. Download each sound file from blob ─────────────────────────
-            var soundPaths = new List<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)>();
+            var soundPaths = new List<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)>();
             for (var i = 0; i < job.SoundEntries.Count; i++)
             {
                 var entry = job.SoundEntries[i];
@@ -129,7 +129,12 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                 try
                 {
                     await DownloadBlobToFileAsync(entry.SoundBlobUrl, soundPath, cancellationToken);
-                    soundPaths.Add((entry.TimestampMs, soundPath, entry.VisualEffect, entry.EffectIntensity));
+                    if (!await ProbeHasAudioStreamAsync(soundPath, cancellationToken))
+                    {
+                        _logger.LogWarning("Sound {Index} ({Path}) has no valid audio stream — skipping", i, soundPath);
+                        continue;
+                    }
+                    soundPaths.Add((entry.TimestampMs, soundPath, entry.VisualEffect, entry.EffectIntensity, entry.CaptionText, entry.CaptionPosition));
                     _logger.LogDebug("Sound {Index} downloaded: {Path}", i, soundPath);
                 }
                 catch (Exception ex)
@@ -138,9 +143,22 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                 }
             }
 
+            // Effective output duration respects trimming if specified
+            var effectiveDuration = job.TrimDurationSeconds.HasValue && job.TrimDurationSeconds.Value > 0
+                ? job.TrimDurationSeconds.Value
+                : sourceDurationSeconds;
+
             // ── 3. Build FFmpeg command ───────────────────────────────────────
             var outputPath = Path.Combine(tempDir, "output.mp4");
-            var args = BuildFFmpegArgs(sourcePath, soundPaths, outputPath, job.AggressiveVisuals, sourceDurationSeconds, sourceHasAudio);
+            var args = BuildFFmpegArgs(
+                sourcePath,
+                soundPaths,
+                outputPath,
+                job.AggressiveVisuals,
+                effectiveDuration,
+                sourceHasAudio,
+                job.TrimStartSeconds,
+                job.AspectRatio);
 
             _logger.LogDebug("FFmpeg args: {Args}", args);
 
@@ -177,22 +195,28 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     /// </summary>
     private static string BuildFFmpegArgs(
         string sourcePath,
-        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
+        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)> sounds,
         string outputPath,
         bool aggressiveVisuals,
         double sourceDurationSeconds,
-        bool sourceHasAudio)
+        bool sourceHasAudio,
+        double? trimStartSeconds = null,
+        string? aspectRatio = null)
     {
         var sb = new StringBuilder();
 
-        // Input 0: source video (original audio is mixed in below when present)
+        // Input 0: source video (with optional input seeking for trimming)
+        if (trimStartSeconds.HasValue && trimStartSeconds.Value > 0)
+        {
+            sb.Append($"-ss {trimStartSeconds.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)} ");
+        }
         sb.Append($"-i \"{sourcePath}\"");
 
         // Inputs 1..N: sound files
-        foreach (var (_, filePath, _, _) in sounds)
+        foreach (var (_, filePath, _, _, _, _) in sounds)
             sb.Append($" -i \"{filePath}\"");
 
-        var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals);
+        var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals, aspectRatio);
         var hasVideoFilters = !string.IsNullOrWhiteSpace(videoChain);
         // Build a mixed audio track whenever there are meme sounds. The original audio is layered
         // in as an extra amix input when the source has one. With no meme sounds we keep the
@@ -270,13 +294,13 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
 
     /// <summary>
     /// Builds the video filter chain. Always downscales to ≤720p so heavy 1080p/4K phone clips
-    /// encode in reasonable time on constrained hosts (e.g. the B1 App Service plan, where a
-    /// 1080p HEVC re-encode can run tens of minutes). Aggressive visuals enable deep-fry EQ +
-    /// unsharp. Per-entry VisualEffect values apply to the overall output (most common wins).
+    /// encode in reasonable time on constrained hosts. Aggressive visuals enable deep-fry EQ +
+    /// unsharp. Aspect ratio 9:16 adds vertical framing. Captions are overlaid using drawtext.
     /// </summary>
     private static string BuildVideoFilterChain(
-        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity)> sounds,
-        bool aggressiveVisuals)
+        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)> sounds,
+        bool aggressiveVisuals,
+        string? aspectRatio = null)
     {
         // Tally which visual effects are requested
         var effectCounts = sounds
@@ -284,10 +308,24 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             .GroupBy(s => s.VisualEffect!)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        // Cap height at 720 (never upscale) before any other filter — fewer pixels means the
-        // effects and the x264 encode all run much faster. -2 keeps width even (libx264 needs it)
-        // and preserves the aspect ratio. The escaped comma keeps min() inside one filter token.
-        var filters = new List<string> { "scale=-2:min(720\\,ih)" };
+        var filters = new List<string>();
+
+        if (string.Equals(aspectRatio, "9:16", StringComparison.OrdinalIgnoreCase))
+        {
+            // Vertical 9:16 framing: scale down to fit inside 720x1280 then pad with black bars
+            filters.Add("scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2:black");
+        }
+        else if (string.Equals(aspectRatio, "1:1", StringComparison.OrdinalIgnoreCase))
+        {
+            // Square 1:1 framing: scale down to fit inside 720x720 then pad
+            filters.Add("scale=720:720:force_original_aspect_ratio=decrease,pad=720:720:(ow-iw)/2:(oh-ih)/2:black");
+        }
+        else
+        {
+            // Default: Cap height at 720 (never upscale) before any other filter.
+            // -2 keeps width even (libx264 needs it) and preserves the aspect ratio.
+            filters.Add("scale=-2:min(720\\,ih)");
+        }
 
         if (aggressiveVisuals || effectCounts.ContainsKey("DeepFry"))
         {
@@ -296,22 +334,72 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             filters.Add("unsharp=5:5:1.5:5:5:0.0");
         }
 
-        var snapZoomEntries = sounds.Where(s => s.VisualEffect == "SnapZoom").ToList();
-        if (snapZoomEntries.Count > 0)
-        {
-            // SnapZoom is an audio-placement cue only — the meme sound fires at the timestamp.
-            // A true per-frame zoom requires segment splicing which is not yet implemented;
-            // visual effect is intentionally omitted here to avoid filter-graph errors.
-        }
-
         if (effectCounts.ContainsKey("MotionBlur"))
         {
-            // Motion blur via minterpolate (requires libopencv or tblend fallback)
+            // Motion blur via tblend fallback
             filters.Add("tblend=all_mode=average");
         }
 
-        // The scale filter is always present, so the chain is never empty.
+        // Add text captions / meme punchline overlays
+        var fontArg = ResolveFontArg();
+        foreach (var s in sounds)
+        {
+            if (string.IsNullOrWhiteSpace(s.CaptionText)) continue;
+            var sanitized = SanitizeForDrawtext(s.CaptionText.Trim().ToUpperInvariant());
+            var startSec = (s.TimestampMs / 1000.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            var endSec = (s.TimestampMs / 1000.0 + 2.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            var yPos = s.CaptionPosition?.ToLowerInvariant() switch
+            {
+                "top" => "40",
+                "center" => "(h-text_h)/2",
+                _ => "h-text_h-50"
+            };
+            filters.Add($"drawtext=text='{sanitized}'{fontArg}:fontsize=36:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y={yPos}:enable='between(t\\,{startSec}\\,{endSec})'");
+        }
+
         return string.Join(',', filters);
+    }
+
+    private static string SanitizeForDrawtext(string text)
+    {
+        return text
+            .Replace("\\", "\\\\")
+            .Replace("'", @"\'")
+            .Replace(":", @"\:")
+            .Replace("%", @"\%")
+            .Replace("\n", " ")
+            .Replace("\r", "");
+    }
+
+    private static string ResolveFontArg()
+    {
+        if (OperatingSystem.IsWindows() && File.Exists(@"C:\Windows\Fonts\impact.ttf"))
+            return ":fontfile='C\\:/Windows/Fonts/impact.ttf'";
+        if (OperatingSystem.IsWindows() && File.Exists(@"C:\Windows\Fonts\arial.ttf"))
+            return ":fontfile='C\\:/Windows/Fonts/arial.ttf'";
+        if (File.Exists("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"))
+            return ":fontfile='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'";
+        return string.Empty;
+    }
+
+    public async Task<string> RenderGifAsync(string mp4Path, SessionId sessionId, CancellationToken cancellationToken)
+    {
+        var tempGif = Path.Combine(Path.GetTempPath(), $"{PoMemeVideoNaming.ApplicationSlug}-{sessionId}-export.gif");
+        var args = $"-i \"{mp4Path}\" -vf \"fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -y \"{tempGif}\"";
+        var exitCode = await RunFFmpegAsync(args, sessionId, cancellationToken);
+        if (exitCode != 0 || !File.Exists(tempGif))
+            throw new InvalidOperationException($"FFmpeg GIF export failed with exit code {exitCode}.");
+        return tempGif;
+    }
+
+    public async Task<string> RenderPunchlineClipAsync(string mp4Path, SessionId sessionId, double startSeconds, double durationSeconds, CancellationToken cancellationToken)
+    {
+        var tempClip = Path.Combine(Path.GetTempPath(), $"{PoMemeVideoNaming.ApplicationSlug}-{sessionId}-punchline.mp4");
+        var args = $"-ss {startSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)} -i \"{mp4Path}\" -t {durationSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)} -c:v libx264 -preset veryfast -c:a aac -y \"{tempClip}\"";
+        var exitCode = await RunFFmpegAsync(args, sessionId, cancellationToken);
+        if (exitCode != 0 || !File.Exists(tempClip))
+            throw new InvalidOperationException($"FFmpeg punchline clip export failed with exit code {exitCode}.");
+        return tempClip;
     }
 
     private async Task<int> RunFFmpegAsync(string args, SessionId sessionId, CancellationToken cancellationToken)

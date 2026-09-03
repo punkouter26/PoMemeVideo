@@ -7,16 +7,36 @@ namespace PoMemeVideo.Api.Features.Processing;
 public sealed class DirectorScriptTableRepository : IDirectorScriptRepository
 {
     private const string TableName = StorageNames.Tables.DirectorScripts;
+    private static volatile bool s_tableInitialized;
+    private static readonly SemaphoreSlim s_initLock = new(1, 1);
 
     private readonly AzureTableClientFactory _factory;
 
     public DirectorScriptTableRepository(AzureTableClientFactory factory)
         => _factory = factory;
 
+    private async Task EnsureTableAsync(TableClient client, CancellationToken ct)
+    {
+        if (s_tableInitialized) return;
+        await s_initLock.WaitAsync(ct);
+        try
+        {
+            if (!s_tableInitialized)
+            {
+                await client.CreateIfNotExistsAsync(ct);
+                s_tableInitialized = true;
+            }
+        }
+        finally
+        {
+            s_initLock.Release();
+        }
+    }
+
     public async Task SaveAsync(DirectorScript script, CancellationToken cancellationToken = default)
     {
         var client = _factory.GetTableClient(TableName);
-        await client.CreateIfNotExistsAsync(cancellationToken);
+        await EnsureTableAsync(client, cancellationToken);
 
         var entity = new TableEntity(script.SessionId.ToString(), "script")
         {

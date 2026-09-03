@@ -69,16 +69,21 @@ public sealed class AiFoundryDirectorService : IDirectorService
         var deployment = _settings.AiFoundryDeployment;
         var labelsJson = JsonSerializer.Serialize(
             visionLabels.Select(v => new { v.TimestampSeconds, v.Label }), JsonOpts);
-        var soundsJson = DirectorPrompt.SerializeSounds(topCandidates, JsonOpts);
+        var soundsCompact = DirectorPrompt.SerializeSoundsCompact(topCandidates);
 
         _logger.LogInformation(
             "Session {SessionId}: AI Foundry director start. Deployment={Deployment}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, HasRealVision={HasRealVision}",
             sessionId, deployment, visionLabels.Length, topCandidates.Count, hasRealVisionData);
 
+        var prompt = DirectorPrompt.Build(labelsJson, soundsCompact, hasRealVisionData);
+
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage("You are an expert meme video director. Respond only with valid JSON."),
-            new UserChatMessage(DirectorPrompt.Build(labelsJson, soundsJson, hasRealVisionData)),
+            new SystemChatMessage(
+                "You are an expert meme video director. Available meme sounds catalog:\n" +
+                soundsCompact +
+                "\nRespond only with a JSON array or { \"entries\": [...] }."),
+            new UserChatMessage(prompt),
         };
 
         using var timeoutCts = _timeoutSeconds > 0
@@ -93,7 +98,12 @@ public sealed class AiFoundryDirectorService : IDirectorService
         ChatCompletion response;
         try
         {
-            response = await GetChatClient().CompleteChatAsync(messages, cancellationToken: effectiveToken);
+            var chatOptions = new ChatCompletionOptions
+            {
+                Temperature = 0.6f,
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat(),
+            };
+            response = await GetChatClient().CompleteChatAsync(messages, chatOptions, cancellationToken: effectiveToken);
         }
         catch (OperationCanceledException) when (timeoutCts is not null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {

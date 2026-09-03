@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using PoMemeVideo.Api.Endpoints;
-using PoMemeVideo.Api.Features.Admin;
 using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
@@ -218,7 +217,6 @@ internal static class EndpointMappingExtensions
 
         app.MapMemeLibraryEndpoints();
         app.MapOutputEndpoints();
-        app.MapAdminEndpoints();
 
         app.MapAuthEndpoints();
         app.MapGuestAuthEndpoints(app.Environment);
@@ -306,14 +304,20 @@ internal static class EndpointMappingExtensions
         {
             var soundsTable = tableFactory.GetTableClient(StorageNames.Tables.SoundAssets);
             var hasEntries = soundsTable.Query<Azure.Data.Tables.TableEntity>(maxPerPage: 1).Any();
-            if (!hasEntries)
+            if (!hasEntries && app.Environment.IsDevelopment() && !app.Configuration.GetValue<bool>("SkipAutoSeed"))
             {
-                Log.Warning("[DEV] Sound library is empty — run: python SCRIPTS/seed-meme-sounds.py  (or: dotnet run -- seed-sounds)");
+                Log.Warning("[DEV] Sound library is empty — run: python scripts/seed-meme-sounds.py  (or: dotnet run -- seed-sounds)");
                 // Attempt auto-seed in Development so the app is immediately usable.
                 try
                 {
-                    var seedScript = Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "SCRIPTS", "seed-meme-sounds.py");
-                    if (File.Exists(seedScript))
+                    var seedScript = new[]
+                    {
+                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "scripts", "seed-meme-sounds.py"),
+                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "SCRIPTS", "seed-meme-sounds.py"),
+                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "scripts", "seed-meme-sounds.py"),
+                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "SCRIPTS", "seed-meme-sounds.py"),
+                    }.FirstOrDefault(File.Exists);
+                    if (seedScript is not null)
                     {
                         Log.Information("[DEV] Auto-seeding sound library from {Script}...", seedScript);
                         var psi = new System.Diagnostics.ProcessStartInfo("python", $"\"{seedScript}\"")
@@ -328,7 +332,8 @@ internal static class EndpointMappingExtensions
                         {
                             var stdout = await proc.StandardOutput.ReadToEndAsync();
                             var stderr = await proc.StandardError.ReadToEndAsync();
-                            await proc.WaitForExitAsync();
+                            using var procCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                            await proc.WaitForExitAsync(procCts.Token);
                             if (proc.ExitCode == 0)
                                 Log.Information("[DEV] Sound library seeded successfully.");
                             else

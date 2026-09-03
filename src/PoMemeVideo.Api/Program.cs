@@ -2,7 +2,7 @@ using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using PoMemeVideo.Api;
 using Azure.Security.KeyVault.Secrets;
 using PoMemeVideo.Api.Configuration;
-using PoMemeVideo.Api.Features.Admin;
+using PoMemeVideo.Api.Features.MemeLibrary;
 using PoMemeVideo.Api.Features.Output;
 using PoMemeVideo.Shared;
 using Serilog;

@@ -25,8 +25,6 @@ public sealed class EngineHubClient : IAsyncDisposable
 
         _connection.On<string>("DirectorLogEntry", msg => DirectorLogEntry?.Invoke(msg));
         _connection.On<ScriptEntryDto>("DirectorScriptEntry", entry => DirectorScriptEntry?.Invoke(entry));
-        _connection.On<string>("AuditEntry", msg => AuditEntry?.Invoke(msg));
-        _connection.On<double, double>("HardwareMetrics", (lat, cpu) => HardwareMetrics?.Invoke(lat, cpu));
         _connection.On<string>("ProcessingComplete", path => ProcessingComplete?.Invoke(path));
         _connection.On<string>("ProcessingError", err => ProcessingError?.Invoke(err));
         _connection.On<string>("BrowserLLMInferenceRequest", payload => BrowserLLMInferenceRequest?.Invoke(payload));
@@ -39,12 +37,6 @@ public sealed class EngineHubClient : IAsyncDisposable
 
     /// <summary>A single ScriptEntry as it is built in real time.</summary>
     public event Action<ScriptEntryDto>? DirectorScriptEntry;
-
-    /// <summary>Conflict-resolution and fallback audit event.</summary>
-    public event Action<string>? AuditEntry;
-
-    /// <summary>Inference latency (ms) and CPU load (%) — emitted every ~1 s.</summary>
-    public event Action<double, double>? HardwareMetrics;
 
     /// <summary>Fired when the full Director's Script is complete.</summary>
     public event Action<string>? ProcessingComplete;

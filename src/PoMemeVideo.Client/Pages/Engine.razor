@@ -39,7 +39,33 @@
             </div>
         </div>
 
-        <div class="engine-grid">
+        <!-- Mobile Viewport Optimized Tabs (prevents overflow & vertical scroll on small screens) -->
+        <div class="engine-mobile-tabs">
+            <div class="tab-button-group" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <button class="ascii-btn compact-btn @(_selectedTabIndex == 0 ? "primary-action" : "")" @onclick="() => _selectedTabIndex = 0">[ 🎬 Director's Script ]</button>
+                <button class="ascii-btn compact-btn @(_selectedTabIndex == 1 ? "primary-action" : "")" @onclick="() => _selectedTabIndex = 1">[ 📜 Processing Log ]</button>
+            </div>
+            @if (_selectedTabIndex == 0)
+            {
+                <div class="script-panel ascii-border-double engine-script-panel" style="height: calc(100vh - 280px); min-height: 280px;">
+                    <div class="engine-panel-title">
+                        <span>AI Director's Script</span>
+                        <span class="panel-subtitle">sounds added and why — live</span>
+                    </div>
+                    <DirectorScriptFeed HubClient="_hubClient" />
+                </div>
+            }
+            else
+            {
+                <div class="log-panel ascii-border-double engine-log-panel" style="height: calc(100vh - 280px); min-height: 280px;">
+                    <div class="engine-panel-title">Processing Log</div>
+                    <DirectorLogFeed HubClient="_hubClient" />
+                </div>
+            }
+        </div>
+
+        <!-- Desktop Dual-Column Split Grid -->
+        <div class="engine-desktop-grid engine-grid">
             <!-- Left: AI Director's Script — primary panel -->
             <div class="script-panel ascii-border-double engine-script-panel">
                 <div class="engine-panel-title">
@@ -59,7 +85,17 @@
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <pre class="error-box">[PROCESSING ERROR] @_errorMessage</pre>
+        <div class="error-box ascii-border-double reveal-in" style="margin-top: 1rem; padding: 1rem; background: rgba(30, 5, 10, 0.7);">
+            <pre style="color: var(--term-danger, #ff5f5f); margin-bottom: 0.75rem;">[ PROCESSING ERROR ] @_errorMessage</pre>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <button class="ascii-btn primary-action compact-btn" @onclick="RetryWithFallbackAsync" disabled="@_retrying">
+                    @(_retrying ? "[ ⏳ Retrying… ]" : "[ ↺ Retry with Safe Fallback Mode ]")
+                </button>
+                <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>
+                    [ ⬅ Back to Source ]
+                </button>
+            </div>
+        </div>
     }
 </div>
 
@@ -68,6 +104,34 @@
 
     private EngineHubClient? _hubClient;
     private string? _errorMessage;
+    private int _selectedTabIndex = 0;
+    private bool _retrying;
+
+    private async Task RetryWithFallbackAsync()
+    {
+        _retrying = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync($"/api/processing/sessions/{SessionId}/initiate?forceFallback=true", null);
+            if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.Conflict)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                _errorMessage = $"Retry failed: {body}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Retry error: {ex.Message}";
+        }
+        finally
+        {
+            _retrying = false;
+            StateHasChanged();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

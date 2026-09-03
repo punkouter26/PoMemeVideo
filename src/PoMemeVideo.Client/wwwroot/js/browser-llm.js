@@ -19,6 +19,16 @@ const MAX_SOUNDS_IN_PROMPT = 80;
 const MAX_VISION_LABELS_IN_PROMPT = 64;
 
 const MODEL_LOAD_PROFILES = {
+    'qwen2.5-0.5b-instruct-q4': {
+        dtype: 'q4',
+        expectedFiles: ['config.json', 'onnx/model_q4.onnx'],
+        notes: 'Qwen2.5 0.5B Instruct quantized INT4 for fast WebGPU inference.',
+    },
+    'smollm2-360m-instruct-onnx': {
+        dtype: 'q4f16',
+        expectedFiles: ['config.json', 'onnx/model_q4f16.onnx'],
+        notes: 'SmolLM2 360M Instruct quantized for lightweight WebGPU execution.',
+    },
     'phi-1_5-dev': {
         dtype: 'q4',
         expectedFiles: ['config.json', 'onnx/model_q4.onnx'],

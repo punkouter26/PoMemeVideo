@@ -59,6 +59,10 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
                 Arg.Any<string>(),
                 Arg.Any<double>(),
                 Arg.Any<bool>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
                 Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
@@ -67,6 +71,7 @@ public sealed class IngestionEndpointsTests : IAsyncLifetime
             {
                 builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Development");
                 builder.UseSetting("KeyVault:Uri", ""); // skip KV in CI/test
+                builder.UseSetting("SkipAutoSeed", "true");
 
                 builder.ConfigureServices(services =>
                 {

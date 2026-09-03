@@ -47,11 +47,11 @@ tests/
                                 Infrastructure/ — `[Collection("Integration")]`
                                 with a `TestcontainersCleanupFixture` so any
                                 leaked Testcontainer is reaped at collection
-                                teardown (see SCRIPTS/cleanup-testcontainers.ps1)
+                                teardown (see scripts/cleanup-testcontainers.ps1)
   PoMemeVideo.E2EAPI/             ← C# pure-API emulation (Test env, GUEST bypass)
   PoMemeVideo.E2EUI/              ← C# Playwright browser tests (E2E_BASE_URL-driven)
 
-SCRIPTS/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool clones), seed/model helpers
+scripts/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool clones), seed/model helpers
 ```
 
 **Vertical Slice Architecture:** the layer projects (Domain/Application/Infrastructure)
@@ -199,7 +199,7 @@ HTTP (Ollama, AI Foundry). High-frequency paths use `[LoggerMessage]` source gen
 ## 10. Front-End (Blazor WASM)
 
 - Hosted by `PoMemeVideo.Api` (same origin, ports 7000/5001)
-- UI library: **Radzen** for complex controls
+- UI: **Native retro-terminal controls** — no external component library
 - Pages: `Login`, `Source`, `Engine`, `Results`, `Reveal`, `MemeLibrary`, `NotFound`
 - AI model selector on Home/Engine page — grouped by: **Remote** (Azure OpenAI / AI Foundry) | **Browser** (WebGPU) | **Local** (Ollama)
 - Mobile-first: CSS `clamp()` + `auto-fit`, left-aligned top nav bar
@@ -247,7 +247,7 @@ Local dev uses `dev` environment (real AI calls).
 
 ---
 
-## 13. Scripts & Tooling (`SCRIPTS/`)
+## 13. Scripts & Tooling (`scripts/`)
 
 | Script | Purpose |
 |---|---|

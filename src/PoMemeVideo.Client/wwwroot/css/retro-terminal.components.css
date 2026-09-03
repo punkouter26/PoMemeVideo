@@ -1362,3 +1362,96 @@ details[open] .advanced-toggle::before {
 .is-hidden {
     display: none;
 }
+
+/* ── Mobile Viewport Containment & Responsiveness (100dvh) ─── */
+@media (max-width: 860px) {
+    .engine-desktop-grid {
+        display: none !important;
+    }
+    .engine-mobile-tabs {
+        display: block !important;
+        width: 100%;
+    }
+    .engine-mobile-tabs .rz-tabview-nav {
+        display: flex;
+        background: rgba(3, 10, 7, 0.9);
+        border-bottom: 1px solid var(--term-border);
+    }
+    .engine-mobile-tabs .rz-tabview-title {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+    }
+    .hero-title {
+        font-size: 1.35rem !important;
+        word-break: break-word;
+    }
+    .hero-sub {
+        font-size: 0.8rem !important;
+        word-break: break-word;
+    }
+}
+
+@media (min-width: 861px) {
+    .engine-mobile-tabs {
+        display: none !important;
+    }
+    .engine-desktop-grid {
+        display: grid !important;
+    }
+}
+
+/* ── Split Player Comparison Styling ───────────────────────── */
+.split-player-container {
+    width: 100%;
+}
+.split-side {
+    position: relative;
+}
+.split-side video {
+    background: #000;
+}
+
+/* ── High-Contrast & Text Containment ──────────────────────── */
+.history-card-title,
+.cut-title,
+.panel-header {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* ── Mobile Navigation Drawer ──────────────────────────────── */
+.mobile-menu-toggle {
+    display: none;
+}
+@media (max-width: 640px) {
+    .desktop-nav-links {
+        display: none !important;
+    }
+    .mobile-menu-toggle {
+        display: inline-block !important;
+    }
+}
+
+/* ── Fullscreen Theater Presentation Mode ──────────────────── */
+.theater-mode-stage {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 9999 !important;
+    background: rgba(1, 4, 2, 0.98) !important;
+    padding: 1.5rem !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    backdrop-filter: blur(14px) !important;
+}
+.theater-mode-stage .video-crt-wrap {
+    max-height: 80vh !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 1200px !important;
+}

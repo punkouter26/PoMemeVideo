@@ -17,11 +17,16 @@
 @implements IAsyncDisposable
 
 <nav class="retro-navbar" role="navigation" aria-label="Site navigation">
-    <NavLink class="brand flicker" href="/" Match="NavLinkMatch.All">PoMemeVideo</NavLink>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button class="ascii-btn compact-btn mobile-menu-toggle" @onclick="ToggleMobileMenu" aria-label="Toggle navigation menu">
+            @(_mobileMenuOpen ? "[ ✕ ]" : "[ ☰ ]")
+        </button>
+        <NavLink class="brand flicker" href="/" Match="NavLinkMatch.All">PoMemeVideo</NavLink>
+    </div>
 
-    <div class="nav-links">
+    <div class="nav-links desktop-nav-links">
         <NavLink href="/" Match="NavLinkMatch.All">[ CREATE ]</NavLink>
-        <NavLink href="/admin/sounds">[ SOUNDS ]</NavLink>
+        <NavLink href="/memelibrary">[ SOUNDS ]</NavLink>
         <NavLink href="/results">[ HISTORY ]</NavLink>
         <a href="/scalar/" target="_blank" rel="noopener noreferrer" class="nav-api-link" hidden="@(!_isDevelopment)">[ API ]</a>
     </div>
@@ -38,22 +43,6 @@
             }
         </span>
 
-        <span class="auth-status">
-            @if (_aiDisplay is not null)
-            {
-                @_aiDisplay
-            }
-            else
-            {
-                <span class="status-placeholder">[ AI: INIT… ]</span>
-            }
-        </span>
-
-        @if (_mockDisplay is not null)
-        {
-            <span class="auth-status">@_mockDisplay</span>
-        }
-
         @if (_isAuthenticated)
         {
             <form method="post" action="/auth/logout" class="logout-form">
@@ -62,6 +51,19 @@
         }
     </div>
 </nav>
+
+@if (_mobileMenuOpen)
+{
+    <div class="mobile-nav-drawer ascii-border-double vibe-glass-card reveal-in" style="padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(3, 10, 7, 0.95); display: flex; flex-direction: column; gap: 0.5rem;">
+        <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 🎬 CREATE MEME VIDEO ]</NavLink>
+        <NavLink href="/memelibrary" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 🔊 SOUND LIBRARY ]</NavLink>
+        <NavLink href="/results" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 📜 VIDEO HISTORY ]</NavLink>
+        @if (_isDevelopment)
+        {
+            <a href="/scalar/" target="_blank" rel="noopener noreferrer" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 🛠️ SCALAR API DOCS ]</a>
+        }
+    </div>
+}
 <hr class="retro-navbar-divider" />
 
 @code {
@@ -70,6 +72,16 @@
     private string? _mockDisplay;
     private bool _isAuthenticated;
     private bool _isDevelopment;
+    private bool _mobileMenuOpen;
+    private void ToggleMobileMenu()
+    {
+        _mobileMenuOpen = !_mobileMenuOpen;
+    }
+
+    private void CloseMobileMenu()
+    {
+        _mobileMenuOpen = false;
+    }
 
     protected override async Task OnInitializedAsync()
     {

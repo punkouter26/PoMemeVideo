@@ -26,11 +26,16 @@ public static class ProcessingEndpoints
             if (session is null)
                 return Results.NotFound(new { error = $"Session {sessionId} not found." });
 
-            if (session.Status != SessionStatus.Ingesting)
+            if (session.Status != SessionStatus.Ingesting && session.Status != SessionStatus.Error)
                 return Results.Conflict(new
                 {
-                    error = $"Session {sessionId} is not in Ingesting state (current: {session.Status})."
+                    error = $"Session {sessionId} is not in Ingesting or Error state (current: {session.Status})."
                 });
+
+            if (session.Status == SessionStatus.Error)
+            {
+                await sessions.UpdateStatusAsync(sessionId, userId.Value, SessionStatus.Ingesting, errorMessage: null, cancellationToken: cancellationToken);
+            }
 
             if (!dispatcher.TryQueue(sessionId, userId.Value))
                 return Results.Conflict(new { error = $"Session {sessionId} is already queued or running." });

@@ -15,4 +15,8 @@ public class VideoSession
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? CompletedAt { get; set; }
     public string? OutputBlobPath { get; set; }
+    public double? TrimStartSeconds { get; set; }
+    public double? TrimDurationSeconds { get; set; }
+    public string? MemePersona { get; set; }
+    public string? AspectRatio { get; set; }
 }

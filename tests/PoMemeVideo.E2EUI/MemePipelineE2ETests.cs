@@ -61,16 +61,16 @@ public sealed class MemePipelineE2ETests
         Assert.NotNull(dropZone);
 
         // ── Step 3: Sound Library — verify sounds are seeded ────────────────
-        await page.ClickAsync("a[href='/admin/sounds']");
-        await page.WaitForURLAsync("**/admin/sounds");
-        await page.WaitForSelectorAsync("h1:has-text('Sound Admin')");
+        await page.ClickAsync("a[href='/memelibrary']");
+        await page.WaitForURLAsync("**/memelibrary");
+        await page.WaitForSelectorAsync("h1:has-text('Sound Library')");
 
         // The library was seeded with 200 sounds — verify they appear (or at least not empty warning is gone)
         var noSounds = await page.QuerySelectorAsync("text=No sounds found");
         // After seeding, there should be sounds. But if seeding hasn't run, this is informational.
         // We just verify the page renders correctly.
         var heading = await page.TextContentAsync("h1");
-        Assert.Contains("Sound Admin", heading ?? "");
+        Assert.Contains("Sound Library", heading ?? "");
 
         // ── Step 4: History page ────────────────────────────────────────────
         await page.GotoAsync($"{BaseUrl}results");

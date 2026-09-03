@@ -52,20 +52,23 @@ public sealed class OllamaDirectorService : IDirectorService, ILocalModelCatalog
         var model = _settings.OllamaModel;
         var labelsJson = JsonSerializer.Serialize(
             visionLabels.Select(v => new { v.TimestampSeconds, v.Label }), JsonOpts);
-        var soundsJson = DirectorPrompt.SerializeSounds(topCandidates, JsonOpts);
+        var soundsCompact = DirectorPrompt.SerializeSoundsCompact(topCandidates);
 
         _logger.LogInformation(
             "Session {SessionId}: Ollama director start. Model={Model}, VisionLabels={VisionLabelCount}, Candidates={CandidateCount}, HasRealVision={HasRealVision}",
             sessionId, model, visionLabels.Length, topCandidates.Count, hasRealVisionData);
+
+        var prompt = DirectorPrompt.Build(labelsJson, soundsCompact, hasRealVisionData);
 
         var requestBody = new
         {
             model,
             messages = new object[]
             {
-                new { role = "system", content = "You are an expert meme video director. Respond only with valid JSON." },
-                new { role = "user",   content = DirectorPrompt.Build(labelsJson, soundsJson, hasRealVisionData) },
+                new { role = "system", content = "You are an expert meme video director. Available meme sounds catalog:\n" + soundsCompact + "\nRespond only with valid JSON array or { \"entries\": [...] }." },
+                new { role = "user",   content = prompt },
             },
+            response_format = new { type = "json_object" },
             stream = false,
         };
 

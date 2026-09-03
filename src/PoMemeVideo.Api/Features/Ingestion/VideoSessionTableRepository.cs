@@ -27,6 +27,10 @@ internal sealed class VideoSessionTableEntity : ITableEntity
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? OutputBlobPath { get; set; }
+    public double? TrimStartSeconds { get; set; }
+    public double? TrimDurationSeconds { get; set; }
+    public string? MemePersona { get; set; }
+    public string? AspectRatio { get; set; }
 
     /// <summary>Owner of this session — used to authorize lookups.</summary>
     public string OwnerUserId { get; set; } = string.Empty;
@@ -81,6 +85,10 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         string sourceBlobPath,
         double videoDurationSeconds,
         bool aggressiveVisuals,
+        double? trimStartSeconds = null,
+        double? trimDurationSeconds = null,
+        string? memePersona = null,
+        string? aspectRatio = null,
         CancellationToken cancellationToken = default)
     {
         var entity = await RequireOwnedAsync(sessionId, userId, cancellationToken);
@@ -88,6 +96,10 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         entity.SourceBlobPath = sourceBlobPath;
         entity.VideoDurationSeconds = videoDurationSeconds;
         entity.AggressiveVisuals = aggressiveVisuals;
+        if (trimStartSeconds.HasValue) entity.TrimStartSeconds = trimStartSeconds.Value;
+        if (trimDurationSeconds.HasValue) entity.TrimDurationSeconds = trimDurationSeconds.Value;
+        if (memePersona != null) entity.MemePersona = memePersona;
+        if (aspectRatio != null) entity.AspectRatio = aspectRatio;
 
         await _table.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Merge, cancellationToken);
     }
@@ -168,6 +180,10 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         CompletedAt = s.CompletedAt,
         OutputBlobPath = s.OutputBlobPath,
         OwnerUserId = s.UserId.Value.ToString("D"),
+        TrimStartSeconds = s.TrimStartSeconds,
+        TrimDurationSeconds = s.TrimDurationSeconds,
+        MemePersona = s.MemePersona,
+        AspectRatio = s.AspectRatio,
     };
 
     private static VideoSession ToDomain(VideoSessionTableEntity e) => new()
@@ -182,6 +198,10 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
         CreatedAt = e.CreatedAt,
         CompletedAt = e.CompletedAt,
         OutputBlobPath = e.OutputBlobPath,
+        TrimStartSeconds = e.TrimStartSeconds,
+        TrimDurationSeconds = e.TrimDurationSeconds,
+        MemePersona = e.MemePersona,
+        AspectRatio = e.AspectRatio,
     };
 }
 

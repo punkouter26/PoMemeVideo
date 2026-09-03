@@ -91,7 +91,9 @@ public class RenderVideoCommand : IRenderVideoCommand
                                 SoundBlobUrl: blobPath,
                                 VisualEffect: entry.VisualEffect?.ToString(),
                                 EffectIntensity: entry.EffectIntensity,
-                                OverlayAssetId: entry.OverlayAssetId);
+                                OverlayAssetId: entry.OverlayAssetId,
+                                CaptionText: entry.CaptionText,
+                                CaptionPosition: entry.CaptionPosition);
                         })
                         .ToList();
                 }
@@ -107,7 +109,10 @@ public class RenderVideoCommand : IRenderVideoCommand
                 SourceBlobPath: session.SourceBlobPath,
                 OutputBlobPath: $"sessions/{sessionId}/output.mp4",
                 AggressiveVisuals: session.AggressiveVisuals,
-                SoundEntries: soundEntries);
+                SoundEntries: soundEntries,
+                TrimStartSeconds: session.TrimStartSeconds,
+                TrimDurationSeconds: session.TrimDurationSeconds,
+                AspectRatio: session.AspectRatio);
 
             await _renderService.RenderAsync(job, cancellationToken);
 

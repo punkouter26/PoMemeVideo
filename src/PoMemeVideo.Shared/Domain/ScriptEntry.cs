@@ -20,4 +20,6 @@ public class ScriptEntry
     public double? EffectIntensity { get; set; }
     public string? OverlayAssetId { get; set; }
     public PlacementType PlacementType { get; set; }
+    public string? CaptionText { get; set; }
+    public string? CaptionPosition { get; set; }
 }

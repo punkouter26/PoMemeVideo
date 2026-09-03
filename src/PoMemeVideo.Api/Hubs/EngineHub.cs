@@ -42,13 +42,6 @@ public class EngineHubNotifier : IEngineNotifier
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("DirectorScriptEntry", entry, cancellationToken);
 
-    public Task AuditAsync(SessionId sessionId, string message, CancellationToken cancellationToken = default)
-        => _hubContext.Clients.Group($"session-{sessionId}")
-            .SendAsync("AuditEntry", message, cancellationToken);
-
-    public Task HardwareMetricsAsync(SessionId sessionId, double inferenceLatencyMs, double cpuLoadPercent, CancellationToken cancellationToken = default)
-        => _hubContext.Clients.Group($"session-{sessionId}")
-            .SendAsync("HardwareMetrics", inferenceLatencyMs, cpuLoadPercent, cancellationToken);
 
     public Task CompleteAsync(SessionId sessionId, string outputBlobPath, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
