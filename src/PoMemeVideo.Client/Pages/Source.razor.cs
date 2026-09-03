@@ -31,25 +31,25 @@ public partial class Source
 
     private bool _isDevelopment;
     private bool _soundLibraryEmpty;
-    private string _activeProvider = "BrowserLLM";
-    private string _pendingProvider = "BrowserLLM";
-    private string _activeBrowserModelId = "smollm2-360m-instruct-onnx";
-    private string _pendingBrowserModelId = "smollm2-360m-instruct-onnx";
+    private string _activeProvider = "AiFoundry";
+    private string _pendingProvider = "AiFoundry";
+    // BrowserLLM (WebGPU / ONNX, local to the browser)
+    private const string DefaultBrowserModel = "smollm2-360m-instruct-onnx";
+    private string _activeBrowserModelId = DefaultBrowserModel;
+    private string _pendingBrowserModelId = DefaultBrowserModel;
     private List<LocalModelInfo> _localModels = [];
     // AI Foundry
-    private string _activeFoundryDeployment = "gpt-5.4-nano";
-    private string _pendingFoundryDeployment = "gpt-5.4-nano";
-    private List<string> _foundryDeployments = [];
-    // Ollama (dev only)
-    private bool _ollamaAvailable;
-    private string _activeOllamaModel = "llama3.2";
-    private string _pendingOllamaModel = "llama3.2";
-    private List<string> _ollamaModels = [];
+    private const string DefaultDeployment = "gpt-5.4-nano";
+    private string _activeFoundryDeployment = DefaultDeployment;
+    private string _pendingFoundryDeployment = DefaultDeployment;
+    // Seeded, not empty: the server enumerates deployments from ARM and that call is slow on a
+    // cold start, so the first render happens before it returns. An empty list renders a
+    // <select> with no <option>s — a blank control with no explanation.
+    private List<string> _foundryDeployments = [DefaultDeployment];
     private bool _modelDirty;
     private bool _modelApplying;
     private string? _modelMessage;
-    // Unified model-selection dropdown (Remote / Ollama / Browser groups).
-    private string _pendingModelSelection = "remote:gpt-5.4-nano";
+    private string _pendingModelSelection = $"remote:{DefaultDeployment}";
     private string _dropdownHint = "";
     private int CurrentStep => !_uploaded ? 1 : _visionInProgress ? 2 : 3;
 
@@ -228,6 +228,10 @@ public partial class Source
             finally
             {
                 _visionInProgress = false;
+                // canvas-dither.js no longer tears the video down inside generateDitheredFrames
+                // because captureRawFrames reuses the same <video> element. Release the blob:
+                // URL and detach the source here so the page can be torn down cleanly.
+                await ReleaseVideoElementAsync();
             }
         }
         catch (Exception ex)
@@ -264,28 +268,6 @@ public partial class Source
 
     private async Task OnInitiate()
     {
-        if (_activeProvider == "BrowserLLM" && !_localModels.Any(model => model.Available))
-        {
-            if (_pendingProvider != "BrowserLLM")
-            {
-                // User has selected a valid provider but hasn't applied it yet — apply automatically.
-                await ApplyModelAsync();
-                if (_activeProvider == "BrowserLLM")
-                {
-                    // Apply failed; error already set by ApplyModelAsync via _modelMessage, surface it here too.
-                    _errorMessage = _modelMessage ?? "MODEL SWITCH FAILED. Please try again.";
-                    _statusMessage = "READY";
-                    return;
-                }
-            }
-            else
-            {
-                _errorMessage = "LOCAL AI MODEL FILES ARE MISSING. Select Remote AI, then click Apply Model before creating a video.";
-                _statusMessage = "READY";
-                return;
-            }
-        }
-
         _initiating = true;
         _errorMessage = null;
         StateHasChanged();
@@ -339,6 +321,21 @@ public partial class Source
         }
     }
 
+    private async Task ReleaseVideoElementAsync()
+    {
+        // canvas-dither.js leaves the <video> element loaded between the keyframe strip and
+        // the AI vision capture (so the blob: URL isn't aborted by a second load). Detach it
+        // once both captures have finished so the GC can reclaim the blob.
+        try
+        {
+            await JS.InvokeVoidAsync("canvasDither.releaseVideo", _videoRef);
+        }
+        catch
+        {
+            // Non-critical: the page is leaving anyway and the element will be GC'd with the DOM.
+        }
+    }
+
     private static string ExtractBlobPath(string sasUrl)
     {
         var uri = new Uri(sasUrl);
@@ -370,48 +367,57 @@ public partial class Source
         {
             var ai = await Http.GetFromJsonAsync<AiModelResponse>("/api/config/ai-model");
             if (ai is null)
-                return;
+                throw new InvalidOperationException("/api/config/ai-model returned no body.");
 
             _activeProvider = ai.Provider;
             _pendingProvider = ai.Provider;
             _isDevelopment = ai.IsDevelopment;
+
             _localModels = ai.LocalModels?.ToList() ?? [];
             _activeBrowserModelId = ai.BrowserLLMModel ?? (_localModels.FirstOrDefault()?.Id ?? _activeBrowserModelId);
             _pendingBrowserModelId = _activeBrowserModelId;
 
-            _activeFoundryDeployment = ai.AiFoundryDeployment ?? "gpt-5.4-nano";
+            _activeFoundryDeployment = ai.AiFoundryDeployment ?? DefaultDeployment;
             _pendingFoundryDeployment = _activeFoundryDeployment;
-            _foundryDeployments = ai.AiFoundryDeployments?.ToList() ?? ["gpt-5.4-nano"];
+            if (ai.AiFoundryDeployments is { Length: > 0 } deployments)
+                _foundryDeployments = deployments.ToList();
 
-            _ollamaAvailable = ai.OllamaAvailable;
-            _activeOllamaModel = ai.OllamaModel ?? "llama3.2";
-            _pendingOllamaModel = _activeOllamaModel;
-            _ollamaModels = ai.OllamaModels?.ToList() ?? [];
-
-            // Seed the unified dropdown selection from the active provider/model.
-            _pendingModelSelection = ai.Provider switch
-            {
-                "AzureOpenAI" => $"remote:{_activeFoundryDeployment}",
-                "AiFoundry" => $"remote:{_activeFoundryDeployment}",
-                "Ollama" => $"ollama:{_activeOllamaModel}",
-                "BrowserLLM" => $"browser:{_activeBrowserModelId}",
-                _ => $"remote:{_activeFoundryDeployment}",
-            };
-            UpdateDropdownHint();
-
-            if (_activeProvider == "BrowserLLM" && !_localModels.Any(model => model.Available))
-            {
-                // Keep active provider unchanged until user applies, but preselect a viable option.
-                _pendingProvider = "AzureOpenAI";
-                _modelMessage = "LOCAL MODELS NOT FOUND. Remote AI preselected - click Apply Model to continue.";
-            }
-
-            _displayActiveModel = ComputeDisplayName(ai.Provider);
-            RecomputeModelDirty();
+            _modelMessage = null;
         }
         catch
         {
-            _displayActiveModel = "Azure OpenAI (Default)";
+            // The server enumerates AI Foundry deployments from ARM with DefaultAzureCredential.
+            // That call can take tens of seconds on a cold start and can fail outright with no
+            // Azure session. Falling through silently here used to leave _foundryDeployments
+            // empty, which renders a <select> with zero <option>s — a blank control with no
+            // explanation, indistinguishable from a broken page.
+            _modelMessage = "MODEL LIST UNAVAILABLE — showing the active deployment only. "
+                          + "Reload once Azure sign-in completes to see the full list.";
+        }
+
+        // Whatever happened above, the dropdown must never be empty: it always offers at least
+        // the deployment that is actually active.
+        if (!_foundryDeployments.Contains(_activeFoundryDeployment, StringComparer.OrdinalIgnoreCase))
+            _foundryDeployments.Insert(0, _activeFoundryDeployment);
+
+        _pendingModelSelection = _activeProvider == "BrowserLLM"
+            ? $"browser:{_activeBrowserModelId}"
+            : $"remote:{_activeFoundryDeployment}";
+        UpdateDropdownHint();
+        _displayActiveModel = ComputeDisplayName(_activeProvider);
+        RecomputeModelDirty();
+
+        // BrowserLLM is the Development default, but the ONNX weights are a separate download.
+        // Without them the engine would stall on an inference request that can never complete,
+        // so preselect the cloud path and tell the user why.
+        if (_activeProvider == "BrowserLLM" && !_localModels.Any(model => model.Available))
+        {
+            _pendingProvider = "AiFoundry";
+            _pendingModelSelection = $"remote:{_activeFoundryDeployment}";
+            UpdateDropdownHint();
+            RecomputeModelDirty();
+            _modelMessage = "LOCAL MODELS NOT DOWNLOADED — Remote AI preselected. "
+                          + "Click Apply, or run 'python scripts/download-models.py' to use the browser model.";
         }
     }
 
@@ -419,19 +425,17 @@ public partial class Source
     {
         "AzureOpenAI" => "Azure OpenAI · GPT-5.4 Nano",
         "AiFoundry" => $"AI Foundry · {_activeFoundryDeployment}",
-        "Ollama" => $"Ollama · {_activeOllamaModel}",
         "BrowserLLM" => _localModels.Count > 0
-                             ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
-                             : "No local models downloaded",
+            ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
+            : "No local models downloaded",
         _ => provider,
     };
 
     private void RecomputeModelDirty()
     {
         _modelDirty = _pendingProvider != _activeProvider
-                      || _pendingBrowserModelId != _activeBrowserModelId
                       || _pendingFoundryDeployment != _activeFoundryDeployment
-                      || _pendingOllamaModel != _activeOllamaModel;
+                      || _pendingBrowserModelId != _activeBrowserModelId;
     }
 
     private void OnModelSelectionChanged()
@@ -445,14 +449,12 @@ public partial class Source
         switch (kind)
         {
             case "remote":
-                _pendingProvider = "AzureOpenAI";
+                // Must be AiFoundry, not AzureOpenAI: the deployment name below is only honoured
+                // by the Foundry director. Selecting a deployment used to silently switch to the
+                // Azure OpenAI path, which ignores it.
+                _pendingProvider = "AiFoundry";
                 _pendingFoundryDeployment = name;
                 _dropdownHint = $"Remote AI Foundry deployment → {name}";
-                break;
-            case "ollama":
-                _pendingProvider = "Ollama";
-                _pendingOllamaModel = name;
-                _dropdownHint = $"Ollama model → {name}";
                 break;
             case "browser":
                 _pendingProvider = "BrowserLLM";
@@ -467,11 +469,9 @@ public partial class Source
     {
         _dropdownHint = _pendingProvider switch
         {
-            "AzureOpenAI" => $"☁ AI Foundry · {_pendingFoundryDeployment}",
-            "AiFoundry" => $"☁ AI Foundry · {_pendingFoundryDeployment}",
-            "Ollama" => $"🦙 Ollama · {_pendingOllamaModel}",
             "BrowserLLM" => $"⚡ Browser · {(string.IsNullOrEmpty(_pendingBrowserModelId) ? "(no model)" : _pendingBrowserModelId)}",
-            _ => "",
+            "AzureOpenAI" => "☁ Azure OpenAI · GPT-5.4 Nano",
+            _ => $"☁ AI Foundry · {_pendingFoundryDeployment}",
         };
     }
 
@@ -488,7 +488,6 @@ public partial class Source
                 provider = _pendingProvider,
                 browserLLMModel = _pendingBrowserModelId,
                 aiFoundryDeployment = _pendingFoundryDeployment,
-                ollamaModel = _pendingOllamaModel,
             };
             var response = await Http.PutAsJsonAsync("/api/config/ai-model", body);
 
@@ -500,9 +499,8 @@ public partial class Source
             }
 
             _activeProvider = _pendingProvider;
-            _activeBrowserModelId = _pendingBrowserModelId;
             _activeFoundryDeployment = _pendingFoundryDeployment;
-            _activeOllamaModel = _pendingOllamaModel;
+            _activeBrowserModelId = _pendingBrowserModelId;
             _modelDirty = false;
             _displayActiveModel = ComputeDisplayName(_activeProvider);
             _modelMessage = $"MODEL ACTIVE: {_displayActiveModel}";
@@ -541,9 +539,6 @@ public partial class Source
         LocalModelInfo[]? LocalModels,
         string? AiFoundryDeployment,
         string[]? AiFoundryDeployments,
-        bool OllamaAvailable,
-        string? OllamaModel,
-        string[]? OllamaModels,
         bool IsDevelopment);
     private sealed record LocalModelInfo(string Id, string Label, bool Available);
     private sealed record FrameUploadResult(int FramesStored, VisionLabelItem[]? VisionLabels, VisionDiagnostics? VisionDiagnostics);

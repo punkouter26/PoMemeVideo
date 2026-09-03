@@ -24,4 +24,13 @@
     --term-script-notice: #ffb347;
 
     --term-dim-opacity: 0.4;
+
+    /* Accent aliases used throughout the component styles. These were referenced as
+       var(--rt-accent-*, #literal) long before they were declared, so every use silently
+       fell through to its hardcoded fallback and the token system did not actually drive
+       those colours. */
+    --rt-accent-green: #00ff41;
+    --rt-accent-cyan: #00ffdc;
+    --rt-accent-yellow: #ffe600;
+    --rt-text-dim: #888888;
 }

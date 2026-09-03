@@ -17,7 +17,7 @@
 @implements IAsyncDisposable
 
 <nav class="retro-navbar" role="navigation" aria-label="Site navigation">
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <div class="nav-status-cluster">
         <button class="ascii-btn compact-btn mobile-menu-toggle" @onclick="ToggleMobileMenu" aria-label="Toggle navigation menu">
             @(_mobileMenuOpen ? "[ ✕ ]" : "[ ☰ ]")
         </button>
@@ -54,13 +54,13 @@
 
 @if (_mobileMenuOpen)
 {
-    <div class="mobile-nav-drawer ascii-border-double vibe-glass-card reveal-in" style="padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(3, 10, 7, 0.95); display: flex; flex-direction: column; gap: 0.5rem;">
-        <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 🎬 CREATE MEME VIDEO ]</NavLink>
-        <NavLink href="/memelibrary" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 🔊 SOUND LIBRARY ]</NavLink>
-        <NavLink href="/results" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 📜 VIDEO HISTORY ]</NavLink>
+    <div class="mobile-nav-drawer ascii-border-double vibe-glass-card reveal-in">
+        <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMobileMenu" class="mobile-nav-link">[ 🎬 CREATE MEME VIDEO ]</NavLink>
+        <NavLink href="/memelibrary" @onclick="CloseMobileMenu" class="mobile-nav-link">[ 🔊 SOUND LIBRARY ]</NavLink>
+        <NavLink href="/results" @onclick="CloseMobileMenu" class="mobile-nav-link">[ 📜 VIDEO HISTORY ]</NavLink>
         @if (_isDevelopment)
         {
-            <a href="/scalar/" target="_blank" rel="noopener noreferrer" @onclick="CloseMobileMenu" style="font-size: 0.9rem; padding: 0.3rem;">[ 🛠️ SCALAR API DOCS ]</a>
+            <a href="/scalar/" target="_blank" rel="noopener noreferrer" @onclick="CloseMobileMenu" class="mobile-nav-link">[ 🛠️ SCALAR API DOCS ]</a>
         }
     </div>
 }
@@ -139,6 +139,12 @@
                 return;
             }
 
+            if (ai.Provider == "AiFoundry")
+            {
+                _aiDisplay = $"[ AI: {(ai.AiFoundryDeployment ?? "FOUNDRY").ToUpperInvariant()} ]";
+                return;
+            }
+
             var selected = ai.LocalModels?.FirstOrDefault(m => m.Id == ai.BrowserLLMModel)?.Label
                            ?? ai.BrowserLLMModel
                            ?? "LOCAL";
@@ -212,6 +218,10 @@
 
     private sealed record AuthMeResponse(string? DisplayName, string? Email);
     private sealed record ConfigResponse(bool UseMockAI, bool IsDevelopment);
-    private sealed record AiModelResponse(string Provider, string? BrowserLLMModel, LocalModelInfo[]? LocalModels);
+    private sealed record AiModelResponse(
+        string Provider,
+        string? BrowserLLMModel,
+        LocalModelInfo[]? LocalModels,
+        string? AiFoundryDeployment);
     private sealed record LocalModelInfo(string Id, string Label);
 }

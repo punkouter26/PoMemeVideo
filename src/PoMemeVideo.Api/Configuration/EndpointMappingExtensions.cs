@@ -204,6 +204,9 @@ internal static class EndpointMappingExtensions
         app.MapIngestionEndpoints();
         app.MapProcessingEndpoints();
 
+        // The browser posts its locally-computed director script back here, resolving the
+        // TaskCompletionSource that BrowserLLMDirectorService is awaiting. Anonymous because the
+        // callback carries the session id and races the auth cookie on a cold WASM boot.
         app.MapPost("/api/processing/sessions/{sessionId:guid}/browser-director-result",
             (SessionId sessionId,
              BrowserDirectorResultDto result,

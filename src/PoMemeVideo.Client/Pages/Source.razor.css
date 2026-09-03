@@ -11,3 +11,78 @@
 .keyframe-source {
     display: none;
 }
+
+/* Extracted from inline style attributes — see CLAUDE.md "No inline styles". */
+
+/* Base bar/fill rules live in retro-terminal.components.css; this page only adds spacing
+   and binds the fill width to the --upload-progress custom property set on the element. */
+.upload-progress-bar {
+    margin: 0.5rem 0;
+}
+
+.upload-progress-bar .retro-progress-fill {
+    width: var(--upload-progress, 0%);
+}
+
+.session-tuning-card {
+    margin: 1rem 0;
+    padding: 1rem;
+}
+
+.tuning-header {
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+    color: var(--rt-accent-cyan, #00ffdc);
+}
+
+.tuning-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.tuning-group-wide {
+    grid-column: 1 / -1;
+}
+
+.tuning-label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.aspect-ratio-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.aspect-btn {
+    flex: 1;
+    padding: 0.35rem;
+    font-size: 0.8rem;
+}
+
+/* Replaces a second inline ternary that repeated what .is-active already says. */
+.aspect-btn.is-active {
+    border-color: var(--rt-accent-cyan, #00ffdc);
+    color: var(--rt-accent-cyan, #00ffdc);
+}
+
+.persona-select {
+    width: 100%;
+}
+
+.trim-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.trim-label {
+    font-size: 0.8rem;
+}
+
+.trim-slider {
+    flex: 1;
+}

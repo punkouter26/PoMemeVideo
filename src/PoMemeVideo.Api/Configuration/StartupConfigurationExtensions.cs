@@ -95,11 +95,18 @@ internal static class StartupConfigurationExtensions
                 .Enrich.FromLogContext()
                 .Enrich.WithEnvironmentName()
                 .Enrich.WithThreadId()
-                .Enrich.WithProperty("Application", PoMemeVideoNaming.ApplicationName)
-                .WriteTo.File(
+                .Enrich.WithProperty("Application", PoMemeVideoNaming.ApplicationName);
+
+            // Rolling files are a local-debugging convenience only. On App Service stdout is
+            // already captured, and 30 days of retained logs eat into the F1 plan's 1 GB quota
+            // that the deployment package itself is sized against.
+            if (context.HostingEnvironment.IsDevelopment())
+            {
+                loggerConfig.WriteTo.File(
                     path: $"logs/{PoMemeVideoNaming.ApplicationSlug}-.log",
                     rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 30);
+                    retainedFileCountLimit: 7);
+            }
 
             var appInsightsConnStr = context.Configuration["ApplicationInsights:ConnectionString"];
             if (!string.IsNullOrWhiteSpace(appInsightsConnStr))

@@ -297,7 +297,9 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     /// encode in reasonable time on constrained hosts. Aggressive visuals enable deep-fry EQ +
     /// unsharp. Aspect ratio 9:16 adds vertical framing. Captions are overlaid using drawtext.
     /// </summary>
-    private static string BuildVideoFilterChain(
+    // internal (not private) so the filter-chain construction can be unit-tested directly;
+    // it is pure and is the highest-risk string building in the render path.
+    internal static string BuildVideoFilterChain(
         IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)> sounds,
         bool aggressiveVisuals,
         string? aspectRatio = null)
@@ -360,11 +362,17 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         return string.Join(',', filters);
     }
 
-    private static string SanitizeForDrawtext(string text)
+    internal static string SanitizeForDrawtext(string text)
     {
+        // drawtext wraps the text in single quotes, so a literal apostrophe inside the caption
+        // closes the string early (regression: "THAT DIDN'T HIT" became "THAT DIDN" + "T HIT'…" and
+        // FFmpeg errored with EINVAL). Within a single-quoted arg FFmpeg does not honour the
+        // C-style backslash escape sequence, so we drop apostrophes entirely. Colon is escaped
+        // because it's the option delimiter, percent to avoid format-string expansion, and
+        // backslash doubled because the drawtext option parser still treats it specially.
         return text
             .Replace("\\", "\\\\")
-            .Replace("'", @"\'")
+            .Replace("'", string.Empty)
             .Replace(":", @"\:")
             .Replace("%", @"\%")
             .Replace("\n", " ")

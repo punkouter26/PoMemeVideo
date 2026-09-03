@@ -34,23 +34,23 @@ public sealed class MemePipelineE2ETests
             ViewportSize = new ViewportSize { Width = 1280, Height = 800 },
         });
 
-        // ── Step 1: Dev auth via HTTP (guest identity) ───────────────────────
+        // ── Step 1: Guest auth, through the browser context ──────────────────
+        // This must go through context.APIRequest, not a bare HttpClient: the auth cookie has
+        // to land in the *browser's* jar or every navigation below is anonymous. A separate
+        // HttpClient has its own cookie container, so the test only ever passed under the
+        // Development anon middleware, which authenticates everything regardless.
         var page = await context.NewPageAsync();
-        using var http = new HttpClient { BaseAddress = new Uri(BaseUrl) };
 
-        // Authenticate via guest endpoint
-        var authResponse = await http.PostAsync("/auth/guest", null);
-        authResponse.EnsureSuccessStatusCode();
-        var auth = await authResponse.Content.ReadFromJsonAsync<GuestAuthResponse>();
-        Assert.NotNull(auth);
-        Assert.Equal("GUEST", auth.IdentityType);
+        var authResponse = await context.APIRequest.PostAsync($"{BaseUrl}auth/guest");
+        Assert.True(authResponse.Ok, $"/auth/guest answered {authResponse.Status}");
+        var auth = await authResponse.JsonAsync();
+        Assert.Equal("GUEST", auth!.Value.GetProperty("identityType").GetString());
+        var guestName = auth.Value.GetProperty("displayName").GetString();
 
-        // Verify /api/auth/me returns our identity
-        var meResponse = await http.GetAsync("/api/auth/me");
-        meResponse.EnsureSuccessStatusCode();
-        var me = await meResponse.Content.ReadFromJsonAsync<AuthMeDto>();
-        Assert.NotNull(me?.DisplayName);
-        Assert.Contains(auth.DisplayName, me.DisplayName);
+        var meResponse = await context.APIRequest.GetAsync($"{BaseUrl}api/auth/me");
+        Assert.True(meResponse.Ok, $"/api/auth/me answered {meResponse.Status}");
+        var me = await meResponse.JsonAsync();
+        Assert.Equal(guestName, me!.Value.GetProperty("displayName").GetString());
 
         // ── Step 2: Navigate to home / create page ───────────────────────────
         await page.GotoAsync(BaseUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
@@ -76,12 +76,24 @@ public sealed class MemePipelineE2ETests
         await page.GotoAsync($"{BaseUrl}results");
         await page.WaitForSelectorAsync("h1:has-text('Video History')");
 
-        // ── Step 5: Login page renders both auth options ─────────────────────
+        // ── Step 5: Login page auth options ──────────────────────────────────
+        // The Microsoft button is always present. The GUEST button is gated on
+        // /api/config -> isDevelopment, so asserting it unconditionally only passed against a
+        // Development host and would have hidden a regression where the dev-only button leaked
+        // into a non-Development environment.
         var url = BaseUrl!.EndsWith("/") ? BaseUrl : BaseUrl + "/";
         await page.GotoAsync($"{url}login");
-        await page.WaitForSelectorAsync("text=RANDOM GUEST");
-        var microsoftBtn = await page.QuerySelectorAsync("text=SIGN IN WITH MICROSOFT");
-        Assert.NotNull(microsoftBtn);
+        await page.WaitForSelectorAsync("text=SIGN IN WITH MICROSOFT", new PageWaitForSelectorOptions { Timeout = 30_000 });
+
+        var configResponse = await context.APIRequest.GetAsync($"{url}api/config");
+        Assert.True(configResponse.Ok, $"/api/config answered {configResponse.Status}");
+        var isDevelopment = (await configResponse.JsonAsync())!.Value.GetProperty("isDevelopment").GetBoolean();
+
+        var guestBtn = await page.QuerySelectorAsync("text=RANDOM GUEST");
+        if (isDevelopment)
+            Assert.NotNull(guestBtn);
+        else
+            Assert.Null(guestBtn);
     }
 
     /// <summary>
@@ -122,8 +134,6 @@ public sealed class MemePipelineE2ETests
     }
 
     // ── DTOs ─────────────────────────────────────────────────────────────────
-    private sealed record GuestAuthResponse(Guid IdentityId, string DisplayName, string IdentityType);
-    private sealed record AuthMeDto(string? DisplayName, string? Email);
     private sealed record NegotiateResponse(string ConnectionId, TransportInfo[] AvailableTransports);
     private sealed record TransportInfo(string Transport, string[] TransferFormats);
     private sealed record HealthResponse(string Status, string Environment);

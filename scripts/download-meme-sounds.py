@@ -1,7 +1,7 @@
 """
 Meme Sounds Downloader
 Downloads ~200 meme sounds from myinstants.com API and generates metadata JSON.
-Output: tools/meme-sounds/ (MP3 files + sounds-metadata.json)
+Output: scripts/meme-sounds/ (MP3 files + sounds-metadata.json)
 """
 
 import json

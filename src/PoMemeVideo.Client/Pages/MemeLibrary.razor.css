@@ -6,3 +6,109 @@
     font-size: 0.78rem;
     color: var(--term-secondary);
 }
+
+/* Extracted from inline style attributes — see CLAUDE.md "No inline styles". */
+.library-notice {
+    margin-bottom: 1rem;
+    border-color: var(--rt-accent-green, #00ff41);
+}
+
+.library-notice-text {
+    margin: 0;
+    padding: 0.5rem;
+}
+
+.search-bar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    flex: 1;
+}
+
+.search-field {
+    min-width: 180px;
+    flex: 1;
+}
+
+.upload-modal-panel {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+}
+
+.upload-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.upload-panel-title {
+    font-family: var(--font-mono);
+    color: var(--rt-accent-cyan, #00ffdc);
+    font-weight: bold;
+}
+
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 500px;
+}
+
+.input-label {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    color: #88ffaa;
+}
+
+.upload-field {
+    width: 100%;
+}
+
+.upload-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.upload-message {
+    margin-top: 0.5rem;
+}
+
+.radzen-grid-container {
+    overflow-x: auto;
+}
+
+.retro-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.retro-table th,
+.retro-table td {
+    padding: 0.5rem;
+}
+
+.retro-table-head-row {
+    border-bottom: 1px solid var(--rt-accent-green, #00ff41);
+    text-align: left;
+}
+
+.retro-table-row {
+    border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+}
+
+.col-name {
+    width: 220px;
+}
+
+.col-duration {
+    width: 120px;
+}
+
+.col-audition {
+    width: 120px;
+    text-align: center;
+}

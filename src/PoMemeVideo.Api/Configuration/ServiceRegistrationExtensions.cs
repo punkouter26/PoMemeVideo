@@ -35,37 +35,41 @@ internal static class ServiceRegistrationExtensions
             o.KnownProxies.Clear();
         });
 
-        builder.Services.AddOpenTelemetry()
-            .ConfigureResource(r => r.AddService("PoMemeVideo"))
-            .WithTracing(tracing =>
-            {
-                tracing
-                    // Strip health/liveness probe noise from traces (telemetry budget).
-                    .AddAspNetCoreInstrumentation(o =>
-                        o.Filter = ctx => !ctx.Request.Path.StartsWithSegments("/health"))
-                    .AddHttpClientInstrumentation()
-                    .AddSource("PoMemeVideo.*");
+        // Tracing is registered only when something will actually receive the spans. Without an
+        // exporter the pipeline still samples, allocates and drops every span — real CPU on an
+        // F1 plan with a 60 CPU-min/day quota, for no telemetry. Logs go through Serilog either
+        // way (console always; Application Insights when a connection string is configured).
+        var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
+        var otlpTarget = !string.IsNullOrWhiteSpace(otlpEndpoint)
+            ? new Uri(otlpEndpoint)
+            // Development auto-wires to the .NET Aspire dashboard on the default OTLP gRPC port.
+            : builder.Environment.IsDevelopment() ? new Uri("http://localhost:4317") : null;
 
-                // Full capture in dev/test; fixed-rate 10% sampling in prod to cap ingestion cost.
-                tracing.SetSampler(builder.Environment.IsDevelopment()
-                    ? new AlwaysOnSampler()
-                    : new ParentBasedSampler(new TraceIdRatioBasedSampler(0.1)));
+        if (otlpTarget is not null)
+        {
+            builder.Services.AddOpenTelemetry()
+                .ConfigureResource(r => r.AddService("PoMemeVideo"))
+                .WithTracing(tracing =>
+                {
+                    tracing
+                        // Strip health/liveness probe noise from traces (telemetry budget).
+                        .AddAspNetCoreInstrumentation(o =>
+                            o.Filter = ctx => !ctx.Request.Path.StartsWithSegments("/health"))
+                        .AddHttpClientInstrumentation()
+                        .AddSource("PoMemeVideo.*");
 
-                var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
-                if (!string.IsNullOrWhiteSpace(otlpEndpoint))
-                {
-                    tracing.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
-                }
-                else if (builder.Environment.IsDevelopment())
-                {
-                    // Auto-wire to .NET Aspire dashboard in Development (default OTLP gRPC port).
+                    // Full capture in dev/test; fixed-rate 10% sampling in prod to cap ingestion cost.
+                    tracing.SetSampler(builder.Environment.IsDevelopment()
+                        ? new AlwaysOnSampler()
+                        : new ParentBasedSampler(new TraceIdRatioBasedSampler(0.1)));
+
                     tracing.AddOtlpExporter(o =>
                     {
-                        o.Endpoint = new Uri("http://localhost:4317");
+                        o.Endpoint = otlpTarget;
                         o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
                     });
-                }
-            });
+                });
+        }
 
         builder.Services.AddAzureTableClientFactory();
         builder.Services.AddBlobServiceClientFactory();
@@ -80,8 +84,11 @@ internal static class ServiceRegistrationExtensions
 
         builder.Services.AddSingleton(new RuntimeAiSettings
         {
-            // Prod has no local Ollama/WebGPU runtime — default to the cloud director.
-            Provider = builder.Environment.IsDevelopment() ? "BrowserLLM" : "AzureOpenAI",
+            // BrowserLLM requires ONNX weights under MODEL/ (python scripts/download-models.py).
+            // Without them the director stalls on an inference request that can never complete,
+            // so default Dev and Prod alike to the cloud director. Users can opt into the
+            // browser-side model from the Source page dropdown if the weights are present.
+            Provider = "AiFoundry",
         });
 
         // Typed/named HttpClients backed by a standard resilience pipeline
@@ -89,17 +96,12 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddTransient<CorrelationPropagationHandler>();
 
-        builder.Services.AddHttpClient("Ollama")
-            .AddHttpMessageHandler<CorrelationPropagationHandler>()
-            .AddStandardResilienceHandler();
         builder.Services.AddHttpClient("AiFoundry")
             .AddHttpMessageHandler<CorrelationPropagationHandler>()
             .AddStandardResilienceHandler();
         builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
         builder.Services.AddSingleton<AzureOpenAiDirectorService>();
         builder.Services.AddSingleton<AiFoundryDirectorService>();
-        builder.Services.AddSingleton<OllamaDirectorService>();
-        builder.Services.AddSingleton<ILocalModelCatalog>(sp => sp.GetRequiredService<OllamaDirectorService>());
         builder.Services.AddSingleton<BrowserLLMDirectorService>();
         builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
 

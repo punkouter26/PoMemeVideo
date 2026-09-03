@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PoMemeVideo</title>
     <base href="/" />
-    <link rel="stylesheet" href="css/retro-terminal.css" />
-    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/retro-terminal.tokens.css" />
+    <link rel="stylesheet" href="css/retro-terminal.base.css" />
+    <link rel="stylesheet" href="css/retro-terminal.components.css" />
     <!-- Blazor scoped-CSS bundle (.razor.css) — loaded last so component styles win. -->
     <link rel="stylesheet" href="PoMemeVideo.Client.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
@@ -28,6 +29,7 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="js/canvas-dither.js"></script>
+    <script src="js/browser-actions.js"></script>
     <script src="js/vibe3d-engine.js"></script>
     <script type="module" src="js/browser-llm.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>

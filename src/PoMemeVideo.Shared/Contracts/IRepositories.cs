@@ -18,6 +18,11 @@ public interface IVideoSessionRepository
 {
     Task<VideoSession> CreateAsync(VideoSession session, CancellationToken cancellationToken = default);
     Task<VideoSession?> GetByIdAsync(SessionId sessionId, UserId userId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Lists the caller's <c>Complete</c> AND <c>Error</c> sessions, newest first. Failed
+    /// sessions are intentionally surfaced so the user can find and retry them from the
+    /// History page rather than re-running from scratch.
+    /// </summary>
     Task<IReadOnlyList<VideoSession>> ListCompletedAsync(UserId userId, CancellationToken cancellationToken = default);
     Task UpdateMetadataAsync(SessionId sessionId, UserId userId, string sourceBlobPath, double videoDurationSeconds, bool aggressiveVisuals, double? trimStartSeconds = null, double? trimDurationSeconds = null, string? memePersona = null, string? aspectRatio = null, CancellationToken cancellationToken = default);
     Task UpdateStatusAsync(SessionId sessionId, UserId userId, SessionStatus status, string? errorMessage = null, string? outputBlobPath = null, double? videoDurationSeconds = null, CancellationToken cancellationToken = default);

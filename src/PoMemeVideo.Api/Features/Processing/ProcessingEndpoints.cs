@@ -26,13 +26,21 @@ public static class ProcessingEndpoints
             if (session is null)
                 return Results.NotFound(new { error = $"Session {sessionId} not found." });
 
-            if (session.Status != SessionStatus.Ingesting && session.Status != SessionStatus.Error)
+            // Retry is allowed from any state where the engine isn't actively running. The
+            // previous build only accepted Ingesting|Error, so a session stuck in Processing
+            // (e.g. the BrowserLLM 90-second timeout was still running when the user clicked
+            // "Retry with Safe Fallback Mode") got a 409 and the user had no way out.
+            // Allow Processing too: force the row back to Ingesting so the engine re-runs,
+            // and let the dispatcher refuse the queue if the in-memory run is still live.
+            if (session.Status is not (SessionStatus.Ingesting or SessionStatus.Error or SessionStatus.Processing))
+            {
                 return Results.Conflict(new
                 {
-                    error = $"Session {sessionId} is not in Ingesting or Error state (current: {session.Status})."
+                    error = $"Session {sessionId} is not in a retryable state (current: {session.Status})."
                 });
+            }
 
-            if (session.Status == SessionStatus.Error)
+            if (session.Status is SessionStatus.Error or SessionStatus.Processing)
             {
                 await sessions.UpdateStatusAsync(sessionId, userId.Value, SessionStatus.Ingesting, errorMessage: null, cancellationToken: cancellationToken);
             }

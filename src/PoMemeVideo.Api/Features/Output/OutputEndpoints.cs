@@ -180,43 +180,6 @@ public static class OutputEndpoints
         .Produces<object>(404)
         .Produces<object>(500);
 
-        // GET /api/output/sessions/{id}/download/script — download Director's Script as JSON
-        group.MapGet("/sessions/{sessionId:guid}/download/script", async (
-            SessionId sessionId,
-            IVideoSessionRepository sessionRepository,
-            IDirectorScriptRepository scriptRepository,
-            HttpContext httpContext,
-            CancellationToken ct) =>
-        {
-            var userId = ResolveUserId(httpContext);
-
-            var session = await sessionRepository.GetByIdAsync(sessionId, userId, ct);
-            if (session is null)
-                return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
-
-            var script = await scriptRepository.GetBySessionIdAsync(sessionId, ct);
-
-            var jsonOpts = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                Converters = { new JsonStringEnumConverter() },
-                WriteIndented = true,
-            };
-
-            var payload = script is not null ? script.EntriesJson : "[]";
-            var bytes = System.Text.Encoding.UTF8.GetBytes(payload);
-            var stream = new MemoryStream(bytes);
-
-            return Results.File(
-                stream,
-                contentType: "application/json",
-                fileDownloadName: $"director-script-{sessionId}.json");
-        })
-        .WithName("DownloadDirectorScript")
-        .WithTags("Output")
-        .Produces(200)
-        .Produces<object>(404);
-
         // DELETE /api/output/sessions/{id} — Wipe Buffer: delete session and all associated blobs
         group.MapDelete("/sessions/{sessionId:guid}", async (
             SessionId sessionId,

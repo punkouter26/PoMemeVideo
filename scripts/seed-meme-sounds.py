@@ -7,13 +7,13 @@ Targets Azurite (local dev) by default; pass --connection-string to target real 
 
 Usage:
     # Local Azurite (default)
-    python SCRIPTS/seed-meme-sounds.py
+    python scripts/seed-meme-sounds.py
 
     # Real Azure Storage
-    python SCRIPTS/seed-meme-sounds.py --connection-string "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
+    python scripts/seed-meme-sounds.py --connection-string "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
 
-Reads:  SCRIPTS/meme-sounds/sounds-metadata.json
-Reads:  SCRIPTS/meme-sounds/*.mp3
+Reads:  scripts/meme-sounds/sounds-metadata.json
+Reads:  scripts/meme-sounds/*.mp3
 Writes: Blob container  "sounds"
 Writes: Table           "SoundAssets"  (PartitionKey = "library")
 """
@@ -107,7 +107,7 @@ def main() -> None:
 
     if not META_FILE.exists():
         print(f"✗ Metadata file not found: {META_FILE}")
-        print("  Run SCRIPTS/download-meme-sounds.py first.")
+        print("  Run scripts/download-meme-sounds.py first.")
         sys.exit(1)
 
     with open(META_FILE, encoding="utf-8") as f:

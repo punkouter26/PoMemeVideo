@@ -298,7 +298,7 @@ public sealed partial class RunEngineCommand
             }
             catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {
-                // BrowserLLM can time out if the client page disconnects or misses the SignalR request.
+                // A remote director call can exceed its own timeout without the request being cancelled.
                 // Degrade gracefully to deterministic fallback entries instead of failing the entire session.
                 _logger.LogWarning(ex,
                     "{DiagPrefix} Director call timed out; continuing with deterministic fallback entries.",

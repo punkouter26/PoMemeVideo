@@ -104,34 +104,6 @@ public static class IngestionEndpoints
         .Produces<object>(201)
         .Produces<object>(404);
 
-        group.MapPut("/sessions/{sessionId:guid}/options", async (
-            SessionId sessionId,
-            SessionOptionsRequest request,
-            IVideoSessionRepository repository,
-            HttpContext httpContext,
-            CancellationToken ct) =>
-        {
-            var userId = ResolveUserId(httpContext);
-
-            var session = await repository.GetByIdAsync(sessionId, userId, ct);
-            if (session is null)
-                return Results.NotFound(new { error = "SESSION_NOT_FOUND", sessionId });
-
-            await repository.UpdateMetadataAsync(
-                sessionId,
-                userId,
-                session.SourceBlobPath,
-                session.VideoDurationSeconds,
-                request.AggressiveVisuals,
-                cancellationToken: ct);
-
-            return Results.Ok(new { sessionId, aggressiveVisuals = request.AggressiveVisuals });
-        })
-        .WithName("UpdateSessionOptions")
-        .WithTags("Ingestion")
-        .Produces<object>(200)
-        .Produces<object>(404);
-
         // POST /api/ingestion/sessions/{sessionId}/frames — upload raw keyframe images for AI vision
         group.MapPost("/sessions/{sessionId:guid}/frames", async (
             SessionId sessionId,
@@ -311,7 +283,6 @@ public sealed record SessionConfirmRequest(
     string? MemePersona = null,
     string? AspectRatio = null);
 
-public sealed record SessionOptionsRequest(bool AggressiveVisuals);
 
 public sealed record FrameUploadRequest(
     [property: JsonPropertyName("frames")] IReadOnlyList<string> Frames);

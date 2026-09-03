@@ -11,7 +11,7 @@ public sealed class RuntimeAiSettings
     /// <summary>Valid provider identifiers.</summary>
     public static readonly IReadOnlySet<string> ValidProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "AzureOpenAI", "AiFoundry", "Ollama", "BrowserLLM",
+        "AzureOpenAI", "AiFoundry", "BrowserLLM",
     };
 
     public static readonly IReadOnlyDictionary<string, string> LocalModelDisplayNames =
@@ -25,7 +25,7 @@ public sealed class RuntimeAiSettings
             ["gemma-4-e2b-it-onnx"] = "Gemma 4 E2B",
         };
 
-    /// <summary>"AzureOpenAI", "AiFoundry", "Ollama", or "BrowserLLM".</summary>
+    /// <summary>"AzureOpenAI", "AiFoundry", or "BrowserLLM".</summary>
     public string Provider { get; set; } = "BrowserLLM";
 
     /// <summary>Local BrowserLLM model id, mapped to /models/{id} static files.</summary>
@@ -36,9 +36,4 @@ public sealed class RuntimeAiSettings
     /// Can be changed at runtime without restart.
     /// </summary>
     public string AiFoundryDeployment { get; set; } = "gpt-5.4-nano";
-
-    /// <summary>
-    /// Ollama model tag (e.g. "llama3.2", "mistral"). Only used in Development.
-    /// </summary>
-    public string OllamaModel { get; set; } = "llama3.2";
 }

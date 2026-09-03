@@ -10,11 +10,11 @@ Steps performed (all skippable via flags):
   3. Check FFmpeg is on PATH (print install instructions if missing)
   4. Check Docker is running and Azurite container is reachable
   5. Download browser LLM ONNX models (from HuggingFace via model-manifest.json)
-  6. Download meme sound MP3s (if SCRIPTS/meme-sounds/ not already populated)
+  6. Download meme sound MP3s (if scripts/meme-sounds/ not already populated)
   7. Seed Azurite (or real Azure Storage) with meme sounds
 
 Usage:
-    python SCRIPTS/setup-new-machine.py [options]
+    python scripts/setup-new-machine.py [options]
 
 Options:
     --skip-models          Skip downloading ONNX browser-LLM models

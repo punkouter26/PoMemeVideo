@@ -90,20 +90,32 @@ transposing `(sessionId, userId)` is now a compile error instead of a silent nul
 
 ---
 
-## 4. AI Provider Switching (`PoMemeVideo.Infrastructure`)
+## 4. AI Provider Switching (`Api/Features/Processing/`)
 
-The app supports three AI back-ends selected at runtime via `RuntimeAiSettings`:
+The app supports three AI back-ends selected at runtime via `RuntimeAiSettings`, plus a mock:
 
 | Provider | Class | When used |
 |---|---|---|
-| **Azure OpenAI** | `AzureOpenAiDirectorService` | Default cloud path |
-| **AI Foundry** | `AiFoundryDirectorService` | Azure AI Foundry endpoint |
-| **Ollama** | `OllamaDirectorService` | Local only (`localhost:11434`) |
-| **Browser LLM** | `BrowserLlmDirectorService` | WebGPU-capable browser |
+| **Browser LLM** | `BrowserLLMDirectorService` | WebGPU-capable browser; Development default |
+| **AI Foundry** | `AiFoundryDirectorService` | Azure AI Foundry endpoint; Production default |
+| **Azure OpenAI** | `AzureOpenAiDirectorService` | Azure OpenAI resource |
 | **Mock** | `MockDirectorService` (IMockable) | Tests / CI |
 
-`SwitchingDirectorService` dispatches to the correct provider.  
+`SwitchingDirectorService` dispatches to the correct provider, defaulting to AI Foundry for any
+unrecognised `Provider` value — the setting is runtime-mutable via `PUT /api/config/ai-model`, so
+an unknown value must still render a video rather than throw.
 When **any mock** is active the top nav must display **"USING MOCK DATA"**.
+
+**Browser LLM round-trip.** The server serialises the inference payload, pushes it to the browser
+over SignalR, and awaits a `TaskCompletionSource` keyed by session id; the anonymous
+`POST /api/processing/sessions/{id}/browser-director-result` endpoint resolves it. The wait times
+out at 90 s, and `RunEngineCommand` degrades to deterministic fallback entries rather than failing
+the session. Weights live under `MODEL/<model-id>/` — `python scripts/download-models.py`.
+
+**Removed provider.** `Ollama` was deleted: it required a daemon on `localhost:11434` that
+production does not have. It is absent from `RuntimeAiSettings.ValidProviders`, so a persisted
+settings file written by an older build cannot re-enable it, and `SwitchingDirectorService`
+routes it to the AI Foundry fallback.
 
 ---
 
@@ -138,7 +150,7 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
 - **Microsoft OAuth** (OIDC via `Microsoft.Identity.Web`) — both Dev and Prod
 - **GUEST mode** (Dev/Test only):
   - Format: `GUEST` + 8 random digits (e.g. `GUEST35367543`)
-  - Persisted in `LocalStorage` (survives refresh, used by E2E tests)
+  - Persisted in the auth **cookie** issued by `SignInAsync` (survives refresh, used by E2E tests)
   - Button is **hidden and disabled** in Production (`ASPNETCORE_ENVIRONMENT != Development`)
 - Nav bar always shows authenticated email/name + **LOG OUT** button on the right
 - No AOT — build is standard Blazor WASM
@@ -148,7 +160,9 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
   Any endpoint without explicit authorization metadata is protected, so forgetting
   `RequireAuthorization()` no longer silently leaves an endpoint open. Endpoints that must stay
   public opt out with `AllowAnonymous()`: `/health`, `/health/live`, `/diag`, `/api/config`,
-  the `/auth/*` family, the WASM shell (`MapStaticAssets`, `MapFallbackToFile`).
+  the `/auth/*` family, the sound-stream endpoint, `/hubs/engine`, and the WASM shell
+  (`MapStaticAssets`, `MapFallbackToFile`). Get the live list with
+  `grep -rn AllowAnonymous src/PoMemeVideo.Api`.
   **When adding an endpoint that must be public, you must say so explicitly.**
 - **`FakeAuthHandler`** (`Features/Auth`) authenticates from `X-Fake-User` / `X-Fake-Roles` for
   integration and E2E suites. Registered outside Production only, and its constructor throws
@@ -163,7 +177,7 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
 - **OpenAPI:** Scalar UI at `/scalar`
 - **Health check:** `GET /health` → JSON
 - **Diagnostics:** `GET /diag` → masked keys + connection status (dev + prod, hidden from nav)
-- **SignalR:** render progress hub at `/hubs/render`
+- **SignalR:** engine progress hub at `/hubs/engine` (`EngineHub`, `AllowAnonymous`)
 - **Endpoints folder:** `src/PoMemeVideo.Api/Endpoints/`
 - HTTP test file: `PoMemeVideo.Api.http`
 
@@ -187,12 +201,21 @@ Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
 **Correlation:** `X-Session-ID` and `X-Correlation-ID` are propagated end to end. The WASM client
 stamps them (`CorrelationHeaderHandler`), the API enriches Serilog with them and echoes
 `X-Correlation-ID` on every response, and `CorrelationPropagationHandler` forwards them on outbound
-HTTP (Ollama, AI Foundry). High-frequency paths use `[LoggerMessage]` source generators.
+HTTP (AI Foundry, Azure OpenAI). High-frequency paths use `[LoggerMessage]` source generators.
 
-- **Serilog:** Console + File + Application Insights sinks
+- **Serilog:** Console always; rolling File in Development only (App Service already captures
+  stdout, and 30 days of retained logs ate into the F1 plan's 1 GB quota); Application Insights
+  when `ApplicationInsights:ConnectionString` is set.
 - **Enrichers:** `UserId`, `SessionId`, `CorrelationId` on every log entry
-- **OpenTelemetry:** traces exported to Application Insights in PoShared resource group
+- **OpenTelemetry:** tracing is registered **only when an exporter will actually receive the
+  spans** — an explicit `OpenTelemetry:Endpoint`, or the Aspire dashboard default in Development.
+  Registering it unconditionally meant prod sampled, allocated and dropped every span, which is
+  real CPU against a 60 CPU-min/day quota for no telemetry.
 - **Activity sources:** `PoMemeVideo.*`
+
+There is no `Microsoft.ApplicationInsights.AspNetCore` package reference: it was never registered
+(`AddApplicationInsightsTelemetry` appears nowhere), so it shipped bytes for nothing. Application
+Insights is fed through the Serilog sink alone.
 
 ---
 
@@ -201,13 +224,13 @@ HTTP (Ollama, AI Foundry). High-frequency paths use `[LoggerMessage]` source gen
 - Hosted by `PoMemeVideo.Api` (same origin, ports 7000/5001)
 - UI: **Native retro-terminal controls** — no external component library
 - Pages: `Login`, `Source`, `Engine`, `Results`, `Reveal`, `MemeLibrary`, `NotFound`
-- AI model selector on Home/Engine page — grouped by: **Remote** (Azure OpenAI / AI Foundry) | **Browser** (WebGPU) | **Local** (Ollama)
+- AI model selector on the Source page — grouped **Remote · AI Foundry** deployments and **Browser · WebGPU** local models
 - Mobile-first: CSS `clamp()` + `auto-fit`, left-aligned top nav bar
 - Web Audio API for sound previews
 - **No inline styles.** Component styling lives in scoped `*.razor.css`; design tokens are CSS
   custom properties in `wwwroot/css/retro-terminal.tokens.css`. `index.html` must keep the
   `PoMemeVideo.Client.styles.css` link — without it every scoped rule silently does nothing.
-  Utility classes that get splatted onto child components (e.g. `.is-hidden` on `<InputFile>`)
+  Utility classes that get splatted onto child components (e.g. `.file-input-full` on `<InputFile>`)
   live in the global `retro-terminal.components.css`, because a child component's rendered
   element does not carry the parent's scope id.
 - Long lists use `<Virtualize>` (the sound library grows with every seed run).
@@ -220,7 +243,8 @@ HTTP (Ollama, AI Foundry). High-frequency paths use `[LoggerMessage]` source gen
 |---|---|---|
 | Unit | xUnit, no I/O | Uses mock/stub AI, no containers |
 | Integration | xUnit + Testcontainers (Azurite) | Real table/blob storage; `test` env config. Containers are cleaned at collection teardown via `TestcontainersCleanupFixture` (see §13). |
-| E2E | Playwright (TypeScript) | Uses GUEST auth; `test` env; run `npm test` from `tests/PoMemeVideo.E2ETests/` |
+| API E2E | xUnit + `WebApplicationFactory` | `tests/PoMemeVideo.E2EAPI/`; full HTTP stack against Azurite |
+| UI E2E | xUnit + `Microsoft.Playwright` (C#, not TypeScript) | `tests/PoMemeVideo.E2EUI/`; drives an **already-running** instance. Every test self-skips unless `E2E_BASE_URL` is set (`HEADED=1` for a visible browser). |
 
 **AI test interception:** in Test environments (or when `UseMockAI` is set) `AiInterception`
 routes the Azure OpenAI SDK through `AiInterceptionHandler`, a `DelegatingHandler` that answers
@@ -254,7 +278,7 @@ Local dev uses `dev` environment (real AI calls).
 | `setup.ps1` | Bootstrap new machine: Winget, Docker, `az login` check |
 | `setup-new-machine.py` | Python alternative bootstrap |
 | `seed-meme-sounds.py` | Populate Azurite/Azure with sound assets |
-| `download-models.py` | Pull Ollama models |
+| `download-models.py` | Pull ONNX weights for the BrowserLLM provider into `MODEL/` |
 | `check-azurite.py` | Verify local Azurite connectivity |
 | `cleanup-testcontainers.ps1` | Idempotent — removes any Docker container matching `*-test-*-{16-32hex}` (Testcontainers' default name pattern). Preserves `pomemevideo-azurite` (dev compose). Wire into `dotnet test` pre/post or let `TestcontainersCleanupFixture` invoke it at collection teardown. |
 

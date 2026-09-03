@@ -70,7 +70,10 @@ public sealed class VideoSessionTableRepository : IVideoSessionRepository
     public async Task<IReadOnlyList<VideoSession>> ListCompletedAsync(UserId userId, CancellationToken cancellationToken = default)
     {
         var results = new List<VideoSession>();
-        var filter = $"PartitionKey eq '{VideoSessionTableEntity.PartitionKeyValue}' and Status eq 'Complete' and OwnerUserId eq '{userId.Value:D}'";
+        // Show both Complete and Error sessions so users can find a failed attempt and retry it.
+        // The previous Status eq 'Complete' filter hid every broken session, leaving the user
+        // with no record of where to find the retry button.
+        var filter = $"PartitionKey eq '{VideoSessionTableEntity.PartitionKeyValue}' and (Status eq 'Complete' or Status eq 'Error') and OwnerUserId eq '{userId.Value:D}'";
         await foreach (var entity in _table.QueryAsync<VideoSessionTableEntity>(filter, cancellationToken: cancellationToken))
         {
             results.Add(ToDomain(entity));

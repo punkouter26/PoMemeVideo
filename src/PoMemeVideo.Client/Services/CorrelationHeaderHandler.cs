@@ -36,7 +36,7 @@ public sealed class CorrelationHeaderHandler : DelegatingHandler
     {
         try
         {
-            var cookies = await _js.InvokeAsync<string>("eval", "document.cookie");
+            var cookies = await _js.InvokeAsync<string>("poBrowser.readCookies");
             var match = cookies
                 .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .FirstOrDefault(c => c.StartsWith($"{CorrelationHeaders.SessionCookieName}=", StringComparison.Ordinal));

@@ -4,7 +4,7 @@ namespace PoMemeVideo.Api.Common;
 
 /// <summary>
 /// Copies the inbound session/correlation identifiers onto every outbound HTTP call so downstream
-/// services (Ollama, AI Foundry, Azure OpenAI) log under the same ids as the originating request.
+/// services (AI Foundry, Azure OpenAI) log under the same ids as the originating request.
 /// </summary>
 internal sealed class CorrelationPropagationHandler : DelegatingHandler
 {

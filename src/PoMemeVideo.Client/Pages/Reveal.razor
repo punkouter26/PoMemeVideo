@@ -22,8 +22,8 @@
 
     @if (!string.IsNullOrEmpty(_statusBanner))
     {
-        <div class="ascii-panel reveal-in" style="margin-bottom: 1rem; border-color: #00ff41;">
-            <pre class="status" style="margin: 0; padding: 0.5rem;">@_statusBanner</pre>
+        <div class="ascii-panel reveal-in reveal-notice">
+            <pre class="status reveal-notice-text">@_statusBanner</pre>
         </div>
     }
 
@@ -51,9 +51,9 @@
                 @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
                 {
                     <div class="ascii-border-double vibe-3d-stage vibe-glass-card @(_theaterMode ? "theater-mode-stage" : "")">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                            <pre class="panel-header" style="margin: 0;">[ @(_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO")) ]</pre>
-                            <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <div class="video-header-row">
+                            <pre class="panel-header panel-header-flush">[ @(_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO")) ]</pre>
+                            <div class="video-header-actions">
                                 <button class="ascii-btn compact-btn @(_showSplitPlayer ? "active" : "")" @onclick="ToggleSplitPlayer">
                                     @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Split Before/After ]")
                                 </button>
@@ -65,23 +65,23 @@
 
                         @if (_showSplitPlayer)
                         {
-                            <div class="split-master-toolbar ascii-border-double" style="display: flex; gap: 0.5rem; align-items: center; justify-content: center; margin-bottom: 0.75rem; padding: 0.4rem; flex-wrap: wrap; background: rgba(0,20,10,0.5);">
-                                <span style="font-size: 0.75rem; color: var(--rt-accent-cyan, #00ffdc);">MASTER SYNC:</span>
+                            <div class="split-master-toolbar ascii-border-double">
+                                <span class="split-master-label">MASTER SYNC:</span>
                                 <button class="ascii-btn compact-btn" @onclick="MasterPlaySync">[ ▶ PLAY BOTH ]</button>
                                 <button class="ascii-btn compact-btn" @onclick="MasterPauseSync">[ ⏸ PAUSE BOTH ]</button>
                                 <button class="ascii-btn compact-btn" @onclick="MasterRestartSync">[ ⏮ RESTART ]</button>
                             </div>
 
-                            <div class="split-player-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
-                                <div class="split-side ascii-border-double" style="padding: 0.5rem; background: rgba(0,0,0,0.3);">
-                                    <div style="font-size: 0.8rem; color: var(--rt-text-dim, #888); margin-bottom: 0.25rem;">ORIGINAL SOURCE</div>
-                                    <video id="split-source-video" class="output-video" controls playsinline style="width: 100%; border-radius: 4px;">
+                            <div class="split-player-container">
+                                <div class="split-side ascii-border-double">
+                                    <div class="split-side-label is-source">ORIGINAL SOURCE</div>
+                                    <video id="split-source-video" class="output-video split-video" controls playsinline>
                                         <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
                                     </video>
                                 </div>
-                                <div class="split-side ascii-border-double" style="padding: 0.5rem; background: rgba(0,0,0,0.3);">
-                                    <div style="font-size: 0.8rem; color: var(--rt-accent-cyan, #00ffdc); margin-bottom: 0.25rem;">AI MEME OUTPUT</div>
-                                    <video id="split-meme-video" class="output-video" controls playsinline style="width: 100%; border-radius: 4px;">
+                                <div class="split-side ascii-border-double">
+                                    <div class="split-side-label is-output">AI MEME OUTPUT</div>
+                                    <video id="split-meme-video" class="output-video split-video" controls playsinline>
                                         <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
                                     </video>
                                 </div>
@@ -126,9 +126,9 @@
 
             <!-- Director Script Cue Studio -->
             <div class="script-panel-reveal ascii-border-double vibe-3d-stage vibe-glass-card">
-                <div class="script-header-row" style="display: flex; justify-content: space-between; align-items: center;">
-                    <pre class="panel-header" style="margin: 0;">[ AI DIRECTOR'S SCRIPT & CUE STUDIO ]</pre>
-                    <div style="display: flex; gap: 0.5rem;">
+                <div class="script-header-row">
+                    <pre class="panel-header panel-header-flush">[ AI DIRECTOR'S SCRIPT & CUE STUDIO ]</pre>
+                    <div class="script-header-actions">
                         <button class="ascii-btn compact-btn @(_editMode ? "active" : "")" @onclick="ToggleEditMode">
                             @(_editMode ? "[ 💾 EXIT STUDIO ]" : "[ ✏️ CUE STUDIO ]")
                         </button>
@@ -141,9 +141,9 @@
                     <div class="script-scroll">
                         @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
                         {
-                            <div class="cut-block ascii-border-double" style="margin-bottom: 0.75rem;">
-                                <div class="cut-header-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
-                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <div class="cut-block ascii-border-double">
+                                <div class="cut-header-bar">
+                                    <div class="cut-header-title">
                                         <span class="cut-title">HIT @idx</span>
                                         @if (_editMode)
                                         {
@@ -153,14 +153,14 @@
                                     </div>
                                     @if (_editMode)
                                     {
-                                        <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                                        <div class="cut-header-controls">
                                             <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, -250)" title="Shift -250ms">-250ms</button>
-                                            <input type="number" class="ascii-input"
+                                            <input type="number" class="ascii-input cue-offset-input"
                                                    value="@GetTiming(idx, entry.TimestampMs)"
                                                    @onchange="@(e => { if (long.TryParse(e.Value?.ToString(), out var v)) SetTiming(idx, v); })"
-                                                   min="0" step="100" style="width: 90px; text-align: right;" />
+                                                   min="0" step="100" />
                                             <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, 250)" title="Shift +250ms">+250ms</button>
-                                            <button class="ascii-btn compact-btn" style="color: #ff3366;" @onclick="() => RemoveCue(idx - 1)">[ ✕ ]</button>
+                                            <button class="ascii-btn compact-btn cue-remove-btn" @onclick="() => RemoveCue(idx - 1)">[ ✕ ]</button>
                                         </div>
                                     }
                                     else
@@ -188,20 +188,20 @@
 
                                     @if (_editMode)
                                     {
-                                        <div class="cut-row" style="margin-top: 0.5rem;">
+                                        <div class="cut-row cut-row-spaced">
                                             <span class="cut-k">CAPTION:</span>
-                                            <input type="text" class="ascii-input" style="flex: 1; padding: 0.2rem 0.4rem; font-size: 0.8rem;"
+                                            <input type="text" class="ascii-input caption-input"
                                                    placeholder="OPTIONAL PUNCHLINE (e.g. BRO THOUGHT)"
                                                    @bind="entry.CaptionText" />
-                                            <select style="font-size: 0.8rem; margin-left: 0.5rem;" @bind="entry.CaptionPosition">
+                                            <select class="cue-select is-inline" @bind="entry.CaptionPosition">
                                                 <option value="Top">Top</option>
                                                 <option value="Bottom">Bottom</option>
                                                 <option value="Center">Center</option>
                                             </select>
                                         </div>
-                                        <div class="cut-row" style="margin-top: 0.25rem;">
+                                        <div class="cut-row cut-row-tight">
                                             <span class="cut-k">EFFECT:</span>
-                                            <select style="font-size: 0.8rem;" @bind="entry.VisualEffect">
+                                            <select class="cue-select" @bind="entry.VisualEffect">
                                                 <option value="">None</option>
                                                 <option value="@VisualEffectType.DeepFry">DeepFry</option>
                                                 <option value="@VisualEffectType.MotionBlur">MotionBlur</option>
@@ -213,7 +213,7 @@
                                     {
                                         @if (!string.IsNullOrWhiteSpace(entry.CaptionText))
                                         {
-                                            <div class="cut-row"><span class="cut-k">CAPTION:</span> <span class="cut-v" style="color: #ffe600; font-weight: bold;">"@entry.CaptionText" (@(entry.CaptionPosition ?? "Top"))</span></div>
+                                            <div class="cut-row"><span class="cut-k">CAPTION:</span> <span class="cut-v cut-v-caption">"@entry.CaptionText" (@(entry.CaptionPosition ?? "Top"))</span></div>
                                         }
                                         <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
                                         <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
@@ -224,9 +224,9 @@
 
                         @if (_editMode)
                         {
-                            <div style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
+                            <div class="cue-editor-actions">
                                 <button class="ascii-btn compact-btn" @onclick="AddCue">[ ➕ Add Cue ]</button>
-                                <button class="ascii-btn primary-action" @onclick="ReRenderAsync" disabled="@_rerendering" style="border-color: #00ffdc; color: #00ffdc;">
+                                <button class="ascii-btn primary-action rerender-btn" @onclick="ReRenderAsync" disabled="@_rerendering">
                                     @(_rerendering ? "[ ⏳ Re-Rendering… ]" : "[ ⚡ RE-RENDER WITH MODIFIED CUES ]")
                                 </button>
                             </div>
@@ -238,7 +238,7 @@
                     <pre class="script-empty">[ No script entries generated for this session ]</pre>
                     @if (_editMode)
                     {
-                        <button class="ascii-btn compact-btn" @onclick="AddCue" style="margin-top: 0.5rem;">[ ➕ Add First Cue ]</button>
+                        <button class="ascii-btn compact-btn add-cue-btn" @onclick="AddCue">[ ➕ Add First Cue ]</button>
                     }
                 }
                 else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
@@ -249,7 +249,7 @@
 
             <!-- Actions Panel -->
             <div class="controls-panel">
-                <div class="reveal-actions-primary" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                <div class="reveal-actions-primary">
                     <button class="ascii-btn download-btn" @onclick="DownloadVideo">[ ⬇ Download MP4 ]</button>
                     <button class="ascii-btn compact-btn" @onclick="ExportGifAsync" disabled="@_exportingGif">
                         @(_exportingGif ? "[ ⏳ Exporting GIF… ]" : "[ 🎞 Export GIF ]")
@@ -261,7 +261,7 @@
                     <button class="ascii-btn compact-btn" @onclick="ShareVideo">[ 📤 Share Video ]</button>
                     <button class="ascii-btn compact-btn" @onclick="ToggleRawJson">[ @(_showJson ? "Hide JSON" : "Show JSON") ]</button>
                 </div>
-                <div class="reveal-actions-secondary" style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
+                <div class="reveal-actions-secondary">
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
                     <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[ + Create Another ]</button>
                 </div>
@@ -473,16 +473,7 @@
         {
             var downloadUrl = $"/api/output/sessions/{SessionId}/export/gif";
             var fileName = $"pomeme_{SessionId:N}.gif";
-            await JS.InvokeVoidAsync("eval", $@"
-                (function() {{
-                    var a = document.createElement('a');
-                    a.href = '{downloadUrl}';
-                    a.download = '{fileName}';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }})();
-            ");
+            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
             SetStatus($"[ GIF EXPORTED: {fileName} ]");
         }
         catch (Exception ex)
@@ -505,16 +496,7 @@
         {
             var downloadUrl = $"/api/output/sessions/{SessionId}/export/punchline";
             var fileName = $"punchline_{SessionId:N}.mp4";
-            await JS.InvokeVoidAsync("eval", $@"
-                (function() {{
-                    var a = document.createElement('a');
-                    a.href = '{downloadUrl}';
-                    a.download = '{fileName}';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }})();
-            ");
+            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
             SetStatus($"[ PUNCHLINE CLIP EXPORTED: {fileName} ]");
         }
         catch (Exception ex)
@@ -612,18 +594,11 @@
 
         try
         {
-            var downloadUrl = $"/api/output/sessions/{SessionId}/download";
+            // Route is /download/video — there is no bare /download. Getting this wrong used to
+            // be invisible because the URL was interpolated into an eval'd string.
+            var downloadUrl = $"/api/output/sessions/{SessionId}/download/video";
             var fileName = $"pomemevideo_{SessionId:N}.mp4";
-            await JS.InvokeVoidAsync("eval", $@"
-                (function() {{
-                    var a = document.createElement('a');
-                    a.href = '{downloadUrl}';
-                    a.download = '{fileName}';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }})();
-            ");
+            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
             SetStatus($"[ DOWNLOAD STARTED: {fileName} ]");
         }
         catch (Exception ex)
@@ -635,19 +610,8 @@
     private async Task DownloadScript()
     {
         if (_scriptJson is null) return;
-        var bytes = System.Text.Encoding.UTF8.GetBytes(_scriptJson);
-        var base64 = Convert.ToBase64String(bytes);
         var fileName = $"script_{SessionId:N}.json";
-        await JS.InvokeVoidAsync("eval", $@"
-            (function() {{
-                var a = document.createElement('a');
-                a.href = 'data:application/json;base64,{base64}';
-                a.download = '{fileName}';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }})();
-        ");
+        await JS.InvokeVoidAsync("poBrowser.downloadText", _scriptJson, fileName, "application/json");
         SetStatus($"[ SCRIPT DOWNLOADED: {fileName} ]");
     }
 
@@ -657,22 +621,14 @@
         var shareText = "Check out my AI Meme Video on PoMemeVideo!";
         try
         {
-            await JS.InvokeVoidAsync("eval", $@"
-                (async function() {{
-                    if (navigator.share) {{
-                        try {{
-                            await navigator.share({{
-                                title: 'PoMemeVideo Review',
-                                text: '{shareText}',
-                                url: '{shareUrl}'
-                            }});
-                        }} catch (e) {{}}
-                    }} else if (navigator.clipboard) {{
-                        await navigator.clipboard.writeText('{shareUrl}');
-                    }}
-                }})();
-            ");
-            SetStatus("[ SHARE READY: Video link copied to clipboard! ]");
+            var outcome = await JS.InvokeAsync<string>(
+                "poBrowser.shareOrCopy", "PoMemeVideo Review", shareText, shareUrl);
+            SetStatus(outcome switch
+            {
+                "shared" => "[ SHARE READY: Link handed to the share sheet! ]",
+                "copied" => "[ SHARE READY: Video link copied to clipboard! ]",
+                _ => "[ SHARE: This browser supports neither sharing nor the clipboard. ]",
+            });
         }
         catch (Exception ex)
         {

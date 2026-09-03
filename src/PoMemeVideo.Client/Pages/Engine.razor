@@ -41,13 +41,13 @@
 
         <!-- Mobile Viewport Optimized Tabs (prevents overflow & vertical scroll on small screens) -->
         <div class="engine-mobile-tabs">
-            <div class="tab-button-group" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+            <div class="tab-button-group">
                 <button class="ascii-btn compact-btn @(_selectedTabIndex == 0 ? "primary-action" : "")" @onclick="() => _selectedTabIndex = 0">[ 🎬 Director's Script ]</button>
                 <button class="ascii-btn compact-btn @(_selectedTabIndex == 1 ? "primary-action" : "")" @onclick="() => _selectedTabIndex = 1">[ 📜 Processing Log ]</button>
             </div>
             @if (_selectedTabIndex == 0)
             {
-                <div class="script-panel ascii-border-double engine-script-panel" style="height: calc(100vh - 280px); min-height: 280px;">
+                <div class="script-panel ascii-border-double engine-script-panel">
                     <div class="engine-panel-title">
                         <span>AI Director's Script</span>
                         <span class="panel-subtitle">sounds added and why — live</span>
@@ -57,7 +57,7 @@
             }
             else
             {
-                <div class="log-panel ascii-border-double engine-log-panel" style="height: calc(100vh - 280px); min-height: 280px;">
+                <div class="log-panel ascii-border-double engine-log-panel">
                     <div class="engine-panel-title">Processing Log</div>
                     <DirectorLogFeed HubClient="_hubClient" />
                 </div>
@@ -85,9 +85,9 @@
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <div class="error-box ascii-border-double reveal-in" style="margin-top: 1rem; padding: 1rem; background: rgba(30, 5, 10, 0.7);">
-            <pre style="color: var(--term-danger, #ff5f5f); margin-bottom: 0.75rem;">[ PROCESSING ERROR ] @_errorMessage</pre>
-            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <div class="error-box ascii-border-double reveal-in engine-error-box">
+            <pre class="engine-error-text">[ PROCESSING ERROR ] @_errorMessage</pre>
+            <div class="engine-error-actions">
                 <button class="ascii-btn primary-action compact-btn" @onclick="RetryWithFallbackAsync" disabled="@_retrying">
                     @(_retrying ? "[ ⏳ Retrying… ]" : "[ ↺ Retry with Safe Fallback Mode ]")
                 </button>

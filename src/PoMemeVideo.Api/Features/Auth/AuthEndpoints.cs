@@ -94,30 +94,8 @@ public static class AuthEndpoints
         .Produces<object>(200)
         .AllowAnonymous();
 
-        // Backward-compatible alias for existing tests/tools.
-        app.MapPost("/auth/anon", GuestLoginHandler)
-        .WithName("AnonLoginAlias")
-        .WithTags("Auth")
-        .Produces<object>(200)
-        .AllowAnonymous();
-
-        // ── DELETE /api/dev/session — reset session cookie for multi-user testing ──
-        app.MapDelete("/api/dev/session", (HttpContext httpContext) =>
-        {
-            httpContext.Response.Cookies.Delete(".AspNetCore.Cookies");
-            httpContext.Response.Cookies.Delete("pmv-session-id");
-            return Results.Ok(new { message = "Session cookies cleared. Refresh to start a new session." });
-        })
-        .WithName("DevResetSession")
-        .WithTags("Dev")
-        .Produces<object>(200)
-        .AllowAnonymous();
-
         return app;
     }
-
-    public static IEndpointRouteBuilder MapAnonAuthEndpoints(this IEndpointRouteBuilder app, IHostEnvironment env)
-        => app.MapGuestAuthEndpoints(env);
 }
 
 internal sealed record AuthMeResponse(string? DisplayName, string? Email);

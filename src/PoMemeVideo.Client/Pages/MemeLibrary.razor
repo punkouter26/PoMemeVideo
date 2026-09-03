@@ -18,26 +18,24 @@
 
     @if (!string.IsNullOrEmpty(_statusNotification))
     {
-        <div class="ascii-panel reveal-in" style="margin-bottom: 1rem; border-color: #00ff41;">
-            <pre class="status" style="margin: 0; padding: 0.5rem;">@_statusNotification</pre>
+        <div class="ascii-panel reveal-in library-notice">
+            <pre class="status library-notice-text">@_statusNotification</pre>
         </div>
     }
 
     <div class="library-controls-row ascii-border-double reveal-in">
-        <div class="search-bar" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; flex: 1;">
-            <input class="ascii-input"
+        <div class="search-bar">
+            <input class="ascii-input search-field"
                    placeholder="Search name or keywords…"
-                   style="min-width: 180px; flex: 1;"
                    @bind="SearchQuery"
                    @bind:event="oninput" />
-            <input class="ascii-input"
+            <input class="ascii-input search-field"
                    placeholder="Filter by tags (comma-separated)…"
-                   style="min-width: 180px; flex: 1;"
                    @bind="TagFilter"
                    @bind:event="oninput" />
             <button class="ascii-btn compact-btn" @onclick="LoadSounds" disabled="@_loading">Search</button>
             <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">Clear</button>
-            <button class="ascii-btn compact-btn" style="border-color: #00ffdc; color: #00ffdc;" @onclick="ToggleUploadModal">
+            <button class="ascii-btn compact-btn is-cyan" @onclick="ToggleUploadModal">
                 @(_showUploadModal ? "[ ✕ Close ]" : "[ ⬆ Upload Sound ]")
             </button>
         </div>
@@ -67,25 +65,25 @@
 
     @if (_showUploadModal)
     {
-        <div class="upload-modal-panel ascii-border-double reveal-in vibe-glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
-            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <span style="font-family: var(--font-mono); color: #00ffdc; font-weight: bold;">[ ⬆ UPLOAD CUSTOM MEME SOUND ]</span>
+        <div class="upload-modal-panel ascii-border-double reveal-in vibe-glass-card">
+            <div class="panel-header upload-panel-header">
+                <span class="upload-panel-title">[ ⬆ UPLOAD CUSTOM MEME SOUND ]</span>
                 <button class="ascii-btn compact-btn" @onclick="ToggleUploadModal">[ ✕ ]</button>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 500px;">
+            <div class="upload-form">
                 <div>
-                    <label class="input-label" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #88ffaa;">AUDIO FILE (.mp3, .wav, .ogg, max 15MB)</label>
-                    <InputFile OnChange="OnSoundFileSelected" accept=".mp3,.wav,.ogg,audio/*" class="ascii-input" style="width: 100%;" />
+                    <label class="input-label">AUDIO FILE (.mp3, .wav, .ogg, max 15MB)</label>
+                    <InputFile OnChange="OnSoundFileSelected" accept=".mp3,.wav,.ogg,audio/*" class="ascii-input file-input-full" />
                 </div>
                 <div>
-                    <label class="input-label" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #88ffaa;">DISPLAY NAME</label>
-                    <input class="ascii-input" placeholder="e.g. Vine Boom Ultra" @bind="_uploadName" style="width: 100%;" />
+                    <label class="input-label">DISPLAY NAME</label>
+                    <input class="ascii-input upload-field" placeholder="e.g. Vine Boom Ultra" @bind="_uploadName" />
                 </div>
                 <div>
-                    <label class="input-label" style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem; color: #88ffaa;">ACTION TAGS (comma-separated)</label>
-                    <input class="ascii-input" placeholder="e.g. punch, shock, bass" @bind="_uploadTags" style="width: 100%;" />
+                    <label class="input-label">ACTION TAGS (comma-separated)</label>
+                    <input class="ascii-input upload-field" placeholder="e.g. punch, shock, bass" @bind="_uploadTags" />
                 </div>
-                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                <div class="upload-actions">
                     <button class="ascii-btn primary-action compact-btn" @onclick="UploadCustomSoundAsync" disabled="@(_uploadFile is null || _uploading)">
                         @(_uploading ? "[ ⏳ Uploading… ]" : "[ 💾 Save Sound ]")
                     </button>
@@ -93,7 +91,7 @@
                 </div>
                 @if (!string.IsNullOrEmpty(_uploadMessage))
                 {
-                    <pre class="status" style="margin-top: 0.5rem;">@_uploadMessage</pre>
+                    <pre class="status upload-message">@_uploadMessage</pre>
                 }
             </div>
         </div>
@@ -113,7 +111,7 @@
             <p class="empty-sub">No sounds match the current filter criteria.</p>
             <div class="empty-actions">
                 <button class="ascii-btn" @onclick="ClearFilters">[ Clear Filters ]</button>
-                <button class="ascii-btn" style="border-color: #00ffdc; color: #00ffdc;" @onclick="SeedDefaultSounds" disabled="@_seeding">
+                <button class="ascii-btn is-cyan" @onclick="SeedDefaultSounds" disabled="@_seeding">
                     @(_seeding ? "[ ⏳ Seeding… ]" : "[ ⚡ Seed Default Meme Sounds ]")
                 </button>
             </div>
@@ -132,23 +130,23 @@
 
         @if (_viewMode == ViewMode.Grid)
         {
-            <div class="radzen-grid-container ascii-border-double reveal-in" style="overflow-x: auto;">
-                <table class="retro-table" style="width: 100%; border-collapse: collapse;">
+            <div class="radzen-grid-container ascii-border-double reveal-in">
+                <table class="retro-table">
                     <thead>
-                        <tr style="border-bottom: 1px solid #00ff41; text-align: left;">
-                            <th style="padding: 0.5rem; width: 220px;">Sound Name</th>
-                            <th style="padding: 0.5rem; width: 120px;">Duration</th>
-                            <th style="padding: 0.5rem;">Tags</th>
-                            <th style="padding: 0.5rem; width: 120px; text-align: center;">Audition</th>
+                        <tr class="retro-table-head-row">
+                            <th class="col-name">Sound Name</th>
+                            <th class="col-duration">Duration</th>
+                            <th>Tags</th>
+                            <th class="col-audition">Audition</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var sound in _sounds)
                         {
-                            <tr style="border-bottom: 1px solid rgba(0, 255, 65, 0.2);">
-                                <td style="padding: 0.5rem;"><span class="grid-sound-name">@sound.DisplayName</span></td>
-                                <td style="padding: 0.5rem;"><span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span></td>
-                                <td style="padding: 0.5rem;">
+                            <tr class="retro-table-row">
+                                <td><span class="grid-sound-name">@sound.DisplayName</span></td>
+                                <td><span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span></td>
+                                <td>
                                     <div class="sound-tag-row">
                                         @foreach (var tag in sound.ActionVectorTags)
                                         {
@@ -156,7 +154,7 @@
                                         }
                                     </div>
                                 </td>
-                                <td style="padding: 0.5rem; text-align: center;">
+                                <td class="col-audition">
                                     <div class="retro-audio-player">
                                         <audio id="grid-audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
                                         <button class="ascii-btn compact-btn"

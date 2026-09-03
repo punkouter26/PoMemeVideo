@@ -44,15 +44,6 @@
                         }
                     </optgroup>
                 }
-                @if (_isDevelopment && _ollamaModels.Count > 0)
-                {
-                    <optgroup label="🦙 Local · Ollama">
-                        @foreach (var m in _ollamaModels)
-                        {
-                            <option value="@($"ollama:{m}")">@m</option>
-                        }
-                    </optgroup>
-                }
                 @if (_localModels.Count > 0)
                 {
                     <optgroup label="⚡ Browser · WebGPU">
@@ -100,7 +91,7 @@
  SIZE    : @(_selectedFile.Size / 1024 / 1024) MB
  STATUS  : @_statusMessage</pre>
 
-            <div class="retro-progress-bar" style="margin: 0.5rem 0;"><div class="retro-progress-fill" style="width: @(_uploadProgress)%"></div></div>
+            <div class="retro-progress-bar upload-progress-bar"><div class="retro-progress-fill" style="--upload-progress: @(_uploadProgress)%"></div></div>
         </div>
     }
 
@@ -125,28 +116,25 @@
             <pre class="vision-fallback"> @_visionFallbackMessage</pre>
         }
 
-        <div class="session-tuning-card ascii-border-double vibe-glass-card" style="margin: 1rem 0; padding: 1rem;">
-            <div class="tuning-header" style="font-weight: bold; margin-bottom: 0.75rem; color: var(--rt-accent-cyan, #00ffdc);">
+        <div class="session-tuning-card ascii-border-double vibe-glass-card">
+            <div class="tuning-header">
                 🎬 DIRECTING CONFIG & FRAMING
             </div>
 
-            <div class="tuning-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+            <div class="tuning-grid">
                 <!-- Aspect Ratio -->
                 <div class="tuning-group">
-                    <label class="tuning-label" style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;">ASPECT RATIO</label>
-                    <div class="aspect-ratio-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button type="button" class="ascii-btn @(_aspectRatio == "original" ? "is-active" : "")"
-                                style="flex: 1; padding: 0.35rem; font-size: 0.8rem; @(_aspectRatio == "original" ? "border-color: #00ffdc; color: #00ffdc;" : "")"
+                    <label class="tuning-label">ASPECT RATIO</label>
+                    <div class="aspect-ratio-buttons">
+                        <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "original" ? "is-active" : "")"
                                 @onclick='() => SetAspectRatio("original")'>
                             16:9 Landscape
                         </button>
-                        <button type="button" class="ascii-btn @(_aspectRatio == "9:16" ? "is-active" : "")"
-                                style="flex: 1; padding: 0.35rem; font-size: 0.8rem; @(_aspectRatio == "9:16" ? "border-color: #00ffdc; color: #00ffdc;" : "")"
+                        <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "9:16" ? "is-active" : "")"
                                 @onclick='() => SetAspectRatio("9:16")'>
                             9:16 Vertical
                         </button>
-                        <button type="button" class="ascii-btn @(_aspectRatio == "1:1" ? "is-active" : "")"
-                                style="flex: 1; padding: 0.35rem; font-size: 0.8rem; @(_aspectRatio == "1:1" ? "border-color: #00ffdc; color: #00ffdc;" : "")"
+                        <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "1:1" ? "is-active" : "")"
                                 @onclick='() => SetAspectRatio("1:1")'>
                             1:1 Square
                         </button>
@@ -155,8 +143,8 @@
 
                 <!-- Meme Persona -->
                 <div class="tuning-group">
-                    <label class="tuning-label" style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;">DIRECTOR PERSONA</label>
-                    <select class="ai-model-dropdown-select" style="width: 100%;" @bind="_memePersona" @bind:after="OnPersonaChanged">
+                    <label class="tuning-label">DIRECTOR PERSONA</label>
+                    <select class="ai-model-dropdown-select persona-select" @bind="_memePersona" @bind:after="OnPersonaChanged">
                         <option value="Standard">Standard Modern Meme</option>
                         <option value="Brainrot">Gen-Z Brainrot (Chaos / Vine Boom)</option>
                         <option value="MLG">2016 MLG Parody (Airhorn / Hitmarkers)</option>
@@ -169,17 +157,17 @@
                 <!-- Video Trimmer -->
                 @if (_videoDurationSeconds > 3)
                 {
-                    <div class="tuning-group" style="grid-column: 1 / -1;">
-                        <label class="tuning-label" style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem;">
+                    <div class="tuning-group tuning-group-wide">
+                        <label class="tuning-label">
                             TRIM TIMELINE: @(_trimStart.ToString("F1"))s - @(_trimEnd.ToString("F1"))s (@((_trimEnd - _trimStart).ToString("F1"))s selected)
                         </label>
-                        <div style="display: flex; gap: 1rem; align-items: center;">
-                            <span style="font-size: 0.8rem;">Start:</span>
+                        <div class="trim-row">
+                            <span class="trim-label">Start:</span>
                             <input type="range" min="0" max="@(_videoDurationSeconds - 1)" step="0.5"
-                                   @bind="_trimStart" @bind:after="OnTrimChanged" style="flex: 1;" />
-                            <span style="font-size: 0.8rem;">End:</span>
+                                   @bind="_trimStart" @bind:after="OnTrimChanged" class="trim-slider" />
+                            <span class="trim-label">End:</span>
                             <input type="range" min="@(_trimStart + 1)" max="@_videoDurationSeconds" step="0.5"
-                                   @bind="_trimEnd" @bind:after="OnTrimChanged" style="flex: 1;" />
+                                   @bind="_trimEnd" @bind:after="OnTrimChanged" class="trim-slider" />
                         </div>
                     </div>
                 }

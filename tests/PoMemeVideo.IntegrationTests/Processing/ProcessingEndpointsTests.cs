@@ -147,14 +147,18 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PostInitiate_AlreadyProcessing_Returns409()
+    public async Task PostInitiate_AlreadyProcessing_AllowsRetryToAccepted()
     {
+        // The endpoint now accepts Processing as a retryable state so the UI's "Retry with
+        // Safe Fallback Mode" button has somewhere to go when the previous run is mid-flight.
+        // The session row is reset to Ingesting and the dispatcher queues a fresh run.
         _currentStatus = SessionStatus.Processing;
 
         var response = await _client!.PostAsync(
             $"/api/processing/sessions/{_sessionId}/initiate", null);
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.Equal(SessionStatus.Ingesting, _currentStatus);
     }
 
     [Fact]

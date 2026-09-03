@@ -7,3 +7,30 @@
 .clear-warning {
     font-size: 0.72rem;
 }
+
+/* Extracted from inline style attributes — see CLAUDE.md "No inline styles". */
+.results-notice {
+    margin-bottom: 1rem;
+    border-color: var(--rt-accent-green, #00ff41);
+}
+
+.results-notice-text {
+    margin: 0;
+    padding: 0.5rem;
+}
+
+.results-search {
+    width: 180px;
+}
+
+.results-select-box {
+    accent-color: var(--rt-accent-green, #00ff41);
+    cursor: pointer;
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+/* Layout lives in retro-terminal.components.css; this tightens the gap on this page only. */
+.history-card-actions {
+    gap: 0.35rem;
+}

@@ -104,7 +104,7 @@ try {
         }
 
         Write-Host 'Running Python bootstrap (models/sounds/seeding)...'
-        python SCRIPTS/setup-new-machine.py
+        python scripts/setup-new-machine.py
     }
 
     if (-not $SkipTools) {

@@ -16,8 +16,8 @@
 
     @if (!string.IsNullOrEmpty(_statusNotification))
     {
-        <div class="ascii-panel reveal-in" style="margin-bottom: 1rem; border-color: #00ff41;">
-            <pre class="status" style="margin: 0; padding: 0.5rem;">@_statusNotification</pre>
+        <div class="ascii-panel reveal-in results-notice">
+            <pre class="status results-notice-text">@_statusNotification</pre>
         </div>
     }
 
@@ -35,7 +35,7 @@
             }
         </div>
         <div class="toolbar-right">
-            <input class="ascii-input" placeholder="Search sessions…" @bind="_searchFilter" @bind:event="oninput" style="width: 180px;" />
+            <input class="ascii-input results-search" placeholder="Search sessions…" @bind="_searchFilter" @bind:event="oninput" />
             <button class="ascii-btn compact-btn" @onclick="LoadSessions" disabled="@_loading">[ ⟳ Refresh ]</button>
         </div>
     </div>
@@ -75,7 +75,7 @@
                         <input type="checkbox"
                                checked="@_selectedSessionIds.Contains(session.SessionId)"
                                @onchange="@(e => ToggleSelection(session.SessionId, (bool)(e.Value ?? false)))"
-                               style="accent-color: #00ff41; cursor: pointer; width: 1.1rem; height: 1.1rem;" />
+                               class="results-select-box" />
                         <span class="history-card-title">Completed @(session.CompletedAt?.ToLocalTime().ToString("MMM d, yyyy HH:mm") ?? "—")</span>
                     </div>
 
@@ -103,7 +103,7 @@
                             </video>
                         </div>
 
-                        <div class="history-card-actions" style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+                        <div class="history-card-actions">
                             <button class="ascii-btn action-primary compact-btn" @onclick='() => Nav.NavigateTo($"/reveal/{session.SessionId}")'>
                                 [ 👁️ Review ]
                             </button>
@@ -211,16 +211,7 @@
         {
             var downloadUrl = $"/api/output/sessions/{sessionId}/download/video";
             var fileName = $"pomemevideo_{sessionId:N}.mp4";
-            await JS.InvokeVoidAsync("eval", $@"
-                (function() {{
-                    var a = document.createElement('a');
-                    a.href = '{downloadUrl}';
-                    a.download = '{fileName}';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }})();
-            ");
+            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
             Notify($"[ DOWNLOAD STARTED: {fileName} ]");
         }
         catch (Exception ex)
@@ -235,16 +226,7 @@
         {
             var downloadUrl = $"/api/output/sessions/{sessionId}/export/gif";
             var fileName = $"pomeme_{sessionId:N}.gif";
-            await JS.InvokeVoidAsync("eval", $@"
-                (function() {{
-                    var a = document.createElement('a');
-                    a.href = '{downloadUrl}';
-                    a.download = '{fileName}';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }})();
-            ");
+            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
             Notify($"[ GIF EXPORTED: {fileName} ]");
         }
         catch (Exception ex)
@@ -259,16 +241,7 @@
         {
             var downloadUrl = $"/api/output/sessions/{sessionId}/export/punchline";
             var fileName = $"punchline_{sessionId:N}.mp4";
-            await JS.InvokeVoidAsync("eval", $@"
-                (function() {{
-                    var a = document.createElement('a');
-                    a.href = '{downloadUrl}';
-                    a.download = '{fileName}';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }})();
-            ");
+            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
             Notify($"[ PUNCHLINE CLIP EXPORTED: {fileName} ]");
         }
         catch (Exception ex)

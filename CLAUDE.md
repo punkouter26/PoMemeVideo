@@ -26,12 +26,12 @@ dotnet run --project src/PoMemeVideo.Api          # http profile → http://loca
 dotnet run --project src/PoMemeVideo.Api --launch-profile https   # → https://localhost:5001
 
 # Local storage + seeding (Development points at Azurite)
-docker compose -f docker-compose.local.yml up -d   # Azurite on 10000/10001/10002
-python SCRIPTS/seed-meme-sounds.py                 # or: dotnet run --project src/PoMemeVideo.Api -- seed-sounds
-python SCRIPTS/check-azurite.py
+docker compose up -d   # Azurite on 10000/10001/10002
+python scripts/seed-meme-sounds.py                 # or: dotnet run --project src/PoMemeVideo.Api -- seed-sounds
+python scripts/check-azurite.py
 
 # New machine bootstrap
-pwsh -File SCRIPTS/setup.ps1        # or: python SCRIPTS/setup-new-machine.py
+pwsh -File scripts/setup.ps1        # or: python scripts/setup-new-machine.py
 ```
 
 There is no separate lint step — `TreatWarningsAsErrors` in `Directory.Build.props` means **the build
@@ -106,10 +106,19 @@ authenticated in Development**. Verify authorization changes under `Staging`, no
 ### AI director provider switching
 
 `IDirectorService` is fronted by `SwitchingDirectorService`, which dispatches at call time on
-`RuntimeAiSettings.Provider` (`AzureOpenAI` | `AiFoundry` | `Ollama` | `BrowserLLM`), mutable at
-runtime via `/api/config/ai-model` without a restart. `BrowserLLM` is unusual: the server *asks the
-browser* to run inference over SignalR and awaits a `TaskCompletionSource` that the
-`/browser-director-result` endpoint resolves.
+`RuntimeAiSettings.Provider` (`AzureOpenAI` | `AiFoundry` | `BrowserLLM`), mutable at runtime via
+`/api/config/ai-model` without a restart. `AiFoundry` is the fallback for any unrecognised value,
+because the provider is runtime-mutable and an unknown one must still render a video.
+
+`BrowserLLM` is unusual: the server *asks the browser* to run inference over SignalR and awaits a
+`TaskCompletionSource` that the anonymous `/browser-director-result` endpoint resolves. It needs
+ONNX weights under `MODEL/` (`python scripts/download-models.py`); with none present the Source
+page preselects the cloud path rather than letting the engine stall on an inference that can
+never complete. It is the Development default and never the Production one.
+
+The `Ollama` provider was removed — it required a daemon on `localhost:11434` that production
+does not have. `RuntimeAiSettings.ValidProviders` rejects it, so a settings file persisted by an
+older build cannot re-enable it.
 
 In Test environments (or with `UseMockAI`), `AiInterception` routes the Azure OpenAI SDK through a
 `DelegatingHandler` that answers locally — the real client, serialisation and retry path still run,
@@ -124,8 +133,15 @@ Two non-obvious traps:
 - `index.html` must keep the `PoMemeVideo.Client.styles.css` link. Without it **every scoped rule
   silently does nothing** — no error, styles just don't apply.
 - A child component's rendered element does not carry the parent's scope id, so utility classes
-  splatted onto components (e.g. `.is-hidden` on `<InputFile>`) must be **global** in
+  splatted onto components (e.g. `.file-input-full` on `<InputFile>`) must be **global** in
   `retro-terminal.components.css`, not scoped.
+
+The three global stylesheets are linked individually from `index.html` in cascade order — tokens,
+base, components. They are deliberately not chained with `@import`: nested imports serialise, since
+each file must be parsed before the browser discovers the next.
+
+The one permitted `style` attribute is a **CSS custom property carrying a per-render value**
+(`style="--upload-progress: 42%"`); the rule that consumes it still lives in CSS.
 
 ## Project constraints
 
@@ -148,4 +164,5 @@ Two non-obvious traps:
 - Add navigation links to `/health` or `/diag`.
 - Show the GUEST login button when `ASPNETCORE_ENVIRONMENT == Production`.
 - Reintroduce technical-layer projects/folders — keep code in feature slices.
-- Run tests in CI (deploy workflow builds and deploys only, by rule).
+- Add test steps to `deploy-pomemevideo.yml` — the deploy workflow builds and deploys only, by
+  rule. Tests belong in `ci.yml`, which gates pushes and PRs against `master`.

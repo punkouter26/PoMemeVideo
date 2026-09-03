@@ -83,10 +83,27 @@
         return new Promise((resolve) => {
             const onSeeked = () => {
                 video.removeEventListener("seeked", onSeeked);
+                video.removeEventListener("error", onError);
+                clearTimeout(timeoutId);
                 resolve();
             };
-            video.addEventListener("seeked", onSeeked);
-            video.currentTime = time;
+            const onError = () => {
+                video.removeEventListener("seeked", onSeeked);
+                video.removeEventListener("error", onError);
+                clearTimeout(timeoutId);
+                // Don't reject — caller draws whatever frame the video has so a single bad seek
+                // doesn't drop the whole batch. The C# side falls back to time-based placement
+                // when zero frames are extracted, so this is the right level of resilience.
+                resolve();
+            };
+            video.addEventListener("seeked", onSeeked, { once: true });
+            video.addEventListener("error", onError, { once: true });
+            const timeoutId = setTimeout(onError, 3000);
+            try {
+                video.currentTime = time;
+            } catch {
+                onError();
+            }
         });
     }
 
@@ -145,11 +162,9 @@
             dataUrls.push(canvas.toDataURL("image/png"));
         }
 
-        if (objectUrl) {
-            video.removeAttribute("src");
-            video.load();
-            URL.revokeObjectURL(objectUrl);
-        }
+        // Don't tear the video down — Source.razor calls captureRawFrames next, and the second
+        // video.load() is what aborts the pending seeks (ERR_ABORTED on the blob: URL). The
+        // Source page owns the teardown in finally so both captures share one loaded video.
         return dataUrls;
     }
 
@@ -222,7 +237,7 @@
     }
 
     // Export to global scope for JSRuntime.InvokeAsync calls from Blazor
-    global.canvasDither = { generateDitheredFrames, captureRawFrames, getVideoDuration, getFileDuration };
+    global.canvasDither = { generateDitheredFrames, captureRawFrames, getVideoDuration, getFileDuration, releaseVideo };
 
     /**
      * Captures raw (undithered) PNG frames from a video at regular intervals.
@@ -236,21 +251,33 @@
     async function captureRawFrames(fileInputId, video, intervalSeconds) {
         intervalSeconds = intervalSeconds || 3;
 
-        const input = document.getElementById(fileInputId);
-        const file = input && input.files && input.files[0];
-        if (!file) throw new Error("No file selected");
+        // Source.razor calls generateDitheredFrames first, which already loaded the file into the
+        // shared <video> element. Reassigning video.src and calling video.load() here would
+        // abort the pending seek (net::ERR_ABORTED on the blob: URL) and yield 0 frames.
+        // Reuse the existing metadata if it's available; only fall back to loading if it isn't.
+        const alreadyLoaded = video.readyState >= 1
+            && isFinite(video.duration)
+            && video.duration > 0
+            && video.videoWidth > 0;
 
-        const objectUrl = URL.createObjectURL(file);
+        let ownObjectUrl = null;
         try {
-            await new Promise((resolve, reject) => {
-                let settled = false;
-                const finish = (ok) => { if (!settled) { settled = true; ok ? resolve() : reject(new Error("video load failed")); } };
-                video.addEventListener("loadedmetadata", () => finish(true), { once: true });
-                video.addEventListener("error", () => finish(false), { once: true });
-                setTimeout(() => finish(false), 10000);
-                video.src = objectUrl;
-                video.load();
-            });
+            if (!alreadyLoaded) {
+                const input = document.getElementById(fileInputId);
+                const file = input && input.files && input.files[0];
+                if (!file) throw new Error("No file selected");
+
+                ownObjectUrl = URL.createObjectURL(file);
+                await new Promise((resolve, reject) => {
+                    let settled = false;
+                    const finish = (ok) => { if (!settled) { settled = true; ok ? resolve() : reject(new Error("video load failed")); } };
+                    video.addEventListener("loadedmetadata", () => finish(true), { once: true });
+                    video.addEventListener("error", () => finish(false), { once: true });
+                    setTimeout(() => finish(false), 10000);
+                    video.src = ownObjectUrl;
+                    video.load();
+                });
+            }
 
             const duration = video.duration;
             if (!isFinite(duration) || duration <= 0) return [];
@@ -275,9 +302,29 @@
             }
             return dataUrls;
         } finally {
+            // Only release resources we created in this call. generateDitheredFrames shares the
+            // video element and tears it down itself once captureRawFrames resolves.
+            if (ownObjectUrl) {
+                URL.revokeObjectURL(ownObjectUrl);
+            }
+        }
+    }
+
+    /**
+     * Detaches the <video> source so the browser can GC the blob: URL. Source.razor calls this
+     * after both generateDitheredFrames and captureRawFrames have finished so the second capture
+     * isn't aborted by a reassignment mid-seek.
+     *
+     * @param {HTMLVideoElement} video
+     */
+    function releaseVideo(video) {
+        if (!video) return;
+        try {
+            video.pause();
             video.removeAttribute("src");
             video.load();
-            URL.revokeObjectURL(objectUrl);
+        } catch {
+            // Element may already be detached — nothing to do.
         }
     }
 

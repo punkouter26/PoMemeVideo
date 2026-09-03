@@ -55,15 +55,6 @@ public interface ISemanticMatchingService
 }
 
 /// <summary>
-/// Enumerates models installed on the local Ollama host. Implemented by the Processing slice so
-/// the Config slice can populate the model picker without depending on it.
-/// </summary>
-public interface ILocalModelCatalog
-{
-    Task<string[]?> GetInstalledModelsAsync(CancellationToken cancellationToken = default);
-}
-
-/// <summary>
 /// Muxes a finished director script onto the source video. Implemented by the Output slice so
 /// Processing can trigger a render without depending on it.
 /// </summary>
