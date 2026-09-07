@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using PoMemeVideo.Api.Common;
 using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
@@ -145,6 +146,26 @@ internal static class ServiceRegistrationExtensions
             }
 
             authBuilder.AddMicrosoftIdentityWebApp(azureAdSection);
+
+            // Canonical UserSignedIn record. PostConfigure runs AFTER Microsoft.Identity.Web has
+            // installed its own OIDC events, and the existing handler is awaited rather than
+            // replaced — dropping it would tear out the wiring Identity.Web depends on.
+            builder.Services.PostConfigure<OpenIdConnectOptions>(
+                OpenIdConnectDefaults.AuthenticationScheme,
+                options =>
+                {
+                    var previous = options.Events?.OnTokenValidated;
+                    options.Events ??= new OpenIdConnectEvents();
+                    options.Events.OnTokenValidated = async ctx =>
+                    {
+                        if (previous is not null)
+                        {
+                            await previous(ctx);
+                        }
+
+                        SignInTelemetry.TrackFrom(ctx.HttpContext, ctx.Principal, "PoMemeVideo");
+                    };
+                });
         }
         else
         {

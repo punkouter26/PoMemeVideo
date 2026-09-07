@@ -7,13 +7,9 @@ public static class HealthEndpoint
 {
     public static IEndpointRouteBuilder MapHealthEndpoint(this IEndpointRouteBuilder app)
     {
-        // Liveness: dependency-free uptime ping for the platform warm-up probe and the
-        // deploy health gate. Never returns 503 for a degraded dependency.
-        app.MapGet("/health/live", () => Results.Ok(new { status = "Live" }))
-            .WithName("GetHealthLive")
-            .WithTags("Health")
-            .Produces<object>(200)
-            .AllowAnonymous();
+        // Replaced this app's bespoke liveness payload with the shared one: three apps each
+        // answered /health/live in a different shape, so nothing could poll them uniformly.
+        app.MapPoLiveness();
 
         app.MapGet("/health", async (
             AzureTableClientFactory tableFactory,

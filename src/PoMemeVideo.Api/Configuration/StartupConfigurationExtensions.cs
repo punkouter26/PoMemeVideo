@@ -1,3 +1,4 @@
+using PoMemeVideo.Api.Common;
 using Azure.Core;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
@@ -108,7 +109,7 @@ internal static class StartupConfigurationExtensions
                     retainedFileCountLimit: 7);
             }
 
-            var appInsightsConnStr = context.Configuration["ApplicationInsights:ConnectionString"];
+            var appInsightsConnStr = PoPlatform.ResolveAppInsightsConnectionString(context.Configuration);
             if (!string.IsNullOrWhiteSpace(appInsightsConnStr))
             {
                 loggerConfig.WriteTo.ApplicationInsights(
