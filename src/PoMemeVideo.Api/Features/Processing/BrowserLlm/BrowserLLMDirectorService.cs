@@ -42,19 +42,6 @@ public sealed class BrowserLLMDirectorService : IDirectorService
         bool hasRealVisionData = false,
         CancellationToken cancellationToken = default)
     {
-        // Fail fast when the chosen ONNX model has no weights on disk. Without this check the
-        // call sits on a TaskCompletionSource for the full 90 s timeout before the engine falls
-        // back to deterministic entries — the user sees "AI Directing…" spin for a minute and
-        // 30 s before anything happens. Inspecting the model manifest once at startup lets us
-        // short-circuit with a clear error so the user knows to either download weights or
-        // switch provider.
-        if (!IsLocalModelReady(_settings.BrowserLLMModel))
-        {
-            throw new InvalidOperationException(
-                $"BrowserLLM model '{_settings.BrowserLLMModel}' is missing required local assets. "
-                + "Run 'python scripts/download-models.py' or switch the provider to AiFoundry.");
-        }
-
         var tcs = new TaskCompletionSource<ScriptEntry[]>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[sessionId] = tcs;
 

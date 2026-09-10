@@ -187,14 +187,15 @@ public sealed class RoutingContractApiTests
     }
 
     [Fact]
-    public async Task AiModel_RejectsBrowserLlmWhenNoWeightsAreInstalled()
+    public async Task AiModel_AcceptsBrowserLlmAndEchoesModel()
     {
-        // BrowserLLM is a valid provider, but selecting it without the ONNX weights on disk
-        // would leave the engine awaiting an inference that can never complete.
         var response = await _client.PutAsJsonAsync(
             "/api/config/ai-model", new { provider = "BrowserLLM", browserLLMModel = "smollm2-360m-instruct-onnx" });
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<AiModelPayload>();
+        Assert.Equal("BrowserLLM", payload!.Provider);
+        Assert.Equal("smollm2-360m-instruct-onnx", payload.BrowserLLMModel);
     }
 
     [Fact]
@@ -215,5 +216,5 @@ public sealed class RoutingContractApiTests
     // is explicit that authorization changes are verified under Staging, not under a
     // Development/Test host where the auth stack is deliberately relaxed.
 
-    private sealed record AiModelPayload(string Provider, string? AiFoundryDeployment);
+    private sealed record AiModelPayload(string Provider, string? BrowserLLMModel, string? AiFoundryDeployment);
 }

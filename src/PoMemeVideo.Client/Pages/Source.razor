@@ -5,6 +5,8 @@
 @inject IJSRuntime JS
 @inject BlobUploadService BlobUpload
 @inject NavRefreshService NavRefresh
+@inject CyberAudioService Audio
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Forms
 @using PoMemeVideo.Client.Services
 @using PoMemeVideo.Client.Components
@@ -49,8 +51,8 @@
                     <optgroup label="⚡ Browser · WebGPU">
                         @foreach (var model in _localModels)
                         {
-                            <option value="@($"browser:{model.Id}")" disabled="@(!model.Available)">
-                                @model.Label@(!model.Available ? " (not downloaded)" : "")
+                            <option value="@($"browser:{model.Id}")">
+                                @model.Label @GetModelBadge(model.Id)
                             </option>
                         }
                     </optgroup>
@@ -63,6 +65,39 @@
                 </button>
             }
         </div>
+
+        @if (_isDownloadingModel)
+        {
+            <div class="browser-model-download-box ascii-border-single">
+                <div class="download-info-row">
+                    <span class="cyber-accent">⚡ DOWNLOADING TO BROWSER:</span>
+                    <span class="cyber-highlight">@_downloadingModelLabel</span>
+                    <span class="cyber-pct">@_downloadProgressPercent%</span>
+                </div>
+                <div class="download-detail-row">
+                    <span>@_downloadStatusText</span>
+                    @if (_downloadTotalBytes > 0)
+                    {
+                        <span> · @((_downloadLoadedBytes / 1024.0 / 1024.0).ToString("0.0")) MB / @((_downloadTotalBytes / 1024.0 / 1024.0).ToString("0.0")) MB</span>
+                    }
+                </div>
+                <div class="retro-progress-bar"><div class="retro-progress-fill" style="--upload-progress: @(_downloadProgressPercent)%"></div></div>
+            </div>
+        }
+        else if (_pendingProvider == "BrowserLLM" && IsModelCached(_pendingBrowserModelId))
+        {
+            <div class="model-cached-banner">
+                <span><span class="cyber-accent">✓ BROWSER CACHED</span> · WebGPU ready for offline inference</span>
+                <button class="ascii-btn clear-cache-btn" @onclick="() => ClearBrowserCacheAsync(_pendingBrowserModelId)" title="Purge cached model weights from browser storage">[ Purge Cache ]</button>
+            </div>
+        }
+        else if (_pendingProvider == "BrowserLLM" && !_isDownloadingModel && !IsModelCached(_pendingBrowserModelId))
+        {
+            <div class="model-uncached-banner">
+                <span class="cyber-warn">⚡ NOT CACHED IN BROWSER</span>
+                <button class="ascii-btn download-model-btn" @onclick="() => TriggerModelDownloadAsync(_pendingBrowserModelId)">[ ⬇ Download to Browser Cache ]</button>
+            </div>
+        }
 
         <span class="ai-model-dropdown-hint">@_dropdownHint</span>
         @if (!string.IsNullOrWhiteSpace(_modelMessage))

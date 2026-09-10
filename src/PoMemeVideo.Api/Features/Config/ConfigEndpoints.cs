@@ -71,7 +71,8 @@ public static class ConfigEndpoints
                 {
                     id = model.Key,
                     label = model.Value,
-                    available = localModelIds.Contains(model.Key, StringComparer.OrdinalIgnoreCase),
+                    available = true,
+                    serverCached = localModelIds.Contains(model.Key, StringComparer.OrdinalIgnoreCase),
                 }),
                 aiFoundryDeployment = selectedFoundry,
                 aiFoundryDeployments = allFoundryNames,
@@ -105,11 +106,9 @@ public static class ConfigEndpoints
             switch (req.Provider)
             {
                 case "BrowserLLM":
-                    if (localModelIds.Length == 0)
-                        return Results.BadRequest("No local BrowserLLM models are installed. Run 'python scripts/download-models.py' first.");
                     if (string.IsNullOrWhiteSpace(req.BrowserLLMModel))
                         return Results.BadRequest("browserLLMModel is required when provider is 'BrowserLLM'.");
-                    if (!localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
+                    if (!RuntimeAiSettings.LocalModelDisplayNames.ContainsKey(req.BrowserLLMModel))
                         return Results.BadRequest($"Unknown browserLLMModel '{req.BrowserLLMModel}'.");
                     settings.BrowserLLMModel = req.BrowserLLMModel;
                     break;
@@ -121,7 +120,7 @@ public static class ConfigEndpoints
 
                 default: // AzureOpenAI — allow pre-selecting a BrowserLLM model while switching
                     if (!string.IsNullOrWhiteSpace(req.BrowserLLMModel)
-                        && localModelIds.Contains(req.BrowserLLMModel, StringComparer.OrdinalIgnoreCase))
+                        && RuntimeAiSettings.LocalModelDisplayNames.ContainsKey(req.BrowserLLMModel))
                         settings.BrowserLLMModel = req.BrowserLLMModel;
                     break;
             }

@@ -38,6 +38,17 @@ public partial class Source
     private string _activeBrowserModelId = DefaultBrowserModel;
     private string _pendingBrowserModelId = DefaultBrowserModel;
     private List<LocalModelInfo> _localModels = [];
+    // Browser model in-browser cache & download tracking
+    private DotNetObjectReference<Source>? _dotNetRef;
+    private readonly HashSet<string> _cachedModelIds = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isDownloadingModel;
+    private string _downloadingModelId = "";
+    private string _downloadingModelLabel = "";
+    private string _downloadStatusText = "";
+    private int _downloadProgressPercent;
+    private long _downloadLoadedBytes;
+    private long _downloadTotalBytes;
+    private bool _hasWebGpu = true;
     // AI Foundry
     private const string DefaultDeployment = "gpt-5.4-nano";
     private string _activeFoundryDeployment = DefaultDeployment;
@@ -80,8 +91,9 @@ public partial class Source
 
     protected override async Task OnInitializedAsync()
     {
+        _dotNetRef = DotNetObjectReference.Create(this);
         await Vibe3D.SetAuroraStateAsync("idle");
-        await Task.WhenAll(LoadAiModelStateAsync(), CheckSoundLibraryAsync());
+        await Task.WhenAll(LoadAiModelStateAsync(), CheckSoundLibraryAsync(), RefreshBrowserCacheStatusAsync());
     }
 
     private async Task CheckSoundLibraryAsync()
@@ -406,20 +418,6 @@ public partial class Source
             : $"remote:{_activeFoundryDeployment}";
         UpdateDropdownHint();
         _displayActiveModel = ComputeDisplayName(_activeProvider);
-        RecomputeModelDirty();
-
-        // BrowserLLM is the Development default, but the ONNX weights are a separate download.
-        // Without them the engine would stall on an inference request that can never complete,
-        // so preselect the cloud path and tell the user why.
-        if (_activeProvider == "BrowserLLM" && !_localModels.Any(model => model.Available))
-        {
-            _pendingProvider = "AiFoundry";
-            _pendingModelSelection = $"remote:{_activeFoundryDeployment}";
-            UpdateDropdownHint();
-            RecomputeModelDirty();
-            _modelMessage = "LOCAL MODELS NOT DOWNLOADED — Remote AI preselected. "
-                          + "Click Apply, or run 'python scripts/download-models.py' to use the browser model.";
-        }
     }
 
     private string ComputeDisplayName(string provider) => provider switch
@@ -427,8 +425,8 @@ public partial class Source
         "AzureOpenAI" => "Azure OpenAI · GPT-5.4 Nano",
         "AiFoundry" => $"AI Foundry · {_activeFoundryDeployment}",
         "BrowserLLM" => _localModels.Count > 0
-            ? (_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId)
-            : "No local models downloaded",
+            ? $"{_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId} (WebGPU)"
+            : "Browser · WebGPU",
         _ => provider,
     };
 
@@ -461,6 +459,10 @@ public partial class Source
                 _pendingProvider = "BrowserLLM";
                 _pendingBrowserModelId = name;
                 _dropdownHint = $"Browser WebGPU model → {name}";
+                if (!IsModelCached(name))
+                {
+                    _ = TriggerModelDownloadAsync(name);
+                }
                 break;
         }
         RecomputeModelDirty();
@@ -555,4 +557,114 @@ public partial class Source
         || message.Contains("CORS", StringComparison.OrdinalIgnoreCase)
         || message.Contains("network", StringComparison.OrdinalIgnoreCase)
         || message.Contains("Failed to", StringComparison.OrdinalIgnoreCase);
+
+    private async Task RefreshBrowserCacheStatusAsync()
+    {
+        try
+        {
+            var status = await JS.InvokeAsync<BrowserCacheStatusDto>("browserLLM.checkAllCacheStatus");
+            _hasWebGpu = status.HasWebGpu;
+            _cachedModelIds.Clear();
+            if (status.CachedModels is not null)
+            {
+                foreach (var (id, isCached) in status.CachedModels)
+                {
+                    if (isCached)
+                        _cachedModelIds.Add(id);
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Non-critical: defaults apply
+        }
+    }
+
+    public bool IsModelCached(string modelId) => _cachedModelIds.Contains(modelId);
+
+    private string GetModelBadge(string modelId) =>
+        IsModelCached(modelId) ? "[cached]" : "[download on select]";
+
+    private string GetModelDisplayName(string modelId) =>
+        _localModels.FirstOrDefault(m => m.Id == modelId)?.Label ?? modelId;
+
+    private async Task TriggerModelDownloadAsync(string modelId)
+    {
+        if (_isDownloadingModel) return;
+        _isDownloadingModel = true;
+        _downloadingModelId = modelId;
+        _downloadingModelLabel = GetModelDisplayName(modelId);
+        _downloadProgressPercent = 0;
+        _downloadLoadedBytes = 0;
+        _downloadTotalBytes = 0;
+        _downloadStatusText = "Connecting to Hugging Face...";
+        _modelMessage = $"DOWNLOADING {GetModelDisplayName(modelId)} to browser cache via WebGPU...";
+        StateHasChanged();
+        await Audio.PlayTelemetryChirpAsync();
+
+        try
+        {
+            await JS.InvokeVoidAsync("browserLLM.downloadModel", modelId, _dotNetRef);
+        }
+        catch (Exception ex)
+        {
+            _modelMessage = $"DOWNLOAD FAILED: {ex.Message}";
+            _isDownloadingModel = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearBrowserCacheAsync(string modelId)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("browserLLM.clearCache", modelId);
+            _cachedModelIds.Remove(modelId);
+            _modelMessage = $"CACHE PURGED: {GetModelDisplayName(modelId)}";
+            await Audio.PlayClickAsync(0.8);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _modelMessage = $"PURGE FAILED: {ex.Message}";
+        }
+    }
+
+    [JSInvokable]
+    public void OnDownloadProgress(DownloadProgressDto progress)
+    {
+        _downloadProgressPercent = progress.Progress;
+        _downloadLoadedBytes = progress.LoadedBytes;
+        _downloadTotalBytes = progress.TotalBytes;
+        _downloadStatusText = string.IsNullOrWhiteSpace(progress.File) ? progress.Status : $"{progress.Status} · {progress.File}";
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnDownloadComplete(string modelId)
+    {
+        _cachedModelIds.Add(modelId);
+        _isDownloadingModel = false;
+        _downloadProgressPercent = 100;
+        _modelMessage = $"MODEL READY: {GetModelDisplayName(modelId)} cached in browser for WebGPU.";
+        await Audio.PlayFanfareAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
+
+    public sealed record BrowserCacheStatusDto(bool HasWebGpu, Dictionary<string, bool>? CachedModels);
+
+    public sealed class DownloadProgressDto
+    {
+        public string Status { get; set; } = "";
+        public string File { get; set; } = "";
+        public int Progress { get; set; }
+        public long LoadedBytes { get; set; }
+        public long TotalBytes { get; set; }
+    }
 }

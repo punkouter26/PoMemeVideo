@@ -738,6 +738,72 @@ pre {
     min-width: 7rem;
 }
 
+/* ── Browser WebGPU Model Download & Cache ────────────────── */
+.browser-model-download-box {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    background: rgba(0, 245, 106, 0.05);
+    border: 1px dashed var(--term-primary);
+}
+
+.download-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.cyber-accent {
+    color: var(--term-primary);
+    font-weight: bold;
+    letter-spacing: 0.05em;
+}
+
+.cyber-highlight {
+    color: #fff;
+    text-shadow: 0 0 6px rgba(0, 245, 106, 0.6);
+}
+
+.cyber-pct {
+    color: #ffb703;
+    font-weight: bold;
+}
+
+.cyber-warn {
+    color: #ffb703;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.download-detail-row {
+    font-family: 'Courier New', monospace;
+    font-size: 0.68rem;
+    color: var(--term-muted);
+    margin: 0.25rem 0 0.4rem;
+    word-break: break-all;
+}
+
+.model-cached-banner, .model-uncached-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    color: var(--term-muted);
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.clear-cache-btn, .download-model-btn {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+}
+
 /* ── Primary action (CTA) ────────────────────────────────── */
 .primary-action {
     font-size: 1rem;

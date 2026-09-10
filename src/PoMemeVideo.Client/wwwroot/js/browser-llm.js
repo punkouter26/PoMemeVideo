@@ -2,43 +2,63 @@
  * browser-llm.js  —  Transformers.js wrapper for in-browser LLM inference.
  *
  * Loaded as an ES module via index.html.
- * Blazor calls window.browserLLM.generate(payloadJson) via JSInterop.
- *
- * Model: loaded from local /models/{modelId} assets only.
+ * Models are downloaded and cached directly in the user's browser via
+ * the browser's standard Cache API (WebGPU execution).
  */
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
 
 const LOCAL_MODELS_ROOT = '/models/';
 
 env.allowLocalModels = true;
-env.allowRemoteModels = false;
-env.localModelPath = LOCAL_MODELS_ROOT;
+env.allowRemoteModels = true;
+env.useBrowserCache = true;
 
 const DEFAULT_MODEL_ID = 'smollm2-360m-instruct-onnx';
 const MAX_SOUNDS_IN_PROMPT = 80;
 const MAX_VISION_LABELS_IN_PROMPT = 64;
 
-const MODEL_LOAD_PROFILES = {
-    'qwen2.5-0.5b-instruct-q4': {
-        dtype: 'q4',
-        expectedFiles: ['config.json', 'onnx/model_q4.onnx'],
-        notes: 'Qwen2.5 0.5B Instruct quantized INT4 for fast WebGPU inference.',
-    },
+const MODEL_REGISTRY = {
     'smollm2-360m-instruct-onnx': {
+        label: 'SmolLM2 360M',
+        repo: 'onnx-community/SmolLM2-360M-Instruct-ONNX',
         dtype: 'q4f16',
-        expectedFiles: ['config.json', 'onnx/model_q4f16.onnx'],
+        sizeMb: 250,
         notes: 'SmolLM2 360M Instruct quantized for lightweight WebGPU execution.',
     },
+    'qwen2.5-0.5b-instruct': {
+        label: 'Qwen 2.5 0.5B',
+        repo: 'onnx-community/Qwen2.5-0.5B-Instruct',
+        dtype: 'q4f16',
+        sizeMb: 350,
+        notes: 'Qwen2.5 0.5B Instruct quantized for fast WebGPU inference.',
+    },
+    'qwen2.5-1.5b-instruct': {
+        label: 'Qwen 2.5 1.5B',
+        repo: 'onnx-community/Qwen2.5-1.5B-Instruct',
+        dtype: 'q4f16',
+        sizeMb: 980,
+        notes: 'Qwen2.5 1.5B Instruct quantized for high quality WebGPU execution.',
+    },
     'phi-1_5-dev': {
+        label: 'Phi 1.5',
+        repo: 'onnx-community/Phi-1_5-dev',
         dtype: 'q4',
-        expectedFiles: ['config.json', 'onnx/model_q4.onnx'],
-        notes: 'Phi q4 profile expects onnx/model_q4.onnx for transformers.js loader compatibility.',
+        sizeMb: 850,
+        notes: 'Phi-1.5 Dev quantized ONNX.',
+    },
+    'gemma-2-2b-jpn-it': {
+        label: 'Gemma 2 2B',
+        repo: 'onnx-community/gemma-2-2b-jpn-it',
+        dtype: 'q4f16',
+        sizeMb: 1500,
+        notes: 'Gemma 2 2B quantized ONNX.',
     },
     'gemma-4-e2b-it-onnx': {
+        label: 'Gemma 4 E2B',
+        repo: 'onnx-community/gemma-4-e2b-it-onnx',
         dtype: 'q4f16',
-        expectedFiles: ['config.json', 'onnx/decoder_model_merged_q4f16.onnx'],
-        unsupportedReason:
-            'Gemma 4 E2B ONNX bundle is not supported by transformers@3 text-generation pipeline (model_type=gemma4).',
+        sizeMb: 1200,
+        unsupportedReason: 'Gemma 4 architecture is not yet supported in transformers@3.',
     },
 };
 
@@ -54,47 +74,97 @@ function normalizeError(error, context) {
     if (error instanceof Error) {
         return new Error(`${context}: ${error.message}`);
     }
-
     if (typeof error === 'number') {
         return new Error(`${context}: runtime error code ${error}`);
     }
-
     if (typeof error === 'string') {
         return new Error(`${context}: ${error}`);
     }
-
     return new Error(`${context}: ${JSON.stringify(error)}`);
 }
 
-function getModelLoadProfile(modelId) {
-    const profile = MODEL_LOAD_PROFILES[modelId] || {};
-    return {
-        dtype: profile.dtype || 'q4f16',
-        expectedFiles: profile.expectedFiles || ['config.json', 'onnx/model_q4f16.onnx'],
-        unsupportedReason: profile.unsupportedReason,
-        notes: profile.notes,
+function getModelEntry(modelId) {
+    return MODEL_REGISTRY[modelId] || {
+        label: modelId,
+        repo: modelId,
+        dtype: 'q4f16',
+        sizeMb: 300,
+        notes: 'Custom model',
     };
 }
 
-async function createPipeline(modelId, device, dtype) {
+async function resolveModelTarget(modelId) {
+    const entry = getModelEntry(modelId);
+    // Check if server hosts local files under /models/{modelId}/config.json
+    try {
+        const localCheck = await fetch(`${LOCAL_MODELS_ROOT}${modelId}/config.json`, { method: 'HEAD' });
+        if (localCheck.ok) {
+            trace('model-target-local', { modelId, path: `${LOCAL_MODELS_ROOT}${modelId}` });
+            return `${LOCAL_MODELS_ROOT}${modelId}`;
+        }
+    } catch {
+        // Fall back to remote Hugging Face repo
+    }
+    return entry.repo || modelId;
+}
+
+async function isModelCached(modelId) {
+    const key = `pmv_model_cached_${modelId}`;
+    if (localStorage.getItem(key) === 'true') {
+        return true;
+    }
+    const entry = getModelEntry(modelId);
+    if (!entry || !entry.repo) return false;
+
+    if ('caches' in window) {
+        try {
+            const cacheNames = await caches.keys();
+            for (const name of cacheNames) {
+                const cache = await caches.open(name);
+                const requests = await cache.keys();
+                const matched = requests.some(req =>
+                    req.url.includes(entry.repo) && (req.url.includes('.onnx') || req.url.includes('config.json'))
+                );
+                if (matched) {
+                    localStorage.setItem(key, 'true');
+                    return true;
+                }
+            }
+        } catch {
+            // cache read failure
+        }
+    }
+    return false;
+}
+
+async function createPipelineWithProgress(modelId, progressCallback = null) {
+    if (!navigator.gpu) {
+        throw new Error('WebGPU is not supported in this browser. Please use Chrome 113+, Edge 113+, or a WebGPU-enabled browser.');
+    }
+
+    const entry = getModelEntry(modelId);
+    if (entry.unsupportedReason) {
+        throw new Error(entry.unsupportedReason);
+    }
+
+    const target = await resolveModelTarget(modelId);
+    const dtype = entry.dtype || 'q4f16';
     const startedAt = performance.now();
 
+    trace('model-load-start', { modelId, target, dtype });
+
     try {
-        trace('model-load-start', {
-            modelId,
-            device,
+        const generator = await pipeline('text-generation', target, {
             dtype,
-            localPath: `${env.localModelPath}${modelId}`,
+            device: 'webgpu',
+            progress_callback: progressCallback,
         });
 
-        const generator = await pipeline('text-generation', modelId, {
-            dtype,
-            device,
-        });
+        localStorage.setItem(`pmv_model_cached_${modelId}`, 'true');
 
         trace('model-load-success', {
             modelId,
-            device,
+            target,
             elapsedMs: Math.round(performance.now() - startedAt),
         });
 
@@ -102,95 +172,32 @@ async function createPipeline(modelId, device, dtype) {
     } catch (error) {
         trace('model-load-failure', {
             modelId,
-            device,
-            elapsedMs: Math.round(performance.now() - startedAt),
+            target,
             error: error instanceof Error ? error.message : String(error),
         });
-
-        throw normalizeError(
-            error,
-            `Failed to load selected model '${modelId}' on ${device} (dtype=${dtype}, localPath=${env.localModelPath}${modelId})`
-        );
+        throw normalizeError(error, `Failed to load model '${modelId}' (${target}) on WebGPU`);
     }
 }
 
-async function checkExpectedAssets(modelId) {
-    const profile = getModelLoadProfile(modelId);
-    const results = [];
-
-    for (const relativePath of profile.expectedFiles) {
-        const url = `${LOCAL_MODELS_ROOT}${modelId}/${relativePath}`;
-        try {
-            const response = await fetch(url, { method: 'HEAD' });
-            results.push({ path: relativePath, status: response.status });
-        } catch (error) {
-            results.push({
-                path: relativePath,
-                status: -1,
-                error: error instanceof Error ? error.message : String(error),
-            });
-        }
-    }
-
-    return results;
-}
-
-async function assertExpectedAssets(modelId) {
-    const assets = await checkExpectedAssets(modelId);
-    const missing = assets.filter(asset => asset.status !== 200);
-
-    if (missing.length > 0) {
-        const expected = missing.map(asset => `${LOCAL_MODELS_ROOT}${modelId}/${asset.path}`).join(', ');
-        throw new Error(
-            `Model '${modelId}' is missing required local asset(s): ${expected}. ` +
-            'Provide these files in the MODEL folder or choose another local model.'
-        );
-    }
-}
-
-async function loadLocalWebGpuModel(modelId) {
-    if (!navigator.gpu)
-        throw new Error('WebGPU is required for local BrowserLLM models on this app.');
-
-    const selectedModelId = modelId || DEFAULT_MODEL_ID;
-    const profile = getModelLoadProfile(selectedModelId);
-
-    if (profile.unsupportedReason) {
-        throw new Error(profile.unsupportedReason);
-    }
-
-    trace('model-profile', {
-        modelId: selectedModelId,
-        dtype: profile.dtype,
-        notes: profile.notes,
-    });
-
-    await assertExpectedAssets(selectedModelId);
-
-    const generator = await createPipeline(selectedModelId, 'webgpu', profile.dtype);
-    _currentModel = selectedModelId;
-    return generator;
-}
-
-async function ensureLoaded(modelId) {
+async function ensureLoaded(modelId, progressCallback = null) {
     if (_generator && _currentModel === modelId) return _generator;
 
-    // Deduplicate concurrent load calls
     if (!_loadPromise || _currentModel !== modelId) {
-        _loadPromise = loadLocalWebGpuModel(modelId).catch((error) => {
-            _loadPromise = null;
-            _generator = null;
-            _currentModel = null;
-            throw normalizeError(error, 'BrowserLLM model load failed');
-        });
+        _loadPromise = createPipelineWithProgress(modelId, progressCallback)
+            .then(gen => {
+                _generator = gen;
+                _currentModel = modelId;
+                return gen;
+            })
+            .catch(error => {
+                _loadPromise = null;
+                _generator = null;
+                _currentModel = null;
+                throw normalizeError(error, 'BrowserLLM model load failed');
+            });
     }
 
-    _generator = await _loadPromise;
-    trace('model-ready', {
-        requestedModelId: modelId,
-        activeModelId: _currentModel,
-    });
-    return _generator;
+    return await _loadPromise;
 }
 
 function getVisionTimestampSeconds(label) {
@@ -246,7 +253,6 @@ function buildMessages(payload) {
 }
 
 function extractJson(rawText) {
-    // Strip leading assistant turn prefix and markdown fences if the model added them
     let text = rawText.trim();
     const fenceStart = text.indexOf('```');
     if (fenceStart !== -1) {
@@ -263,6 +269,102 @@ function extractJson(rawText) {
 }
 
 window.browserLLM = {
+    /**
+     * Checks whether WebGPU is available and which models are currently cached in the browser.
+     */
+    async checkAllCacheStatus() {
+        const hasGpu = Boolean(navigator.gpu);
+        const cached = {};
+        for (const id of Object.keys(MODEL_REGISTRY)) {
+            cached[id] = await isModelCached(id);
+        }
+        return {
+            hasWebGpu: hasGpu,
+            cachedModels: cached,
+        };
+    },
+
+    /**
+     * Checks if a single model is already cached in the browser.
+     */
+    async isModelCached(modelId) {
+        return await isModelCached(modelId || DEFAULT_MODEL_ID);
+    },
+
+    /**
+     * Downloads and caches a model directly in the browser with live progress callbacks to Blazor.
+     */
+    async downloadModel(modelId, dotNetHelper) {
+        const selectedModelId = modelId || DEFAULT_MODEL_ID;
+        let lastNotifyTime = 0;
+
+        const progressCallback = (info) => {
+            const now = performance.now();
+            if (now - lastNotifyTime > 50 || info.status === 'done' || info.status === 'ready') {
+                lastNotifyTime = now;
+                if (dotNetHelper) {
+                    try {
+                        dotNetHelper.invokeMethodAsync('OnDownloadProgress', {
+                            status: info.status || 'downloading',
+                            file: info.file || '',
+                            progress: typeof info.progress === 'number' ? Math.round(info.progress) : 0,
+                            loadedBytes: info.loaded || 0,
+                            totalBytes: info.total || 0,
+                        });
+                    } catch {
+                        // ignore if connection dropped
+                    }
+                }
+            }
+        };
+
+        const generator = await createPipelineWithProgress(selectedModelId, progressCallback);
+        _generator = generator;
+        _currentModel = selectedModelId;
+
+        if (dotNetHelper) {
+            try {
+                dotNetHelper.invokeMethodAsync('OnDownloadComplete', selectedModelId);
+            } catch {
+                // ignore
+            }
+        }
+        return true;
+    },
+
+    /**
+     * Clears cached weights for a specific model from Cache Storage and localStorage.
+     */
+    async clearCache(modelId) {
+        const selectedModelId = modelId || DEFAULT_MODEL_ID;
+        const entry = getModelEntry(selectedModelId);
+        localStorage.removeItem(`pmv_model_cached_${selectedModelId}`);
+
+        if ('caches' in window && entry.repo) {
+            try {
+                const cacheNames = await caches.keys();
+                for (const name of cacheNames) {
+                    const cache = await caches.open(name);
+                    const requests = await cache.keys();
+                    for (const req of requests) {
+                        if (req.url.includes(entry.repo)) {
+                            await cache.delete(req);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[browser-llm] clearCache error:', e);
+            }
+        }
+
+        if (_currentModel === selectedModelId) {
+            _generator = null;
+            _currentModel = null;
+            _loadPromise = null;
+        }
+        return true;
+    },
+
     /**
      * Called by Blazor Engine.razor when a BrowserLLMInferenceRequest arrives via SignalR.
      * Returns the director script entries as a JSON string.
@@ -324,56 +426,50 @@ window.browserLLM = {
      */
     async probeModel(modelId) {
         const selectedModelId = modelId || DEFAULT_MODEL_ID;
-        const profile = getModelLoadProfile(selectedModelId);
+        const entry = getModelEntry(selectedModelId);
         const diagnostics = {
             modelId: selectedModelId,
-            profile,
-            assets: await checkExpectedAssets(selectedModelId),
+            entry,
+            isCached: await isModelCached(selectedModelId),
             attempts: [],
         };
 
-        const devices = ['webgpu', 'wasm'];
+        if (!navigator.gpu) {
+            diagnostics.attempts.push({
+                device: 'webgpu',
+                status: 'skipped',
+                reason: 'WebGPU unavailable in this browser.',
+            });
+            return diagnostics;
+        }
 
-        for (const device of devices) {
-            if (device === 'webgpu' && !navigator.gpu) {
-                diagnostics.attempts.push({
-                    device,
-                    status: 'skipped',
-                    reason: 'WebGPU unavailable in this browser.',
-                });
-                continue;
+        if (entry.unsupportedReason) {
+            diagnostics.attempts.push({
+                device: 'webgpu',
+                status: 'error',
+                error: entry.unsupportedReason,
+            });
+            return diagnostics;
+        }
+
+        const startedAt = performance.now();
+        try {
+            const generator = await createPipelineWithProgress(selectedModelId);
+            diagnostics.attempts.push({
+                device: 'webgpu',
+                status: 'loaded',
+                elapsedMs: Math.round(performance.now() - startedAt),
+            });
+            if (typeof generator?.dispose === 'function') {
+                try { generator.dispose(); } catch { /* noop */ }
             }
-
-            if (profile.unsupportedReason) {
-                diagnostics.attempts.push({
-                    device,
-                    status: 'error',
-                    error: profile.unsupportedReason,
-                });
-                continue;
-            }
-
-            const startedAt = performance.now();
-
-            try {
-                const generator = await createPipeline(selectedModelId, device, profile.dtype);
-                diagnostics.attempts.push({
-                    device,
-                    status: 'loaded',
-                    elapsedMs: Math.round(performance.now() - startedAt),
-                });
-
-                if (typeof generator?.dispose === 'function') {
-                    try { generator.dispose(); } catch { /* noop */ }
-                }
-            } catch (error) {
-                diagnostics.attempts.push({
-                    device,
-                    status: 'error',
-                    elapsedMs: Math.round(performance.now() - startedAt),
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
+        } catch (error) {
+            diagnostics.attempts.push({
+                device: 'webgpu',
+                status: 'error',
+                elapsedMs: Math.round(performance.now() - startedAt),
+                error: error instanceof Error ? error.message : String(error),
+            });
         }
 
         return diagnostics;
