@@ -2,16 +2,31 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject Radzen.DialogService DialogService
 @using PoMemeVideo.Shared.Models
 @using PoMemeVideo.Shared.Enums
 
 <PageTitle>PoMemeVideo — History Gallery</PageTitle>
 
-<div class="results-page">
+<div class="results-viewport">
+    <div class="results-header-row">
+        <div class="results-title-group">
+            <h1 class="hero-title">Video History Gallery</h1>
+            <span class="hero-sub">Your completed meme creations — inspect, batch download, or manage</span>
+        </div>
 
-    <div class="page-hero">
-        <h1 class="hero-title">Video History Gallery</h1>
-        <p class="hero-sub">Your completed meme creations — inspect, batch download, or manage</p>
+        <div class="results-toolbar">
+            <button class="ascii-btn compact-btn primary-action" @onclick='() => Nav.NavigateTo("/")'>[ + Create Video ]</button>
+            <input class="ascii-input results-search" placeholder="Search session ID…" @bind="_searchFilter" @bind:event="oninput" />
+            <button class="ascii-btn compact-btn" @onclick="LoadSessions" disabled="@_loading">[ ⟳ Refresh ]</button>
+            @if (_selectedSessionIds.Count > 0)
+            {
+                <button class="ascii-btn compact-btn wipe-btn" @onclick="ConfirmBatchDelete">
+                    [ 🗑️ Delete (@_selectedSessionIds.Count) ]
+                </button>
+                <button class="ascii-btn compact-btn" @onclick="ClearSelection">[ Deselect ]</button>
+            }
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(_statusNotification))
@@ -20,25 +35,6 @@
             <pre class="status results-notice-text">@_statusNotification</pre>
         </div>
     }
-
-    <div class="results-toolbar ascii-border-double reveal-in vibe-glass-card">
-        <div class="toolbar-left">
-            <button class="ascii-btn compact-btn primary-action" @onclick='() => Nav.NavigateTo("/")'>[ + Create New Video ]</button>
-            @if (_selectedSessionIds.Count > 0)
-            {
-                <button class="ascii-btn compact-btn wipe-btn" @onclick="DeleteSelectedSessions">
-                    [ 🗑️ Delete Selected (@_selectedSessionIds.Count) ]
-                </button>
-                <button class="ascii-btn compact-btn" @onclick="ClearSelection">
-                    [ Deselect All ]
-                </button>
-            }
-        </div>
-        <div class="toolbar-right">
-            <input class="ascii-input results-search" placeholder="Search sessions…" @bind="_searchFilter" @bind:event="oninput" />
-            <button class="ascii-btn compact-btn" @onclick="LoadSessions" disabled="@_loading">[ ⟳ Refresh ]</button>
-        </div>
-    </div>
 
     @if (_loading)
     {
@@ -49,13 +45,15 @@
     }
     else if (_error is not null)
     {
-        <pre class="error-box">[ ERROR ] @_error</pre>
+        <div class="error-box ascii-border-double">
+            <pre class="error-text">[ ERROR ] @_error</pre>
+        </div>
     }
     else if (FilteredSessions.Count == 0)
     {
         <div class="empty-state ascii-border-double reveal-in">
             <pre class="status">[ No completed videos found ]</pre>
-            <p class="result-meta result-meta-empty">Your AI-rendered meme videos will appear here once ready.</p>
+            <p class="result-meta-empty">Your AI-rendered meme videos will appear here once ready.</p>
             <div class="empty-actions">
                 <button class="ascii-btn" @onclick='() => Nav.NavigateTo("/")'>[ Create a Video ]</button>
             </div>
@@ -63,80 +61,104 @@
     }
     else
     {
-        <div class="results-stats-bar">
-            <pre class="status">[ Showing @FilteredSessions.Count of @_sessions.Count video@(_sessions.Count == 1 ? "" : "s") ]</pre>
-        </div>
+        <div class="results-workspace-grid">
+            <!-- Left: Sessions Master Grid -->
+            <div class="results-pane results-pane-list ascii-border-double vibe-glass-card">
+                <div class="pane-header">
+                    <span>COMPLETED SESSIONS (@FilteredSessions.Count)</span>
+                </div>
 
-        <div class="history-grid">
-            @foreach (var session in FilteredSessions)
-            {
-                <div class="history-card reveal-in ascii-border-double vibe-glass-card @(_selectedSessionIds.Contains(session.SessionId) ? "is-selected" : "")">
-                    <div class="card-select-header">
-                        <input type="checkbox"
-                               checked="@_selectedSessionIds.Contains(session.SessionId)"
-                               @onchange="@(e => ToggleSelection(session.SessionId, (bool)(e.Value ?? false)))"
-                               class="results-select-box" />
-                        <span class="history-card-title">Completed @(session.CompletedAt?.ToLocalTime().ToString("MMM d, yyyy HH:mm") ?? "—")</span>
-                    </div>
-
-                    <p class="history-card-id">ID: @session.SessionId.ToString()[..8]…</p>
-
-                    <div class="history-card-meta">
-                        <span class="history-meta-item">Duration: <span>@(session.VideoDurationSeconds.ToString("F1"))s</span></span>
-                        @if (!string.IsNullOrEmpty(session.MemePersona))
-                        {
-                            <span class="history-meta-item">Style: <span>@session.MemePersona</span></span>
-                        }
-                        @if (!string.IsNullOrEmpty(session.AspectRatio))
-                        {
-                            <span class="history-meta-item">Ratio: <span>@session.AspectRatio</span></span>
-                        }
-                        <span class="history-meta-item">Aggressive: <span>@(session.AggressiveVisuals ? "Yes" : "No")</span></span>
-                    </div>
-
-                    @if (!string.IsNullOrEmpty(session.OutputBlobPath))
+                <div class="sessions-scroll-list">
+                    @foreach (var session in FilteredSessions)
                     {
-                        <div class="history-card-preview">
-                            <video preload="none" loop playsinline
-                                   onmouseenter="this.play()" onmouseleave="this.pause(); this.currentTime=0;">
-                                <source src="/api/output/sessions/@session.SessionId/stream/video" type="video/mp4" />
+                        var isSelected = _selectedSessionIds.Contains(session.SessionId);
+                        var isActive = _activeSession?.SessionId == session.SessionId;
+
+                        <div class="session-list-item @(isActive ? "is-active-session" : "") @(isSelected ? "is-selected-checkbox" : "")"
+                             @onclick="() => SelectActiveSession(session)">
+                            <div class="session-item-row">
+                                <input type="checkbox"
+                                       checked="@isSelected"
+                                       @onclick:stopPropagation="true"
+                                       @onchange="@(e => ToggleSelection(session.SessionId, (bool)(e.Value ?? false)))"
+                                       class="results-select-box" />
+
+                                <div class="session-item-info">
+                                    <div class="session-item-id">
+                                        ID: @session.SessionId.ToString()[..8]…
+                                    </div>
+                                    <div class="session-item-date">
+                                        @(session.CompletedAt?.ToLocalTime().ToString("MMM d, yyyy HH:mm") ?? "—")
+                                    </div>
+                                </div>
+
+                                <div class="session-item-badges">
+                                    <span class="rz-badge rz-badge-info">@(session.VideoDurationSeconds.ToString("F1"))s</span>
+                                    @if (!string.IsNullOrEmpty(session.MemePersona))
+                                    {
+                                        <span class="rz-badge rz-badge-warning">@session.MemePersona</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Right: Active Session Preview & Actions -->
+            <div class="results-pane results-pane-preview ascii-border-double vibe-glass-card">
+                @if (_activeSession is not null)
+                {
+                    <div class="pane-header preview-header">
+                        <span>PREVIEW &amp; ACTIONS · ID: @_activeSession.SessionId.ToString()[..8]…</span>
+                        <button class="ascii-btn compact-btn wipe-btn" @onclick="() => ConfirmDeleteSession(_activeSession)">[ 🗑️ Delete ]</button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_activeSession.OutputBlobPath))
+                    {
+                        <div class="results-video-stage">
+                            <video class="results-preview-video" controls playsinline loop
+                                   key="@_activeSession.SessionId">
+                                <source src="/api/output/sessions/@_activeSession.SessionId/stream/video" type="video/mp4" />
                             </video>
                         </div>
 
-                        <div class="history-card-actions">
-                            <button class="ascii-btn action-primary compact-btn" @onclick='() => Nav.NavigateTo($"/reveal/{session.SessionId}")'>
-                                [ 👁️ Review ]
-                            </button>
-                            <button class="ascii-btn action-secondary compact-btn" @onclick="() => DownloadVideo(session.SessionId)">
-                                [ ⬇ MP4 ]
-                            </button>
-                            <button class="ascii-btn compact-btn" @onclick="() => ExportGif(session.SessionId)">
-                                [ 🎞 GIF ]
-                            </button>
-                            <button class="ascii-btn compact-btn" @onclick="() => ExportPunchline(session.SessionId)">
-                                [ 🎯 Clip ]
-                            </button>
+                        <div class="results-meta-chips">
+                            <span class="meta-chip">Duration: <b>@(_activeSession.VideoDurationSeconds.ToString("F1"))s</b></span>
+                            <span class="meta-chip">Persona: <b>@(_activeSession.MemePersona ?? "Standard")</b></span>
+                            <span class="meta-chip">Ratio: <b>@(_activeSession.AspectRatio ?? "16:9")</b></span>
+                            <span class="meta-chip">Aggressive: <b>@(_activeSession.AggressiveVisuals ? "YES" : "NO")</b></span>
                         </div>
 
-                        <div class="history-card-danger">
-                            @if (_pendingDeleteSessionId == session.SessionId)
-                            {
-                                <pre class="clear-warning">⚠ Confirm permanent deletion?</pre>
-                                <button class="ascii-btn wipe-btn compact-btn" @onclick="() => DeleteSession(session)">[ Yes, Delete ]</button>
-                                <button class="ascii-btn compact-btn" @onclick="CancelDelete">[ Cancel ]</button>
-                            }
-                            else
-                            {
-                                <button class="ascii-btn wipe-btn compact-btn" @onclick="() => RequestDelete(session.SessionId)">[ Delete ]</button>
-                            }
+                        <div class="results-actions-grid">
+                            <button class="ascii-btn primary-action compact-btn" @onclick='() => Nav.NavigateTo($"/reveal/{_activeSession.SessionId}")'>
+                                [ 👁️ Review &amp; Studio ]
+                            </button>
+                            <button class="ascii-btn compact-btn" @onclick="() => DownloadVideo(_activeSession.SessionId)">
+                                [ ⬇ MP4 ]
+                            </button>
+                            <button class="ascii-btn compact-btn" @onclick="() => ExportGif(_activeSession.SessionId)">
+                                [ 🎞 GIF ]
+                            </button>
+                            <button class="ascii-btn compact-btn" @onclick="() => ExportPunchline(_activeSession.SessionId)">
+                                [ 🎯 5s Clip ]
+                            </button>
                         </div>
                     }
                     else
                     {
-                        <pre class="page-error">  OUTPUT NOT AVAILABLE</pre>
+                        <div class="output-pending-box">
+                            <pre>[ OUTPUT NOT READY OR PROCESSING ]</pre>
+                        </div>
                     }
-                </div>
-            }
+                }
+                else
+                {
+                    <div class="select-prompt-box">
+                        <span class="term-muted">Select a session from the list to preview video.</span>
+                    </div>
+                }
+            </div>
         </div>
     }
 </div>
@@ -144,11 +166,11 @@
 @code {
     private List<VideoSessionDto> _sessions = [];
     private HashSet<Guid> _selectedSessionIds = [];
+    private VideoSessionDto? _activeSession;
     private bool _loading = true;
     private string? _error;
     private string? _statusNotification;
     private string _searchFilter = string.Empty;
-    private Guid? _pendingDeleteSessionId;
 
     private List<VideoSessionDto> FilteredSessions => _sessions
         .Where(s => string.IsNullOrWhiteSpace(_searchFilter) ||
@@ -158,6 +180,11 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadSessions();
+    }
+
+    private void SelectActiveSession(VideoSessionDto session)
+    {
+        _activeSession = session;
     }
 
     private void ToggleSelection(Guid sessionId, bool selected)
@@ -187,16 +214,22 @@
             {
                 _error = $"HTTP {(int)response.StatusCode}";
                 _sessions = [];
+                _activeSession = null;
                 return;
             }
 
             var list = await response.Content.ReadFromJsonAsync<List<VideoSessionDto>>();
             _sessions = list?.OrderByDescending(s => s.CompletedAt ?? s.CreatedAt).ToList() ?? [];
+            if (_activeSession is null || !_sessions.Any(s => s.SessionId == _activeSession.SessionId))
+            {
+                _activeSession = _sessions.FirstOrDefault();
+            }
         }
         catch (Exception ex)
         {
             _error = ex.Message;
             _sessions = [];
+            _activeSession = null;
         }
         finally
         {
@@ -250,8 +283,32 @@
         }
     }
 
-    private void RequestDelete(Guid sessionId) => _pendingDeleteSessionId = sessionId;
-    private void CancelDelete() => _pendingDeleteSessionId = null;
+    private async Task ConfirmDeleteSession(VideoSessionDto session)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Permanently delete session {session.SessionId.ToString()[..8]}…?",
+            "Confirm Deletion",
+            new Radzen.ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed == true)
+        {
+            await DeleteSession(session);
+        }
+    }
+
+    private async Task ConfirmBatchDelete()
+    {
+        var count = _selectedSessionIds.Count;
+        var confirmed = await DialogService.Confirm(
+            $"Permanently delete {count} selected session(s)?",
+            "Confirm Batch Deletion",
+            new Radzen.ConfirmOptions { OkButtonText = "Delete Selected", CancelButtonText = "Cancel" });
+
+        if (confirmed == true)
+        {
+            await DeleteSelectedSessions();
+        }
+    }
 
     private async Task DeleteSession(VideoSessionDto session)
     {
@@ -262,7 +319,10 @@
             {
                 _sessions.Remove(session);
                 _selectedSessionIds.Remove(session.SessionId);
-                _pendingDeleteSessionId = null;
+                if (_activeSession?.SessionId == session.SessionId)
+                {
+                    _activeSession = _sessions.FirstOrDefault();
+                }
                 Notify($"[ DELETED: Session {session.SessionId.ToString()[..8]}… deleted. ]");
             }
             else
@@ -279,17 +339,36 @@
     private async Task DeleteSelectedSessions()
     {
         var count = _selectedSessionIds.Count;
+        var failed = 0;
         foreach (var id in _selectedSessionIds.ToList())
         {
             try
             {
-                await Http.DeleteAsync($"/api/output/sessions/{id}");
-                _sessions.RemoveAll(s => s.SessionId == id);
+                var resp = await Http.DeleteAsync($"/api/output/sessions/{id}");
+                if (resp.IsSuccessStatusCode)
+                {
+                    _sessions.RemoveAll(s => s.SessionId == id);
+                }
+                else
+                {
+                    failed++;
+                }
             }
-            catch { }
+            catch
+            {
+                failed++;
+            }
         }
         _selectedSessionIds.Clear();
-        Notify($"[ BATCH DELETE COMPLETE: Deleted {count} sessions. ]");
+        _activeSession = _sessions.FirstOrDefault();
+        if (failed > 0)
+        {
+            Notify($"[ BATCH DELETE: Deleted {count - failed} of {count} sessions ({failed} failed). ]");
+        }
+        else
+        {
+            Notify($"[ BATCH DELETE COMPLETE: Deleted {count} sessions. ]");
+        }
         StateHasChanged();
     }
 }

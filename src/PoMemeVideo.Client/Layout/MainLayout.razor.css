@@ -1,3 +1,31 @@
+.po-app-viewport {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.po-main-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: 0.5rem 0.75rem;
+    box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+    .po-main-stage {
+        padding: 0.25rem 0.35rem;
+    }
+}
 
 /* ── Skip link (shared Po convention) ──────────────────────────────────────
    Visually hidden until focused, then pinned to the top of the viewport. Uses
@@ -33,15 +61,16 @@
     margin: 1rem auto;
     max-width: 40rem;
     padding: 1rem 1.25rem;
-    border: 1px solid var(--po-error-border, #b3261e);
+    border: 1px solid var(--term-danger, #ff3366);
     border-radius: 0.5rem;
-    background: var(--po-error-bg, rgba(179, 38, 30, 0.08));
-    color: inherit;
+    background: rgba(255, 51, 102, 0.1);
+    color: var(--term-text);
 }
 
 .po-error-panel h2 {
     margin: 0 0 0.5rem;
     font-size: 1.1rem;
+    color: var(--term-danger, #ff3366);
 }
 
 .po-error-panel p {

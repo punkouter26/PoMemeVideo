@@ -2,13 +2,16 @@ html,
 body {
     margin: 0;
     padding: 0;
-    background: radial-gradient(circle at top right, #112018 0%, var(--term-bg) 35%, #010302 100%);
-    color: var(--term-primary);
-    font-family: 'Courier New', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
-    min-height: 100vh;
-    min-height: 100dvh;
+    background: radial-gradient(circle at top right, #091711 0%, var(--term-bg) 40%, #010302 100%);
+    color: var(--term-text);
+    font-family: var(--font-ui);
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    width: 100vw;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 :focus-visible {
@@ -24,20 +27,22 @@ h4,
 h5,
 h6 {
     color: var(--term-primary);
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 a {
-    color: var(--term-primary);
+    color: var(--term-cyan, #00f0ff);
     text-decoration: underline;
 }
 
 a:hover {
-    color: var(--term-secondary);
+    color: var(--term-primary);
 }
 
 pre {
-    font-family: 'Courier New', Courier, monospace;
+    font-family: var(--font-mono);
     color: var(--term-primary);
     margin: 0;
     white-space: pre-wrap;
@@ -235,22 +240,201 @@ code {
 /* The only reachable palette: nothing in the app sets a data-theme attribute, so the
    alternate palettes that used to sit here were unreachable and have been removed. */
 :root {
-    --theme-primary: #00ffdc;
-    --theme-primary-rgb: 0, 255, 220;
-    --theme-accent: #ff007f;
-    --theme-bg: #090b0e;
-    --theme-surface: rgba(14, 18, 26, 0.75);
-    --theme-border: rgba(0, 255, 220, 0.35);
-    --theme-text: #e0f7fa;
-    --theme-text-dim: #80cbc4;
+    --theme-primary: var(--term-primary);
+    --theme-primary-rgb: 0, 255, 102;
+    --theme-accent: var(--term-cyan);
+    --theme-bg: var(--term-bg);
+    --theme-surface: var(--term-surface-glass);
+    --theme-border: var(--term-border);
+    --theme-text: var(--term-text);
+    --theme-text-dim: var(--term-muted);
 }
 
-
-/* .cursor-pointer survives from the former Radzen override block; the .rz-* rules that
-   surrounded it were removed — Radzen is not a dependency and no rz-* class appears in
-   any markup. */
 .cursor-pointer {
     cursor: pointer;
+}
+
+/* ── Radzen Terminal Aesthetic Theme Overrides ─────────────────── */
+.rz-dropdown,
+.rz-textbox,
+.rz-numeric {
+    background: var(--term-surface) !important;
+    border: 1px solid var(--term-border-strong) !important;
+    color: var(--term-text) !important;
+    font-family: var(--font-ui) !important;
+    border-radius: 4px !important;
+    font-size: 0.85rem !important;
+}
+
+.rz-dropdown:focus-within,
+.rz-textbox:focus,
+.rz-numeric:focus-within {
+    border-color: var(--term-primary) !important;
+    box-shadow: var(--term-glow-soft) !important;
+}
+
+.rz-dropdown-items-wrapper {
+    background: var(--term-surface) !important;
+    border: 1px solid var(--term-border-strong) !important;
+    color: var(--term-text) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9) !important;
+}
+
+.rz-dropdown-item {
+    color: var(--term-text) !important;
+    font-family: var(--font-ui) !important;
+    font-size: 0.82rem !important;
+    padding: 0.4rem 0.6rem !important;
+}
+
+.rz-dropdown-item:hover,
+.rz-state-highlight {
+    background: rgba(0, 255, 102, 0.18) !important;
+    color: var(--term-primary) !important;
+}
+
+.rz-slider .rz-slider-range {
+    background: var(--term-primary) !important;
+}
+
+.rz-slider .rz-slider-handle {
+    background: var(--term-bg) !important;
+    border: 2px solid var(--term-primary) !important;
+    box-shadow: var(--term-glow-soft) !important;
+}
+
+.rz-data-grid {
+    background: var(--term-surface) !important;
+    border: 1px solid var(--term-border-strong) !important;
+    font-family: var(--font-ui) !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+}
+
+.rz-grid-table thead th {
+    background: #091a13 !important;
+    color: var(--term-primary) !important;
+    border-bottom: 2px solid var(--term-border-strong) !important;
+    font-size: 0.78rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.45rem 0.6rem !important;
+}
+
+.rz-grid-table tbody td {
+    background: transparent !important;
+    color: var(--term-text) !important;
+    border-bottom: 1px solid rgba(0, 255, 102, 0.12) !important;
+    font-size: 0.82rem !important;
+    padding: 0.4rem 0.6rem !important;
+}
+
+.rz-grid-table tr:hover td {
+    background: rgba(0, 255, 102, 0.08) !important;
+}
+
+.rz-paginator {
+    background: #06110c !important;
+    border-top: 1px solid var(--term-border) !important;
+    color: var(--term-muted) !important;
+    font-size: 0.75rem !important;
+    padding: 0.3rem 0.5rem !important;
+}
+
+.rz-tabview-nav {
+    background: rgba(3, 7, 6, 0.85) !important;
+    border-bottom: 1px solid var(--term-border) !important;
+    gap: 0.4rem !important;
+    padding: 0.25rem 0.5rem 0 !important;
+}
+
+.rz-tabview-title {
+    font-family: var(--font-ui) !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    color: var(--term-muted) !important;
+    padding: 0.35rem 0.75rem !important;
+    border: 1px solid transparent !important;
+    border-bottom: none !important;
+    border-radius: 4px 4px 0 0 !important;
+}
+
+.rz-tabview-selected .rz-tabview-title {
+    color: var(--term-primary) !important;
+    background: var(--term-surface) !important;
+    border-color: var(--term-border-strong) !important;
+    box-shadow: 0 -2px 8px rgba(0, 255, 102, 0.2) !important;
+}
+
+.rz-tabview-panels {
+    background: var(--term-surface) !important;
+    border: 1px solid var(--term-border-strong) !important;
+    border-top: none !important;
+    padding: 0.75rem !important;
+}
+
+.rz-dialog {
+    background: #07130e !important;
+    border: 2px solid var(--term-border-strong) !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), var(--term-glow-strong) !important;
+    color: var(--term-text) !important;
+    border-radius: 6px !important;
+}
+
+.rz-dialog-title {
+    color: var(--term-primary) !important;
+    font-family: var(--font-ui) !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+}
+
+.rz-notification-message {
+    background: #0b1c15 !important;
+    border: 1px solid var(--term-border-strong) !important;
+    color: var(--term-text) !important;
+    box-shadow: var(--term-glow-soft) !important;
+    font-family: var(--font-ui) !important;
+}
+
+.rz-badge {
+    font-family: var(--font-mono) !important;
+    font-size: 0.7rem !important;
+    padding: 0.2rem 0.45rem !important;
+    border-radius: 3px !important;
+    letter-spacing: 0.05em !important;
+}
+
+.rz-badge-success {
+    background: rgba(0, 255, 102, 0.15) !important;
+    color: var(--term-primary) !important;
+    border: 1px solid var(--term-primary) !important;
+}
+
+.rz-badge-info {
+    background: rgba(0, 240, 255, 0.15) !important;
+    color: var(--term-cyan) !important;
+    border: 1px solid var(--term-cyan) !important;
+}
+
+.rz-badge-warning {
+    background: rgba(255, 214, 0, 0.15) !important;
+    color: var(--term-warning) !important;
+    border: 1px solid var(--term-warning) !important;
+}
+
+.rz-badge-danger {
+    background: rgba(255, 51, 102, 0.15) !important;
+    color: var(--term-danger) !important;
+    border: 1px solid var(--term-danger) !important;
+}
+
+.rz-splitter-pane {
+    overflow: hidden !important;
+}
+
+.rz-splitter-bar {
+    background: var(--term-surface-2) !important;
+    border: 1px solid var(--term-border) !important;
 }
 
 .results-toolbar {

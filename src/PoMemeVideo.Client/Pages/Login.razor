@@ -14,49 +14,51 @@
 <PageTitle>PoMemeVideo - Login</PageTitle>
 
 <div class="login-page">
-    <pre class="login-banner">
-╔══════════════════════════════════════════════════╗
-║            PoMemeVideo // IDENTITY               ║
-║      [ AUTHENTICATE TO CONTINUE ]               ║
-╚══════════════════════════════════════════════════╝
+    <div class="login-card ascii-border-double vibe-glass-card">
+        <pre class="login-banner">
+╔═════════════════════════════════╗
+║     PoMemeVideo // IDENTITY     ║
+║   [ AUTHENTICATE TO CONTINUE ]  ║
+╚═════════════════════════════════╝
 </pre>
 
-    @if (_loading)
-    {
-        <p class="login-status">[ INITIALIZING... ]</p>
-    }
-    else if (_error is not null)
-    {
-        <p class="login-status error">@_error</p>
-    }
-    else
-    {
-        <div class="login-buttons">
-            @if (_isDevelopment)
-            {
-                <div class="login-section">
-                    <pre class="login-label">-- DEV MODE --------------------------</pre>
-                    <button class="ascii-btn anon-btn" @onclick="LoginGuest" disabled="@_busy">
-                        @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ RANDOM GUEST ]")
-                    </button>
-                    <p class="login-hint">Generates a unique GUEST######## identity for this session.</p>
-                </div>
-            }
-
-            <div class="login-section">
-                <pre class="login-label">-- MICROSOFT ACCOUNT -----------------</pre>
-                <a class="ascii-btn ms-btn" href="/auth/login/microsoft">
-                    [ SIGN IN WITH MICROSOFT ]
-                </a>
-                <p class="login-hint">Uses your Microsoft 365 / Entra ID account.</p>
-            </div>
-        </div>
-
-        @if (_guestMessage is not null)
+        @if (_loading)
         {
-            <p class="login-status">@_guestMessage</p>
+            <p class="login-status">[ INITIALIZING... ]</p>
         }
-    }
+        else if (_error is not null)
+        {
+            <p class="login-status error">@_error</p>
+        }
+        else
+        {
+            <div class="login-buttons">
+                @if (_isDevelopment)
+                {
+                    <div class="login-section">
+                        <pre class="login-label">-- DEV MODE ----------------------</pre>
+                        <button class="ascii-btn anon-btn" @onclick="LoginGuest" disabled="@_busy">
+                            @(_busy && _signingInAnon ? "[ AUTHENTICATING... ]" : "[ RANDOM GUEST ]")
+                        </button>
+                        <p class="login-hint">Generates a unique GUEST######## identity for this session.</p>
+                    </div>
+                }
+
+                <div class="login-section">
+                    <pre class="login-label">-- MICROSOFT ACCOUNT -------------</pre>
+                    <a class="ascii-btn ms-btn" href="/auth/login/microsoft">
+                        [ SIGN IN WITH MICROSOFT ]
+                    </a>
+                    <p class="login-hint">Uses your Microsoft 365 / Entra ID account.</p>
+                </div>
+            </div>
+
+            @if (_guestMessage is not null)
+            {
+                <p class="login-status">@_guestMessage</p>
+            }
+        }
+    </div>
 </div>
 
 @code {
@@ -122,84 +124,3 @@
     private sealed record ConfigResponse(bool IsDevelopment);
     private sealed record GuestLoginResponse(Guid IdentityId, string DisplayName, string IdentityType);
 }
-
-<style>
-    .login-page {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 2rem;
-        gap: 1.5rem;
-    }
-
-    .login-banner {
-        color: var(--matrix-green, #00FF41);
-        font-size: 0.9rem;
-        line-height: 1.4;
-    }
-
-    .login-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-        width: 100%;
-        max-width: 480px;
-    }
-
-    .login-section {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .login-label {
-        color: #00AA2A;
-        font-size: 0.8rem;
-        margin: 0;
-    }
-
-    .login-hint {
-        color: #007A1E;
-        font-size: 0.75rem;
-        margin: 0;
-        font-family: 'Courier New', monospace;
-    }
-
-    .anon-btn {
-        background: transparent;
-        color: #00FF41;
-        border: 1px solid #00FF41;
-        padding: 0.6rem 1.2rem;
-        font-family: 'Courier New', monospace;
-        cursor: pointer;
-        letter-spacing: 0.05em;
-    }
-
-    .anon-btn:hover:not(:disabled) {
-        background: #00FF4122;
-    }
-
-    .ms-btn {
-        display: inline-block;
-        text-decoration: none;
-        background: transparent;
-        color: #00FF41;
-        border: 1px solid #00FF41;
-        padding: 0.6rem 1.2rem;
-        font-family: 'Courier New', monospace;
-        letter-spacing: 0.05em;
-    }
-
-    .ms-btn:hover {
-        background: #00FF4122;
-    }
-
-    .login-status {
-        font-family: 'Courier New', monospace;
-        color: #00FF41;
-    }
-
-    .login-status.error {
-        color: #FF4444;
-    }
-</style>

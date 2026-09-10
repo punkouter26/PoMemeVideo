@@ -4,5 +4,26 @@
 }
 
 .crt-frame {
+    position: relative;
     filter: url(#crt-bulge);
+    width: 100%;
+    height: 100%;
+}
+
+.crt-glass-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    border-radius: 8px;
+}
+
+.crt-content-wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
 }

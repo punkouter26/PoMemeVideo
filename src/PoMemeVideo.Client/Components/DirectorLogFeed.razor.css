@@ -1,0 +1,43 @@
+.director-log-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: rgba(2, 6, 4, 0.85);
+}
+
+.log-panel-header {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--term-primary, #00ff66);
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--term-border);
+    background: #06110c;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.director-log-feed {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--term-text, #e6fffa);
+    word-break: break-word;
+}
+
+.log-waiting {
+    color: var(--term-muted, #7ec4a3);
+    font-size: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.log-line {
+    display: block;
+    margin-bottom: 0.2rem;
+}
+

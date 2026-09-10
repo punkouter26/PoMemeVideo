@@ -12,9 +12,7 @@
 
 <PageTitle>PoMemeVideo — Review &amp; Studio</PageTitle>
 
-<div class="reveal-page">
-    <MockDataBanner />
-
+<div class="reveal-viewport">
     @if (_showCompleteFlash)
     {
         <div class="render-complete-flash reveal-in">
@@ -29,10 +27,37 @@
         </div>
     }
 
-    <div class="page-hero">
-        <h1 class="hero-title">Review &amp; Cue Studio</h1>
-        <p class="hero-sub">Session: @SessionId</p>
-    </div>
+    <!-- Top Action & Navigation Header Bar -->
+    <header class="reveal-topbar">
+        <div class="reveal-title-group">
+            <h1 class="hero-title">Review &amp; Cue Studio</h1>
+            <span class="hero-session-badge">SESSION: @SessionId.ToString()[..8]…</span>
+        </div>
+
+        <div class="reveal-actions-bar">
+            <button class="ascii-btn download-btn compact-btn" @onclick="DownloadVideo" title="Download Rendered MP4 Video">
+                [ ⬇ Download MP4 ]
+            </button>
+            <button class="ascii-btn compact-btn" @onclick="ExportGifAsync" disabled="@_exportingGif" title="Export as Animated GIF">
+                @(_exportingGif ? "[ ⏳ Exporting GIF… ]" : "[ 🎞 Export GIF ]")
+            </button>
+            <button class="ascii-btn compact-btn" @onclick="ExportPunchlineAsync" disabled="@_exportingPunchline" title="Export Punchline 5-Second Short">
+                @(_exportingPunchline ? "[ ⏳ Exporting Clip… ]" : "[ 🎯 5s Punchline ]")
+            </button>
+            <button class="ascii-btn compact-btn" @onclick="ShareVideo" title="Share Video Link">
+                [ 📤 Share ]
+            </button>
+            <button class="ascii-btn compact-btn" @onclick="ToggleRawJson" title="View Raw Director Script JSON">
+                [ @(_showJson ? "Hide JSON" : "Raw JSON") ]
+            </button>
+            <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")' title="View Session History">
+                [ 📜 History ]
+            </button>
+            <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")' title="Create Another Meme Video">
+                [ + Create ]
+            </button>
+        </div>
+    </header>
 
     @if (_loading)
     {
@@ -43,328 +68,343 @@
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
-        <pre class="error-box">[ ERROR ] @_error</pre>
+        <div class="error-box-wrap">
+            <pre class="error-box">[ ERROR ] @_error</pre>
+            <button class="ascii-btn compact-btn" @onclick="LoadSessionAsync">[ 🔄 RETRY ]</button>
+        </div>
     }
     else if (_session is not null)
     {
-        <div class="reveal-grid">
-            <!-- Video Player & Split Comparison -->
-            <div class="video-panel">
-                @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
-                {
-                    <div class="ascii-border-double vibe-3d-stage vibe-glass-card @(_theaterMode ? "theater-mode-stage" : "")">
-                        <div class="video-header-row">
-                            <pre class="panel-header panel-header-flush">[ @(_showLaserWipe ? "INTERACTIVE LASER WIPE" : (_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO"))) ]</pre>
-                            <div class="video-header-actions">
-                                <button class="ascii-btn compact-btn @(_showLaserWipe ? "active" : "")" @onclick="ToggleLaserWipe" title="Interactive Draggable Laser Seam">
-                                    @(_showLaserWipe ? "[ ⚡ Exit Laser Wipe ]" : "[ ⚡ Laser Wipe ]")
-                                </button>
-                                <button class="ascii-btn compact-btn @(_showSplitPlayer ? "active" : "")" @onclick="ToggleSplitPlayer">
-                                    @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Dual Split ]")
-                                </button>
-                                <button class="ascii-btn compact-btn @(_theaterMode ? "active" : "")" @onclick="ToggleTheaterMode" title="Toggle Fullscreen Theater Presentation">
-                                    @(_theaterMode ? "[ ✕ Exit Theater ]" : "[ ⛶ Theater Mode ]")
-                                </button>
-                            </div>
+        <!-- Mobile Pane Switcher: visible only on small screens -->
+        <div class="mobile-pane-switcher" role="tablist">
+            <button class="ascii-btn compact-btn mobile-tab-btn @(_mobilePane == "stage" ? "active" : "")"
+                    @onclick='() => _mobilePane = "stage"'
+                    role="tab"
+                    aria-selected="@(_mobilePane == "stage")">
+                [ 🎬 VIDEO STAGE ]
+            </button>
+            <button class="ascii-btn compact-btn mobile-tab-btn @(_mobilePane == "studio" ? "active" : "")"
+                    @onclick='() => _mobilePane = "studio"'
+                    role="tab"
+                    aria-selected="@(_mobilePane == "studio")">
+                [ ⏱️ CUE STUDIO (@(_script?.Entries?.Count ?? 0)) ]
+            </button>
+        </div>
+
+        <!-- Studio Splitter Workspace -->
+        <RadzenSplitter Orientation="Orientation.Horizontal" class="@($"reveal-splitter mobile-mode-{_mobilePane} {(_theaterMode ? "theater-mode-active" : "")}")">
+            <!-- Left Pane: Video Player Stage -->
+            <RadzenSplitterPane Size="54%" Min="35%" Max="70%" class="reveal-stage-pane">
+                <div class="video-panel-inner ascii-border-double vibe-3d-stage vibe-glass-card @(_theaterMode ? "theater-mode-stage" : "")">
+                    <div class="video-header-row">
+                        <div class="panel-header-title">
+                            [ @(_showLaserWipe ? "INTERACTIVE LASER WIPE" : (_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO"))) ]
+                        </div>
+                        <div class="video-header-actions">
+                            <button class="ascii-btn compact-btn @(_showLaserWipe ? "active" : "")" @onclick="ToggleLaserWipe" title="Interactive Draggable Laser Seam">
+                                @(_showLaserWipe ? "[ ⚡ Exit Laser Wipe ]" : "[ ⚡ Laser Wipe ]")
+                            </button>
+                            <button class="ascii-btn compact-btn @(_showSplitPlayer ? "active" : "")" @onclick="ToggleSplitPlayer" title="Side-by-side Before/After comparison">
+                                @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Dual Split ]")
+                            </button>
+                            <button class="ascii-btn compact-btn @(_theaterMode ? "active" : "")" @onclick="ToggleTheaterMode" title="Toggle Fullscreen Theater Presentation">
+                                @(_theaterMode ? "[ ✕ Exit Theater ]" : "[ ⛶ Theater Mode ]")
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
+                    {
+                        <div class="player-stage-body">
+                            @if (_showLaserWipe)
+                            {
+                                <div class="split-master-toolbar ascii-border-double">
+                                    <span class="split-master-label">LASER WIPE DRAG &amp; SYNC:</span>
+                                    <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("laser-source-video", "laser-meme-video")'>[ ▶ PLAY ]</button>
+                                    <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("laser-source-video", "laser-meme-video")'>[ ⏸ PAUSE ]</button>
+                                    <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("laser-source-video", "laser-meme-video")'>[ ⏮ RESTART ]</button>
+                                </div>
+
+                                <div class="laser-wipe-stage ascii-border-double">
+                                    <canvas id="laser-wipe-canvas" class="laser-wipe-canvas"></canvas>
+                                </div>
+
+                                @* Hidden videos providing frames for the laser-wipe canvas *@
+                                <video id="laser-source-video" class="is-hidden" preload="auto" playsinline muted>
+                                    <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
+                                </video>
+                                <video id="laser-meme-video" class="is-hidden" preload="auto" playsinline>
+                                    <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
+                                </video>
+                            }
+                            else if (_showSplitPlayer)
+                            {
+                                <div class="split-master-toolbar ascii-border-double">
+                                    <span class="split-master-label">MASTER SYNC:</span>
+                                    <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("split-source-video", "split-meme-video")'>[ ▶ PLAY BOTH ]</button>
+                                    <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("split-source-video", "split-meme-video")'>[ ⏸ PAUSE BOTH ]</button>
+                                    <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("split-source-video", "split-meme-video")'>[ ⏮ RESTART ]</button>
+                                </div>
+
+                                <div class="split-player-container">
+                                    <div class="split-side ascii-border-double">
+                                        <div class="split-side-label is-source">ORIGINAL SOURCE</div>
+                                        <video id="split-source-video" class="output-video split-video" controls playsinline>
+                                            <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
+                                        </video>
+                                    </div>
+                                    <div class="split-side ascii-border-double">
+                                        <div class="split-side-label is-output">AI MEME OUTPUT</div>
+                                        <video id="split-meme-video" class="output-video split-video" controls playsinline>
+                                            <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
+                                        </video>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="video-crt-wrap">
+                                    <video id="reveal-output-video" class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
+                                        <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
+                                        Your browser does not support the video tag.
+                                    </video>
+                                    <div class="video-crt-overlay" aria-hidden="true">
+                                        <CrtMonitorFrame>
+                                            <div class="video-crt-overlay-inner"></div>
+                                        </CrtMonitorFrame>
+                                    </div>
+                                </div>
+                            }
                         </div>
 
-                        @if (_showLaserWipe)
-                        {
-                            <div class="split-master-toolbar ascii-border-double">
-                                <span class="split-master-label">LASER WIPE DRAG &amp; SYNC:</span>
-                                <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("laser-source-video", "laser-meme-video")'>[ ▶ PLAY ]</button>
-                                <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("laser-source-video", "laser-meme-video")'>[ ⏸ PAUSE ]</button>
-                                <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("laser-source-video", "laser-meme-video")'>[ ⏮ RESTART ]</button>
-                            </div>
-
-                            <div class="laser-wipe-stage ascii-border-double">
-                                <canvas id="laser-wipe-canvas" class="laser-wipe-canvas"></canvas>
-                            </div>
-
-                            @* Hidden videos providing frames for the laser-wipe canvas *@
-                            <video id="laser-source-video" class="is-hidden" preload="auto" playsinline muted>
-                                <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
-                            </video>
-                            <video id="laser-meme-video" class="is-hidden" preload="auto" playsinline>
-                                <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
-                            </video>
-                        }
-                        else if (_showSplitPlayer)
-                        {
-                            <div class="split-master-toolbar ascii-border-double">
-                                <span class="split-master-label">MASTER SYNC:</span>
-                                <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("split-source-video", "split-meme-video")'>[ ▶ PLAY BOTH ]</button>
-                                <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("split-source-video", "split-meme-video")'>[ ⏸ PAUSE BOTH ]</button>
-                                <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("split-source-video", "split-meme-video")'>[ ⏮ RESTART ]</button>
-                            </div>
-
-                            <div class="split-player-container">
-                                <div class="split-side ascii-border-double">
-                                    <div class="split-side-label is-source">ORIGINAL SOURCE</div>
-                                    <video id="split-source-video" class="output-video split-video" controls playsinline>
-                                        <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
-                                    </video>
-                                </div>
-                                <div class="split-side ascii-border-double">
-                                    <div class="split-side-label is-output">AI MEME OUTPUT</div>
-                                    <video id="split-meme-video" class="output-video split-video" controls playsinline>
-                                        <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
-                                    </video>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="video-crt-wrap">
-                                <video id="reveal-output-video" class="output-video" controls playsinline @onloadedmetadata="OnVideoLoaded" @onerror="OnVideoError">
-                                    <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
-                                    Your browser does not support the video tag.
-                                </video>
-                                <div class="video-crt-overlay" aria-hidden="true">
-                                    <CrtMonitorFrame>
-                                        <div class="video-crt-overlay-inner"></div>
-                                    </CrtMonitorFrame>
-                                </div>
-                            </div>
-                        }
-
                         <div class="reveal-meta">
-                            <pre> STATUS     : @_session.Status</pre>
-                            <pre> DURATION   : @_session.VideoDurationSeconds.ToString("F1")s</pre>
-                            <pre> GENERATED  : @(_session.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "PENDING")</pre>
-                            <pre> SOUNDS     : @(_script?.TotalSoundCount ?? 0)</pre>
+                            <span class="meta-item"><span class="meta-k">STATUS:</span> <span class="meta-v">@_session.Status</span></span>
+                            <span class="meta-item"><span class="meta-k">DURATION:</span> <span class="meta-v">@_session.VideoDurationSeconds.ToString("F1")s</span></span>
+                            <span class="meta-item"><span class="meta-k">SOUNDS:</span> <span class="meta-v">@(_script?.TotalSoundCount ?? 0)</span></span>
+                            <span class="meta-item"><span class="meta-k">GENERATED:</span> <span class="meta-v">@(_session.CompletedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "PENDING")</span></span>
                         </div>
 
                         @if (_videoLoadFailed)
                         {
                             <div class="video-fallback-box">
                                 <pre>[ PLAYER FALLBACK ] Inline playback failed in this browser.</pre>
-                                <a class="ascii-btn" href="/api/output/sessions/@SessionId/stream/video" target="_blank" rel="noopener noreferrer">[ OPEN DIRECT STREAM ]</a>
+                                <a class="ascii-btn compact-btn" href="/api/output/sessions/@SessionId/stream/video" target="_blank" rel="noopener noreferrer">[ OPEN DIRECT STREAM ]</a>
                             </div>
                         }
-                    </div>
-                }
-                else
-                {
-                    <pre class="output-not-ready">[ OUTPUT NOT READY ]</pre>
-                }
-            </div>
-
-            <!-- Director Script Cue Studio -->
-            <div class="script-panel-reveal ascii-border-double vibe-3d-stage vibe-glass-card">
-                <div class="script-header-row">
-                    <pre class="panel-header panel-header-flush">[ AI DIRECTOR'S SCRIPT & CUE STUDIO ]</pre>
-                    <div class="script-header-actions">
-                        <button class="ascii-btn compact-btn @(_editMode ? "active" : "")" @onclick="ToggleEditMode">
-                            @(_editMode ? "[ 💾 EXIT STUDIO ]" : "[ ✏️ CUE STUDIO ]")
-                        </button>
-                    </div>
+                    }
+                    else
+                    {
+                        <pre class="output-not-ready">[ OUTPUT NOT READY ]</pre>
+                    }
                 </div>
-                <p class="reveal-script-subtitle">Fine-tune meme hits, punchline text captions, and triggers below</p>
+            </RadzenSplitterPane>
 
-                @if (_script is not null && _script.Entries.Count > 0)
-                {
-                    <div class="cue-scrubber-stage ascii-border-double">
-                        <canvas id="cue-scrubber-canvas" class="cue-scrubber-canvas"></canvas>
+            <!-- Right Pane: Director Script & Cue Studio -->
+            <RadzenSplitterPane Size="46%" Min="30%" Max="65%" class="reveal-studio-pane">
+                <div class="script-panel-reveal ascii-border-double vibe-3d-stage vibe-glass-card">
+                    <div class="script-header-row">
+                        <div class="script-title-block">
+                            <div class="panel-header-title">[ AI DIRECTOR'S SCRIPT &amp; CUE STUDIO ]</div>
+                            <span class="script-count-badge">@(_script?.Entries?.Count ?? 0) CUES</span>
+                        </div>
+                        <div class="script-header-actions">
+                            <button class="ascii-btn compact-btn @(_editMode ? "active" : "")" @onclick="ToggleEditMode">
+                                @(_editMode ? "[ 💾 EXIT STUDIO ]" : "[ ✏️ CUE STUDIO ]")
+                            </button>
+                            @if (_editMode)
+                            {
+                                <button class="ascii-btn compact-btn add-cue-header-btn" @onclick="AddCue" title="Add a new cue">[ ➕ Add Cue ]</button>
+                                <button class="ascii-btn primary-action rerender-btn compact-btn" @onclick="ReRenderAsync" disabled="@_rerendering">
+                                    @(_rerendering ? "[ ⏳ Re-Rendering… ]" : "[ ⚡ RE-RENDER ]")
+                                </button>
+                            }
+                        </div>
                     </div>
 
-                    <div class="script-scroll">
-                        @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
-                        {
-                            <div class="cut-block ascii-border-double">
-                                <div class="cut-header-bar">
-                                    <div class="cut-header-title">
-                                        <span class="cut-title">HIT @idx</span>
-                                        @if (_editMode)
-                                        {
-                                            <button class="ascii-btn compact-btn" disabled="@(idx <= 1)" @onclick="() => MoveCue(idx - 1, -1)" title="Move earlier in timeline">▲</button>
-                                            <button class="ascii-btn compact-btn" disabled="@(idx >= _script.Entries.Count)" @onclick="() => MoveCue(idx - 1, 1)" title="Move later in timeline">▼</button>
-                                        }
-                                    </div>
-                                    @if (_editMode)
-                                    {
-                                        <div class="cut-header-controls">
-                                            <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, -250)" title="Shift -250ms">-250ms</button>
-                                            <input type="number" class="ascii-input cue-offset-input"
-                                                   value="@GetTiming(idx, entry.TimestampMs)"
-                                                   @onchange="@(e => { if (long.TryParse(e.Value?.ToString(), out var v)) SetTiming(idx, v); })"
-                                                   min="0" step="100" />
-                                            <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, 250)" title="Shift +250ms">+250ms</button>
-                                            <button class="ascii-btn compact-btn cue-remove-btn" @onclick="() => RemoveCue(idx - 1)">[ ✕ ]</button>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <span class="cut-time">@((GetTiming(idx, entry.TimestampMs) / 1000.0).ToString("F1"))s</span>
-                                    }
-                                </div>
+                    @if (_script is not null && _script.Entries.Count > 0)
+                    {
+                        <div class="cue-scrubber-stage ascii-border-double" title="Click or drag to scrub video timeline">
+                            <canvas id="cue-scrubber-canvas" class="cue-scrubber-canvas"></canvas>
+                        </div>
 
-                                <div class="cut-details">
-                                    <div class="cut-sound-row">
-                                        <span class="cut-k">SOUND:</span>
-                                        <span class="cut-v sound-name">@(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
-                                        <audio id="reveal-audio-@entry.SoundId-@idx" src="/api/memelibrary/sounds/@entry.SoundId/stream" preload="none"></audio>
-                                        <button class="ascii-btn compact-btn reveal-play-btn"
-                                                onclick="(function(btn){
-                                                    var audio = document.getElementById('reveal-audio-@entry.SoundId-@idx');
-                                                    if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
-                                                    document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
-                                                    document.querySelectorAll('.reveal-play-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
-                                                    audio.play();
-                                                    btn.textContent = '[ ■ ]';
-                                                    audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
-                                                })(this)">[ &#9654; PLAY ]</button>
-                                    </div>
-
-                                    @if (_editMode)
-                                    {
-                                        <div class="cut-row cut-row-spaced">
-                                            <span class="cut-k">CAPTION:</span>
-                                            <input type="text" class="ascii-input caption-input"
-                                                   placeholder="OPTIONAL PUNCHLINE (e.g. BRO THOUGHT)"
-                                                   @bind="entry.CaptionText" />
-                                            <select class="cue-select is-inline" @bind="entry.CaptionPosition">
-                                                <option value="Top">Top</option>
-                                                <option value="Bottom">Bottom</option>
-                                                <option value="Center">Center</option>
-                                            </select>
-                                        </div>
-                                        <div class="cut-row cut-row-tight">
-                                            <span class="cut-k">EFFECT:</span>
-                                            <select class="cue-select" @bind="entry.VisualEffect">
-                                                <option value="">None</option>
-                                                <option value="@VisualEffectType.DeepFry">DeepFry</option>
-                                                <option value="@VisualEffectType.MotionBlur">MotionBlur</option>
-                                                <option value="@VisualEffectType.SnapZoom">SnapZoom</option>
-                                                <option value="@VisualEffectType.Overlay">Overlay</option>
-                                            </select>
-                                        </div>
-
-                                        @if (entry.VisualEffect == VisualEffectType.SnapZoom)
-                                        {
-                                            <div class="cut-row cut-row-spaced">
-                                                <span class="cut-k">HOTSPOT:</span>
-                                                <span class="cue-param-label">X:</span>
-                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
-                                                       value="@(entry.HotspotX ?? 0.5)"
-                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotX = v; })" />
-                                                <span class="cue-param-label">Y:</span>
-                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
-                                                       value="@(entry.HotspotY ?? 0.5)"
-                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotY = v; })" />
-                                                <span class="cue-hint">[ 🎯 Center: @(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))% ]</span>
-                                            </div>
-                                        }
-
-                                        <div class="cut-row cut-row-spaced">
-                                            <span class="cut-k">STICKER:</span>
-                                            <select class="cue-select is-inline" @bind="entry.OverlayAssetId">
-                                                <option value="">-- No Sticker --</option>
-                                                <option value="deal-with-it">🕶️ Deal With It (Pixel Shades)</option>
-                                                <option value="laser-eyes">🔥 Laser Eyes (Glowing Flare)</option>
-                                                <option value="thug-life">👑 Thug Life (Gold Chain)</option>
-                                                <option value="red-circle">⭕ Red Circle &amp; Arrow</option>
-                                                <option value="clown-wig">🤡 Clown Wig &amp; Nose</option>
-                                                <option value="explosion">💥 Comic Explosion</option>
-                                            </select>
-                                            @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                        <div class="script-scroll">
+                            @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
+                            {
+                                <div class="cut-block ascii-border-double">
+                                    <div class="cut-header-bar">
+                                        <div class="cut-header-title">
+                                            <span class="cut-title">HIT @idx</span>
+                                            @if (_editMode)
                                             {
-                                                <img src="/overlays/@(entry.OverlayAssetId).png" class="sticker-thumb-preview" alt="Sticker preview" />
+                                                <button class="ascii-btn compact-btn" disabled="@(idx <= 1)" @onclick="() => MoveCue(idx - 1, -1)" title="Move earlier in timeline">▲</button>
+                                                <button class="ascii-btn compact-btn" disabled="@(idx >= _script.Entries.Count)" @onclick="() => MoveCue(idx - 1, 1)" title="Move later in timeline">▼</button>
                                             }
                                         </div>
-
-                                        @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                        @if (_editMode)
                                         {
-                                            <div class="cut-row cut-row-spaced">
-                                                <span class="cut-k">STICKER POS:</span>
-                                                <span class="cue-param-label">X:</span>
-                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
-                                                       value="@(entry.OverlayX ?? 0.5)"
-                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayX = v; })" />
-                                                <span class="cue-param-label">Y:</span>
-                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
-                                                       value="@(entry.OverlayY ?? 0.3)"
-                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayY = v; })" />
-                                                <span class="cue-param-label">Scale:</span>
-                                                <input type="number" class="ascii-input cue-coord-input" step="0.1" min="0.2" max="3.0"
-                                                       value="@(entry.OverlayScale ?? 1.0)"
-                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayScale = v; })" />
+                                            <div class="cut-header-controls">
+                                                <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, -250)" title="Shift -250ms">-250ms</button>
+                                                <input type="number" class="ascii-input cue-offset-input"
+                                                       value="@GetTiming(idx, entry.TimestampMs)"
+                                                       @onchange="@(e => { if (long.TryParse(e.Value?.ToString(), out var v)) SetTiming(idx, v); })"
+                                                       min="0" step="100" />
+                                                <button class="ascii-btn compact-btn" @onclick="() => NudgeTiming(idx, 250)" title="Shift +250ms">+250ms</button>
+                                                <button class="ascii-btn compact-btn cue-remove-btn" @onclick="() => RemoveCue(idx - 1)" title="Remove cue">[ ✕ ]</button>
                                             </div>
                                         }
-                                    }
-                                    else
-                                    {
-                                        @if (!string.IsNullOrWhiteSpace(entry.CaptionText))
+                                        else
                                         {
-                                            <div class="cut-row"><span class="cut-k">CAPTION:</span> <span class="cut-v cut-v-caption">"@entry.CaptionText" (@(entry.CaptionPosition ?? "Top"))</span></div>
+                                            <span class="cut-time">@((GetTiming(idx, entry.TimestampMs) / 1000.0).ToString("F1"))s</span>
                                         }
-                                        @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
-                                        {
-                                            <div class="cut-row"><span class="cut-k">STICKER:</span> <span class="cut-v cut-v-caption">@entry.OverlayAssetId (at @(((entry.OverlayX ?? 0.5)*100).ToString("F0"))%, @(((entry.OverlayY ?? 0.3)*100).ToString("F0"))%, scale: @((entry.OverlayScale ?? 1.0).ToString("F1"))x)</span></div>
-                                        }
-                                        @if (entry.VisualEffect == VisualEffectType.SnapZoom && (entry.HotspotX.HasValue || entry.HotspotY.HasValue))
-                                        {
-                                            <div class="cut-row"><span class="cut-k">HOTSPOT:</span> <span class="cut-v">Focus: (@(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))%)</span></div>
-                                        }
-                                        <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
-                                        <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
-                                    }
-                                </div>
-                            </div>
-                        }
+                                    </div>
 
+                                    <div class="cut-details">
+                                        <div class="cut-sound-row">
+                                            <span class="cut-k">SOUND:</span>
+                                            <span class="cut-v sound-name">@(string.IsNullOrWhiteSpace(entry.SoundName) ? entry.SoundId.ToString()[..8] + "…" : entry.SoundName)</span>
+                                            <audio id="reveal-audio-@entry.SoundId-@idx"
+                                                   src="/api/memelibrary/sounds/@entry.SoundId/stream"
+                                                   preload="none"
+                                                   @onended="() => OnAudioEnded(entry.SoundId, idx)"></audio>
+                                            <button class="ascii-btn compact-btn reveal-play-btn"
+                                                    @onclick="() => ToggleAuditionSound(entry.SoundId, idx)"
+                                                    title="Audition sound clip">
+                                                @(IsPlaying(entry.SoundId, idx) ? "[ ■ STOP ]" : "[ ▶ PLAY ]")
+                                            </button>
+                                        </div>
+
+                                        @if (_editMode)
+                                        {
+                                            <div class="cut-row cut-row-spaced">
+                                                <span class="cut-k">CAPTION:</span>
+                                                <input type="text" class="ascii-input caption-input"
+                                                       placeholder="OPTIONAL PUNCHLINE (e.g. BRO THOUGHT)"
+                                                       @bind="entry.CaptionText" />
+                                                <select class="cue-select is-inline" @bind="entry.CaptionPosition">
+                                                    <option value="Top">Top</option>
+                                                    <option value="Bottom">Bottom</option>
+                                                    <option value="Center">Center</option>
+                                                </select>
+                                            </div>
+                                            <div class="cut-row cut-row-tight">
+                                                <span class="cut-k">EFFECT:</span>
+                                                <select class="cue-select" @bind="entry.VisualEffect">
+                                                    <option value="">None</option>
+                                                    <option value="@VisualEffectType.DeepFry">DeepFry</option>
+                                                    <option value="@VisualEffectType.MotionBlur">MotionBlur</option>
+                                                    <option value="@VisualEffectType.SnapZoom">SnapZoom</option>
+                                                    <option value="@VisualEffectType.Overlay">Overlay</option>
+                                                </select>
+                                            </div>
+
+                                            @if (entry.VisualEffect == VisualEffectType.SnapZoom)
+                                            {
+                                                <div class="cut-row cut-row-spaced">
+                                                    <span class="cut-k">HOTSPOT:</span>
+                                                    <span class="cue-param-label">X:</span>
+                                                    <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                           value="@(entry.HotspotX ?? 0.5)"
+                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotX = v; })" />
+                                                    <span class="cue-param-label">Y:</span>
+                                                    <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                           value="@(entry.HotspotY ?? 0.5)"
+                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotY = v; })" />
+                                                    <span class="cue-hint">[ 🎯 @(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))% ]</span>
+                                                </div>
+                                            }
+
+                                            <div class="cut-row cut-row-spaced">
+                                                <span class="cut-k">STICKER:</span>
+                                                <select class="cue-select is-inline" @bind="entry.OverlayAssetId">
+                                                    <option value="">-- No Sticker --</option>
+                                                    <option value="deal-with-it">🕶️ Deal With It (Pixel Shades)</option>
+                                                    <option value="laser-eyes">🔥 Laser Eyes (Glowing Flare)</option>
+                                                    <option value="thug-life">👑 Thug Life (Gold Chain)</option>
+                                                    <option value="red-circle">⭕ Red Circle &amp; Arrow</option>
+                                                    <option value="clown-wig">🤡 Clown Wig &amp; Nose</option>
+                                                    <option value="explosion">💥 Comic Explosion</option>
+                                                </select>
+                                                @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                                {
+                                                    <img src="/overlays/@(entry.OverlayAssetId).png" class="sticker-thumb-preview" alt="Sticker preview" />
+                                                }
+                                            </div>
+
+                                            @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                            {
+                                                <div class="cut-row cut-row-spaced">
+                                                    <span class="cut-k">STICKER POS:</span>
+                                                    <span class="cue-param-label">X:</span>
+                                                    <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                           value="@(entry.OverlayX ?? 0.5)"
+                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayX = v; })" />
+                                                    <span class="cue-param-label">Y:</span>
+                                                    <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                           value="@(entry.OverlayY ?? 0.3)"
+                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayY = v; })" />
+                                                    <span class="cue-param-label">Scale:</span>
+                                                    <input type="number" class="ascii-input cue-coord-input" step="0.1" min="0.2" max="3.0"
+                                                           value="@(entry.OverlayScale ?? 1.0)"
+                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayScale = v; })" />
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @if (!string.IsNullOrWhiteSpace(entry.CaptionText))
+                                            {
+                                                <div class="cut-row"><span class="cut-k">CAPTION:</span> <span class="cut-v cut-v-caption">"@entry.CaptionText" (@(entry.CaptionPosition ?? "Top"))</span></div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                            {
+                                                <div class="cut-row"><span class="cut-k">STICKER:</span> <span class="cut-v cut-v-caption">@entry.OverlayAssetId (@(((entry.OverlayX ?? 0.5)*100).ToString("F0"))%, @(((entry.OverlayY ?? 0.3)*100).ToString("F0"))%, @((entry.OverlayScale ?? 1.0).ToString("F1"))x)</span></div>
+                                            }
+                                            @if (entry.VisualEffect == VisualEffectType.SnapZoom && (entry.HotspotX.HasValue || entry.HotspotY.HasValue))
+                                            {
+                                                <div class="cut-row"><span class="cut-k">HOTSPOT:</span> <span class="cut-v">Focus: (@(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))%)</span></div>
+                                            }
+                                            <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
+                                            <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (_script is not null)
+                    {
+                        <pre class="script-empty">[ No script entries generated for this session ]</pre>
                         @if (_editMode)
                         {
-                            <div class="cue-editor-actions">
-                                <button class="ascii-btn compact-btn" @onclick="AddCue">[ ➕ Add Cue ]</button>
-                                <button class="ascii-btn primary-action rerender-btn" @onclick="ReRenderAsync" disabled="@_rerendering">
-                                    @(_rerendering ? "[ ⏳ Re-Rendering… ]" : "[ ⚡ RE-RENDER WITH MODIFIED CUES ]")
-                                </button>
-                            </div>
+                            <button class="ascii-btn compact-btn add-cue-btn" @onclick="AddCue">[ ➕ Add First Cue ]</button>
                         }
-                    </div>
-                }
-                else if (_script is not null)
-                {
-                    <pre class="script-empty">[ No script entries generated for this session ]</pre>
-                    @if (_editMode)
-                    {
-                        <button class="ascii-btn compact-btn add-cue-btn" @onclick="AddCue">[ ➕ Add First Cue ]</button>
                     }
-                }
-                else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
-                {
-                    <pre class="script-status">@_scriptStatusMessage</pre>
-                }
-            </div>
-
-            <!-- Actions Panel -->
-            <div class="controls-panel">
-                <div class="reveal-actions-primary">
-                    <button class="ascii-btn download-btn" @onclick="DownloadVideo">[ ⬇ Download MP4 ]</button>
-                    <button class="ascii-btn compact-btn" @onclick="ExportGifAsync" disabled="@_exportingGif">
-                        @(_exportingGif ? "[ ⏳ Exporting GIF… ]" : "[ 🎞 Export GIF ]")
-                    </button>
-                    <button class="ascii-btn compact-btn" @onclick="ExportPunchlineAsync" disabled="@_exportingPunchline">
-                        @(_exportingPunchline ? "[ ⏳ Exporting Clip… ]" : "[ 🎯 5s Punchline Clip ]")
-                    </button>
-                    <button class="ascii-btn compact-btn" @onclick="DownloadScript">[ Download Script ]</button>
-                    <button class="ascii-btn compact-btn" @onclick="ShareVideo">[ 📤 Share Video ]</button>
-                    <button class="ascii-btn compact-btn" @onclick="ToggleRawJson">[ @(_showJson ? "Hide JSON" : "Show JSON") ]</button>
+                    else if (!string.IsNullOrWhiteSpace(_scriptStatusMessage))
+                    {
+                        <pre class="script-status">@_scriptStatusMessage</pre>
+                    }
                 </div>
-                <div class="reveal-actions-secondary">
-                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
-                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/")'>[ + Create Another ]</button>
-                </div>
-            </div>
+            </RadzenSplitterPane>
+        </RadzenSplitter>
+    }
 
-            @if (_showJson && !string.IsNullOrWhiteSpace(_scriptJson))
-            {
-                <div class="json-panel ascii-border-double reveal-in vibe-glass-card">
-                    <pre class="panel-header">[ RAW DIRECTOR SCRIPT JSON ]</pre>
+    <!-- Raw JSON Inspector Modal Overlay (Preserves zero-scroll layout) -->
+    @if (_showJson && !string.IsNullOrWhiteSpace(_scriptJson))
+    {
+        <div class="json-modal-backdrop" @onclick="ToggleRawJson">
+            <div class="json-modal-card ascii-border-double vibe-glass-card" @onclick:stopPropagation>
+                <div class="json-modal-header">
+                    <span class="panel-header-title">[ RAW DIRECTOR SCRIPT JSON ]</span>
+                    <button class="ascii-btn compact-btn" @onclick="ToggleRawJson">[ ✕ CLOSE ]</button>
+                </div>
+                <div class="json-modal-body">
                     <pre class="json-content">@_scriptJson</pre>
                 </div>
-            }
+                <div class="json-modal-footer">
+                    <button class="ascii-btn compact-btn" @onclick="DownloadScript">[ Download Script ]</button>
+                    <button class="ascii-btn compact-btn" @onclick="ToggleRawJson">[ Close ]</button>
+                </div>
+            </div>
         </div>
     }
 </div>
@@ -392,6 +432,8 @@
     private IJSObjectReference? _revealJs;
     private readonly Dictionary<int, long> _editedTimings = [];
     private string? _statusBanner;
+    private string _mobilePane = "stage";
+    private string? _activeAuditionKey;
 
     private void SetStatus(string msg)
     {
@@ -470,6 +512,42 @@
             await _revealJs.InvokeVoidAsync("masterPlay", v1, v2);
         }
     }
+
+    private async Task ToggleAuditionSound(Guid soundId, int idx)
+    {
+        var key = $"{soundId}_{idx}";
+        if (_activeAuditionKey == key)
+        {
+            _activeAuditionKey = null;
+            try
+            {
+                await JS.InvokeVoidAsync("soundboardFx.stopAll");
+            }
+            catch { }
+        }
+        else
+        {
+            _activeAuditionKey = key;
+            var audioId = $"reveal-audio-{soundId}-{idx}";
+            try
+            {
+                await JS.InvokeVoidAsync("soundboardFx.playAudio", audioId);
+            }
+            catch { }
+        }
+        StateHasChanged();
+    }
+
+    private void OnAudioEnded(Guid soundId, int idx)
+    {
+        if (_activeAuditionKey == $"{soundId}_{idx}")
+        {
+            _activeAuditionKey = null;
+            StateHasChanged();
+        }
+    }
+
+    private bool IsPlaying(Guid soundId, int idx) => _activeAuditionKey == $"{soundId}_{idx}";
 
     private void NudgeTiming(int idx, long deltaMs)
     {
@@ -729,8 +807,6 @@
 
         try
         {
-            // Route is /download/video — there is no bare /download. Getting this wrong used to
-            // be invisible because the URL was interpolated into an eval'd string.
             var downloadUrl = $"/api/output/sessions/{SessionId}/download/video";
             var fileName = $"pomemevideo_{SessionId:N}.mp4";
             await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);

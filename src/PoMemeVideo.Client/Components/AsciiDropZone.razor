@@ -5,13 +5,17 @@
 
 <div id="ascii-drop-zone-container"
      class="ascii-drop-zone @(_isDragOver ? "drag-over" : "")"
+     @ondragenter="OnDragEnter"
      @ondragover="OnDragOver"
-     @ondragover:preventDefault="true"
-     @ondragleave="OnDragLeave"
-     @ondrop="OnDrop"
-     @ondrop:preventDefault="true">
+     @ondragleave="OnDragLeave">
 
     <canvas id="dropzone-physics-canvas" class="dropzone-physics-canvas" aria-hidden="true"></canvas>
+
+    @* Invisible overlay covering the entire dropzone so native file drops and clicks trigger Blazor's InputFile *@
+    <InputFile id="ascii-file-input"
+               OnChange="OnFileInputChange"
+               accept=".mp4,.mov,.avi,.webm"
+               class="dropzone-file-input-overlay" />
 
     <div class="ascii-border-double dropzone-art-wrap">
         <pre class="drop-zone-art">
@@ -30,17 +34,11 @@
                 <pre>⚠ @_errorMessage</pre>
             </div>
         }
+
+        <div class="dropzone-browse-prompt">
+            <span class="ascii-btn dropzone-browse-btn">[ BROWSE FILE ]</span>
+        </div>
     </div>
-
-    @* Hidden file input for click-to-browse fallback *@
-    <InputFile id="ascii-file-input"
-               OnChange="OnFileInputChange"
-               accept=".mp4,.mov,.avi,.webm"
-               class="is-hidden" />
-
-    <label for="ascii-file-input" class="ascii-btn">
-        [ BROWSE FILE ]
-    </label>
 </div>
 
 @code {
@@ -54,21 +52,13 @@
     private bool _isDragOver;
     private string? _errorMessage;
 
+    private void OnDragEnter(DragEventArgs _) => _isDragOver = true;
     private void OnDragOver(DragEventArgs _) => _isDragOver = true;
     private void OnDragLeave(DragEventArgs _) => _isDragOver = false;
 
-    private async Task OnDrop(DragEventArgs e)
-    {
-        _isDragOver = false;
-        // DragEventArgs.DataTransfer.Files is not directly accessible in WASM —
-        // file access from drop is handled via the InputFile component event.
-        // This handler clears error state; actual file selection goes through OnFileInputChange.
-        _errorMessage = null;
-        await Task.CompletedTask;
-    }
-
     private async Task OnFileInputChange(InputFileChangeEventArgs e)
     {
+        _isDragOver = false;
         _errorMessage = null;
 
         if (e.FileCount == 0) return;
@@ -109,69 +99,3 @@
         }
     }
 }
-
-<style>
-    .ascii-drop-zone {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
-        transition: opacity 0.2s;
-        overflow: hidden;
-    }
-
-    .dropzone-physics-canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 1;
-    }
-
-    .dropzone-art-wrap {
-        position: relative;
-        z-index: 2;
-    }
-
-    .ascii-drop-zone.drag-over .ascii-border-double {
-        opacity: 0.7;
-        animation: flicker 0.1s infinite;
-    }
-
-    .drop-zone-art {
-        color: #00FF41;
-        font-family: 'Courier New', monospace;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    .drop-error pre {
-        color: #FF0000;
-        font-family: 'Courier New', monospace;
-        margin: 0.5rem 0 0;
-        animation: flicker 0.5s infinite;
-    }
-
-    .ascii-btn {
-        background: transparent;
-        border: none;
-        color: #00FF41;
-        font-family: 'Courier New', monospace;
-        font-size: 1rem;
-        cursor: pointer;
-        padding: 0;
-    }
-
-    .ascii-btn:hover {
-        text-decoration: underline;
-    }
-
-    @@keyframes flicker {
-        0%, 100% { opacity: 1; }
-        50%       { opacity: 0.6; }
-    }
-</style>

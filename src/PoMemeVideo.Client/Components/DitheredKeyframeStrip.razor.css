@@ -1,0 +1,36 @@
+.keyframe-strip-wrapper {
+    overflow-x: auto;
+    padding: 0.5rem;
+    border: 1px solid var(--rt-border, #00ff41);
+    min-height: 5rem;
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.keyframe-strip {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    align-items: flex-start;
+}
+
+.keyframe-thumb {
+    width: 120px;
+    height: auto;
+    image-rendering: pixelated;
+    border: 1px solid var(--rt-border, #00ff41);
+    flex-shrink: 0;
+}
+
+.strip-status,
+.strip-label,
+.strip-error {
+    color: var(--rt-accent-green, #00ff41);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0;
+}
+
+.strip-error {
+    color: var(--term-danger, #ff3366);
+}
+

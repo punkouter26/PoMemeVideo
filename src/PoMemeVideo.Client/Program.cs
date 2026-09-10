@@ -23,7 +23,10 @@ builder.Services.AddScoped<BlobUploadService>();
 builder.Services.AddSingleton<NavRefreshService>();
 builder.Services.AddScoped<Vibe3DService>();
 builder.Services.AddScoped<CyberAudioService>();
-
+builder.Services.AddScoped<Radzen.DialogService>();
+builder.Services.AddScoped<Radzen.NotificationService>();
+builder.Services.AddScoped<Radzen.TooltipService>();
+builder.Services.AddScoped<Radzen.ContextMenuService>();
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();

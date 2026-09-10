@@ -1,27 +1,29 @@
 @inherits LayoutComponentBase
 @using PoMemeVideo.Client.Components
 
-<VibeAuroraCanvas />
-<ScanlineOverlay />
-<NavBar />
-<MockDataBanner />
-@* First tab stop skips the nav straight to the page's own content. *@
-<a class="skip-link" href="#main-content">Skip to main content</a>
+<div class="po-app-viewport">
+    <VibeAuroraCanvas />
+    <NavBar />
+    <MockDataBanner />
+    @* First tab stop skips the nav straight to the page's own content. *@
+    <a class="skip-link" href="#main-content">Skip to main content</a>
 
-<main id="main-content" tabindex="-1">
-    <article class="content px-4">
+    <main id="main-content" class="po-main-stage" tabindex="-1">
         <ErrorBoundary>
-        <ChildContent>
-            @Body
-        </ChildContent>
-        <ErrorContent>
-            @* Without a boundary a single component exception tears down the whole render tree
-               and leaves a blank page with no way back. *@
-            <div class="po-error-panel" role="alert">
-                <h2>Something went wrong</h2>
-                <p>This page hit an unexpected error. Reload the page to try again.</p>
-            </div>
-        </ErrorContent>
-    </ErrorBoundary>
-    </article>
-</main>
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent>
+                <div class="po-error-panel" role="alert">
+                    <h2>Something went wrong</h2>
+                    <p>This page hit an unexpected error. Reload the page to try again.</p>
+                </div>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+
+    <RadzenDialog />
+    <RadzenNotification />
+    <RadzenTooltip />
+    <RadzenContextMenu />
+</div>

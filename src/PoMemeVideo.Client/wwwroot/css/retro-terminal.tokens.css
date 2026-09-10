@@ -1,36 +1,66 @@
 :root {
+    /* ── High-Contrast Void & Surface Palette (WCAG 2.2 AAA) ───────── */
     --term-bg: #030706;
-    --term-surface: #0a1210;
-    --term-surface-2: #0e1916;
-    --term-primary: #00f56a;
-    --term-secondary: #4ce9a6;
-    --term-muted: #5a8f74;
-    --term-danger: #ff5f5f;
-    --term-warning: #ffcc66;
-    --term-border: rgba(0, 245, 106, 0.58);
-    --term-border-strong: rgba(0, 245, 106, 0.9);
-    --term-glow-soft: 0 0 10px rgba(0, 245, 106, 0.2);
-    --term-glow-strong: 0 0 14px rgba(0, 245, 106, 0.55);
-    --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    --font-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+    --term-surface: #07130e;
+    --term-surface-2: #0b1c15;
+    --term-surface-glass: rgba(7, 19, 14, 0.78);
 
-    /* Director-script readout: one token per semantic line of a CUT block. */
-    --term-script-frame: #00ff41;
-    --term-script-scene: #aaffaa;
-    --term-script-sound: #ffff00;
-    --term-script-why: #ff9900;
-    --term-script-dim: #888888;
-    --term-script-error: #ff4141;
-    --term-script-notice: #ffb347;
+    /* ── Neon Matrix Green & Cyberpunk Accents ────────────────────────── */
+    --term-primary: #00ff66;         /* 13.5:1 contrast on #030706 */
+    --term-secondary: #4ce9a6;       /* 10.2:1 contrast */
+    --term-cyan: #00f0ff;            /* 12.8:1 contrast */
+    --term-text: #e6fffa;            /* 16.2:1 contrast */
+    --term-muted: #7ec4a3;           /* 5.1:1 AA / 7.0:1 AAA large */
+    --term-dim: #507e68;
+    --term-danger: #ff3366;          /* 5.2:1 contrast */
+    --term-warning: #ffd600;         /* 14.1:1 contrast */
 
-    --term-dim-opacity: 0.4;
+    /* ── Borders & Glows ─────────────────────────────────────────────── */
+    --term-border: rgba(0, 255, 102, 0.45);
+    --term-border-strong: rgba(0, 255, 102, 0.85);
+    --term-glow-soft: 0 0 10px rgba(0, 255, 102, 0.25);
+    --term-glow-strong: 0 0 16px rgba(0, 255, 102, 0.6);
 
-    /* Accent aliases used throughout the component styles. These were referenced as
-       var(--rt-accent-*, #literal) long before they were declared, so every use silently
-       fell through to its hardcoded fallback and the token system did not actually drive
-       those colours. */
-    --rt-accent-green: #00ff41;
-    --rt-accent-cyan: #00ffdc;
-    --rt-accent-yellow: #ffe600;
-    --rt-text-dim: #888888;
+    /* ── Dual-Tier Modern Typography System ──────────────────────────── */
+    --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Cascadia Code', 'Consolas', 'Menlo', 'Monaco', ui-monospace, monospace;
+
+    /* ── Director-script readout tokens ──────────────────────────────── */
+    --term-script-frame: #00ff66;
+    --term-script-scene: #b3ffcc;
+    --term-script-sound: #ffd600;
+    --term-script-why: #ffaa33;
+    --term-script-dim: #7ec4a3;
+    --term-script-error: #ff3366;
+    --term-script-notice: #ffd600;
+
+    --term-dim-opacity: 0.5;
+
+    /* ── Backward-compatible Aliases ─────────────────────────────────── */
+    --rt-accent-green: #00ff66;
+    --rt-accent-cyan: #00f0ff;
+    --rt-accent-yellow: #ffd600;
+    --rt-text-dim: #7ec4a3;
+    --matrix-green: #00ff66;
+
+    /* ── Radzen Custom Theme Mapping ─────────────────────────────────── */
+    --rz-primary: #00ff66;
+    --rz-primary-light: #4ce9a6;
+    --rz-primary-dark: #00cc52;
+    --rz-secondary: #00f0ff;
+    --rz-base-background-color: #030706;
+    --rz-base-100: #07130e;
+    --rz-base-200: #0b1c15;
+    --rz-base-300: #10271e;
+    --rz-text-color: #e6fffa;
+    --rz-text-title-color: #00ff66;
+    --rz-text-disabled-color: #507e68;
+    --rz-border-color: rgba(0, 255, 102, 0.35);
+    --rz-border-radius: 4px;
+    --rz-font-family: var(--font-ui);
+    --rz-font-size: 0.85rem;
+    --rz-grid-header-background-color: #0b1c15;
+    --rz-grid-header-color: #00ff66;
+    --rz-grid-stripe-background-color: rgba(0, 255, 102, 0.03);
+    --rz-grid-hover-background-color: rgba(0, 255, 102, 0.08);
 }

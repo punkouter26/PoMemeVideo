@@ -1,54 +1,47 @@
 @implements IDisposable
 
-<div class="ascii-panel">
-    <pre class="panel-header">╔═══════════════════════════════════╗
-║  DIRECTOR'S SCRIPT  ▓            ║
-╚═══════════════════════════════════╝</pre>
+<div class="director-script-container">
+    <div class="panel-header script-panel-header">
+        <span>[ 🎬 DIRECTOR'S CUE STREAM ]</span>
+        <span class="script-count">@_entries.Count cue@(_entries.Count == 1 ? "" : "s")</span>
+    </div>
+
     <div class="script-feed">
         @if (_entries.Count == 0)
         {
-            <pre class="director-thinking">[ DIRECTOR THINKING… ]</pre>
+            <div class="director-thinking">
+                <span class="pulsing-dot">●</span> [ AI DIRECTOR SYNTHESIZING MEME SCRIPT… ]
+            </div>
         }
-        @foreach (var entry in _entries)
+        @foreach (var (entry, idx) in _entries.Select((e, i) => (e, i + 1)))
         {
-            <pre class="script-entry-block">@FormatEntry(entry)</pre>
+            <div class="script-cue-card ascii-border-single">
+                <div class="cue-card-top">
+                    <span class="cue-num">HIT #@idx</span>
+                    <span class="cue-time">@((entry.TimestampMs / 1000.0).ToString("F1"))s</span>
+                    @if (entry.IsIronic)
+                    {
+                        <span class="rz-badge rz-badge-warning">IRONIC</span>
+                    }
+                    @if (entry.VisualEffect.HasValue)
+                    {
+                        <span class="rz-badge rz-badge-info">@entry.VisualEffect</span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(entry.SelectionRationale))
+                {
+                    <div class="cue-rationale">"@entry.SelectionRationale"</div>
+                }
+
+                <div class="cue-meta-line">
+                    <span class="cue-sound-id">Sound: @entry.SoundId.ToString()[..8]…</span>
+                    <span class="cue-placement">[@entry.PlacementType]</span>
+                </div>
+            </div>
         }
     </div>
 </div>
-
-<style>
-.script-feed {
-    height: 300px;
-    overflow-y: auto;
-    background: #000;
-    padding: 0.5rem;
-}
-.script-entry-block {
-    color: #00FF41;
-    font-family: 'Courier New', monospace;
-    font-size: 0.8rem;
-    border-left: 2px solid #00FF41;
-    padding-left: 0.5rem;
-    margin-bottom: 0.5rem;
-    animation: typeIn 0.3s steps(40, end);
-    white-space: pre-wrap;
-}
-.director-thinking {
-    color: #00FF41;
-    font-family: 'Courier New', monospace;
-    font-size: 0.8rem;
-    margin: 0;
-    animation: blink-cursor 1.1s step-end infinite;
-}
-@@keyframes blink-cursor {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-}
-@@keyframes typeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-</style>
 
 @code {
     [Parameter, EditorRequired] public EngineHubClient HubClient { get; set; } = null!;
@@ -64,20 +57,6 @@
     {
         _entries.Add(entry);
         InvokeAsync(StateHasChanged);
-    }
-
-    private static string FormatEntry(ScriptEntryDto e)
-    {
-        return $$"""
-{
-  "t": {{e.TimestampMs}}ms,
-  "sound": "{{e.SoundId}}",
-  "rationale": "{{e.SelectionRationale?.Replace("\"", "\\\"")}}", 
-  "ironic": {{e.IsIronic.ToString().ToLowerInvariant()}},
-  "effect": "{{e.VisualEffect}}",
-  "placement": "{{e.PlacementType}}"
-}
-""";
     }
 
     public void Dispose()

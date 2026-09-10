@@ -9,11 +9,30 @@
 
 <PageTitle>PoMemeVideo — Sound Library</PageTitle>
 
-<div class="sound-admin-page">
+<div class="library-viewport">
+    <div class="library-header-row">
+        <div class="library-title-group">
+            <h1 class="hero-title">Sound Library</h1>
+            <span class="hero-sub">Browse, audition, and filter the meme audio catalog</span>
+        </div>
 
-    <div class="page-hero">
-        <h1 class="hero-title">Sound Library</h1>
-        <p class="hero-sub">Browse, search, and audition the full catalog of meme sound assets</p>
+        <div class="library-toolbar">
+            <input class="ascii-input library-search-input"
+                   placeholder="Search name or keywords…"
+                   @bind="SearchQuery"
+                   @bind:event="oninput" />
+            <input class="ascii-input library-tag-input"
+                   placeholder="Filter tags (e.g. vine, boom)…"
+                   @bind="TagFilter"
+                   @bind:event="oninput" />
+            <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">[ Clear ]</button>
+            <button class="ascii-btn compact-btn @(_showDspRack ? "is-active" : "")" @onclick="() => _showDspRack = !_showDspRack">
+                @(_showDspRack ? "[ 🎛️ Hide DSP ]" : "[ 🎛️ Audio DSP ]")
+            </button>
+            <button class="ascii-btn compact-btn is-cyan" @onclick="ToggleUploadModal">
+                @(_showUploadModal ? "[ ✕ Close ]" : "[ ⬆ Upload ]")
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(_statusNotification))
@@ -23,62 +42,25 @@
         </div>
     }
 
-    <div class="library-controls-row ascii-border-double reveal-in">
-        <div class="search-bar">
-            <input class="ascii-input search-field"
-                   placeholder="Search name or keywords…"
-                   @bind="SearchQuery"
-                   @bind:event="oninput" />
-            <input class="ascii-input search-field"
-                   placeholder="Filter by tags (comma-separated)…"
-                   @bind="TagFilter"
-                   @bind:event="oninput" />
-            <button class="ascii-btn compact-btn" @onclick="LoadSounds" disabled="@_loading">Search</button>
-            <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">Clear</button>
-            <button class="ascii-btn compact-btn is-cyan" @onclick="ToggleUploadModal">
-                @(_showUploadModal ? "[ ✕ Close ]" : "[ ⬆ Upload Sound ]")
-            </button>
-        </div>
-
-        <div class="view-mode-toggle">
-            <button class="ascii-btn compact-btn @(_viewMode == ViewMode.Grid ? "active" : "")" @onclick="() => _viewMode = ViewMode.Grid">
-                [ 📋 DATA GRID ]
-            </button>
-            <button class="ascii-btn compact-btn @(_viewMode == ViewMode.Cards ? "active" : "")" @onclick="() => _viewMode = ViewMode.Cards">
-                [ 🎴 CARDS ]
-            </button>
-        </div>
-
-        @if (ActiveTags.Count > 0)
-        {
-            <div class="active-tags" aria-label="Active filters">
-                <span class="active-tags-label">Filtering by:</span>
-                @foreach (var tag in ActiveTags)
-                {
-                    <span class="ascii-tag cursor-pointer" @onclick="() => RemoveTag(tag)">
-                        #@tag ✕
-                    </span>
-                }
+    @if (_showDspRack)
+    {
+        <div class="soundboard-rack-panel ascii-border-double reveal-in vibe-glass-card">
+            <div class="soundboard-header">
+                <span class="soundboard-title">[ 🎛️ MEME DSP SOUNDBOARD RACK &amp; SPECTRUM ANALYZER ]</span>
+                <div class="soundboard-controls">
+                    <button class="ascii-btn compact-btn @(_bitcrusherOn ? "active" : "")" @onclick="ToggleBitcrusher">
+                        @(_bitcrusherOn ? "[ 👾 8-BIT CRUNCH: ON ]" : "[ 16-BIT AUDIO ]")
+                    </button>
+                    <button class="ascii-btn compact-btn @(_bassBoostOn ? "active" : "")" @onclick="ToggleBassBoost">
+                        @(_bassBoostOn ? "[ 💥 BASS BOOST: ON ]" : "[ NORMAL BASS ]")
+                    </button>
+                    <span class="soundboard-speed-label">SPEED: @(_playbackRate.ToString("F1"))x</span>
+                    <input type="range" min="0.5" max="2.0" step="0.1" @bind="_playbackRate" @bind:after="OnRateChanged" class="soundboard-slider" />
+                </div>
             </div>
-        }
-    </div>
-
-    <div class="soundboard-rack-panel ascii-border-double reveal-in vibe-glass-card">
-        <div class="soundboard-header">
-            <span class="soundboard-title">[ 🎛️ MEME DSP SOUNDBOARD RACK &amp; SPECTRUM ANALYZER ]</span>
-            <div class="soundboard-controls">
-                <button class="ascii-btn compact-btn @(_bitcrusherOn ? "active" : "")" @onclick="ToggleBitcrusher">
-                    @(_bitcrusherOn ? "[ 👾 8-BIT CRUNCH: ON ]" : "[ 16-BIT AUDIO ]")
-                </button>
-                <button class="ascii-btn compact-btn @(_bassBoostOn ? "active" : "")" @onclick="ToggleBassBoost">
-                    @(_bassBoostOn ? "[ 💥 BASS BOOST: ON ]" : "[ NORMAL BASS ]")
-                </button>
-                <span class="soundboard-speed-label">SPEED: @(_playbackRate.ToString("F1"))x</span>
-                <input type="range" min="0.5" max="2.0" step="0.1" @bind="_playbackRate" @bind:after="OnRateChanged" class="soundboard-slider" />
-            </div>
+            <canvas id="soundboard-spectrum-canvas" class="soundboard-spectrum-canvas"></canvas>
         </div>
-        <canvas id="soundboard-spectrum-canvas" class="soundboard-spectrum-canvas"></canvas>
-    </div>
+    }
 
     @if (_showUploadModal)
     {
@@ -87,16 +69,16 @@
                 <span class="upload-panel-title">[ ⬆ UPLOAD CUSTOM MEME SOUND ]</span>
                 <button class="ascii-btn compact-btn" @onclick="ToggleUploadModal">[ ✕ ]</button>
             </div>
-            <div class="upload-form">
-                <div>
+            <div class="upload-form-row">
+                <div class="upload-col">
                     <label class="input-label">AUDIO FILE (.mp3, .wav, .ogg, max 15MB)</label>
                     <InputFile OnChange="OnSoundFileSelected" accept=".mp3,.wav,.ogg,audio/*" class="ascii-input file-input-full" />
                 </div>
-                <div>
+                <div class="upload-col">
                     <label class="input-label">DISPLAY NAME</label>
                     <input class="ascii-input upload-field" placeholder="e.g. Vine Boom Ultra" @bind="_uploadName" />
                 </div>
-                <div>
+                <div class="upload-col">
                     <label class="input-label">ACTION TAGS (comma-separated)</label>
                     <input class="ascii-input upload-field" placeholder="e.g. punch, shock, bass" @bind="_uploadTags" />
                 </div>
@@ -106,11 +88,11 @@
                     </button>
                     <button class="ascii-btn compact-btn" @onclick="ToggleUploadModal">[ Cancel ]</button>
                 </div>
-                @if (!string.IsNullOrEmpty(_uploadMessage))
-                {
-                    <pre class="status upload-message">@_uploadMessage</pre>
-                }
             </div>
+            @if (!string.IsNullOrEmpty(_uploadMessage))
+            {
+                <pre class="status upload-message">@_uploadMessage</pre>
+            }
         </div>
     }
 
@@ -136,108 +118,57 @@
     }
     else
     {
-        <div class="results-meta-row">
-            <span class="count-badge">@_totalCount total sound@(_totalCount == 1 ? "" : "s")</span>
+        <div class="grid-container-viewport ascii-border-double vibe-glass-card">
+            <RadzenDataGrid Data="@_sounds"
+                            TItem="SoundAssetDto"
+                            AllowSorting="true"
+                            Class="rz-data-grid sounds-radzen-grid"
+                            EmptyText="No sounds found">
+                <Columns>
+                    <RadzenDataGridColumn TItem="SoundAssetDto" Property="DisplayName" Title="Sound Name" Width="32%">
+                        <Template Context="sound">
+                            <span class="grid-sound-name">@sound.DisplayName</span>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="SoundAssetDto" Property="DurationMs" Title="Duration" Width="14%">
+                        <Template Context="sound">
+                            <span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="SoundAssetDto" Title="Tags" Width="38%">
+                        <Template Context="sound">
+                            <div class="sound-tag-row">
+                                @foreach (var tag in sound.ActionVectorTags)
+                                {
+                                    <span class="ascii-tag cursor-pointer" @onclick="() => { TagFilter = tag; }">#@tag</span>
+                                }
+                            </div>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="SoundAssetDto" Title="Audition" Width="16%" TextAlign="TextAlign.Center">
+                        <Template Context="sound">
+                            <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
+                            <button class="ascii-btn compact-btn audition-btn @(_playingSoundId == sound.SoundId ? "active" : "")"
+                                    @onclick="() => TogglePlaySound(sound.SoundId)">
+                                @(_playingSoundId == sound.SoundId ? "[ ■ ]" : "[ ▶ ]")
+                            </button>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </div>
+
+        <div class="library-footer-row">
+            <span class="count-badge">Showing @_sounds.Length of @_totalCount sound@(_totalCount == 1 ? "" : "s")</span>
             <div class="pagination-controls">
                 <button class="ascii-btn compact-btn" @onclick="PrevPage" disabled="@(_page == 0 || _loading)">[ ◀ PREV ]</button>
                 <span class="page-indicator">Page @(_page + 1) of @TotalPages</span>
                 <button class="ascii-btn compact-btn" @onclick="NextPage" disabled="@(_page >= TotalPages - 1 || _loading)">[ NEXT ▶ ]</button>
             </div>
         </div>
-
-        @if (_viewMode == ViewMode.Grid)
-        {
-            <div class="radzen-grid-container ascii-border-double reveal-in">
-                <table class="retro-table">
-                    <thead>
-                        <tr class="retro-table-head-row">
-                            <th class="col-name">Sound Name</th>
-                            <th class="col-duration">Duration</th>
-                            <th>Tags</th>
-                            <th class="col-audition">Audition</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var sound in _sounds)
-                        {
-                            <tr class="retro-table-row">
-                                <td><span class="grid-sound-name">@sound.DisplayName</span></td>
-                                <td><span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span></td>
-                                <td>
-                                    <div class="sound-tag-row">
-                                        @foreach (var tag in sound.ActionVectorTags)
-                                        {
-                                            <span class="ascii-tag cursor-pointer" @onclick="() => { TagFilter = tag; }">#@tag</span>
-                                        }
-                                    </div>
-                                </td>
-                                <td class="col-audition">
-                                    <div class="retro-audio-player">
-                                        <audio id="grid-audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
-                                        <button class="ascii-btn compact-btn"
-                                                onclick="(function(btn){
-                                                    var audio = document.getElementById('grid-audio-@sound.SoundId');
-                                                    if (!audio.paused) { if (window.soundboardFx) window.soundboardFx.stopAll(); else { audio.pause(); audio.currentTime = 0; } btn.textContent = '[ ▶ ]'; return; }
-                                                    document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
-                                                    if (window.soundboardFx) {
-                                                        window.soundboardFx.playAudio('grid-audio-@sound.SoundId', function(){ btn.textContent = '[ ▶ ]'; });
-                                                    } else {
-                                                        audio.play();
-                                                        audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
-                                                    }
-                                                    btn.textContent = '[ ■ ]';
-                                                })(this)">[ &#9654; ]</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <div class="sound-admin-grid">
-                <Virtualize Items="_sounds" Context="sound" ItemSize="220">
-                    <div class="sound-admin-card reveal-in ascii-border-double vibe-glass-card">
-                        <p class="sound-admin-name">@sound.DisplayName</p>
-                        <div class="sound-admin-meta-grid">
-                            <span class="sound-meta-key">ID</span>
-                            <span class="sound-meta-val">@sound.SoundId.ToString()[..8]…</span>
-                            <span class="sound-meta-key">Duration</span>
-                            <span class="sound-meta-val">@((sound.DurationMs / 1000.0).ToString("F2"))s</span>
-                        </div>
-                        @if (sound.ActionVectorTags.Length > 0)
-                        {
-                            <div class="sound-tag-row">
-                                @foreach (var tag in sound.ActionVectorTags)
-                                {
-                                    <span class="ascii-tag cursor-pointer" @onclick='() => { TagFilter = tag; }'>
-                                        #@tag
-                                    </span>
-                                }
-                            </div>
-                        }
-                        <div class="retro-audio-player">
-                            <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
-                            <button class="ascii-btn"
-                                    onclick="(function(btn){
-                                        var audio = document.getElementById('audio-@sound.SoundId');
-                                        if (!audio.paused) { if (window.soundboardFx) window.soundboardFx.stopAll(); else { audio.pause(); audio.currentTime = 0; } btn.textContent = '[ ▶ ]'; return; }
-                                        document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
-                                        if (window.soundboardFx) {
-                                            window.soundboardFx.playAudio('audio-@sound.SoundId', function(){ btn.textContent = '[ ▶ ]'; });
-                                        } else {
-                                            audio.play();
-                                            audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
-                                        }
-                                        btn.textContent = '[ ■ ]';
-                                    })(this)">[ &#9654; ]</button>
-                        </div>
-                    </div>
-                </Virtualize>
-            </div>
-        }
     }
 
     @if (!string.IsNullOrEmpty(_errorMessage))
@@ -246,13 +177,9 @@
             <pre class="error-text">[ ERROR ] @_errorMessage</pre>
         </div>
     }
-
 </div>
 
 @code {
-    private enum ViewMode { Grid, Cards }
-
-    private ViewMode _viewMode = ViewMode.Grid;
     private SoundAssetDto[] _sounds = [];
     private int _totalCount;
     private int _page;
@@ -263,6 +190,10 @@
 
     private string _searchQuery = string.Empty;
     private string _tagFilter = string.Empty;
+
+    // View toggles
+    private bool _showDspRack;
+    private Guid? _playingSoundId;
 
     // Upload Modal State
     private bool _showUploadModal;
@@ -294,6 +225,28 @@
         await JS.InvokeVoidAsync("soundboardFx.setPlaybackRate", _playbackRate);
     }
 
+    private async Task TogglePlaySound(Guid soundId)
+    {
+        if (_playingSoundId == soundId)
+        {
+            _playingSoundId = null;
+            try
+            {
+                await JS.InvokeVoidAsync("soundboardFx.stopAll");
+            }
+            catch { }
+        }
+        else
+        {
+            _playingSoundId = soundId;
+            try
+            {
+                await JS.InvokeVoidAsync("soundboardFx.playAudio", $"audio-{soundId}");
+            }
+            catch { }
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -308,11 +261,7 @@
 
     private CancellationTokenSource? _debounceCts;
 
-    private int TotalPages => (int)Math.Ceiling((double)_totalCount / PageSize);
-
-    private IReadOnlyList<string> ActiveTags => string.IsNullOrWhiteSpace(_tagFilter)
-        ? []
-        : _tagFilter.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)_totalCount / PageSize));
 
     private string SearchQuery
     {
@@ -496,17 +445,12 @@
         }
     }
 
-    private void RemoveTag(string tag)
-    {
-        var updatedTags = ActiveTags
-            .Where(t => !string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
-        TagFilter = string.Join(", ", updatedTags);
-    }
-
     private void ClearFilters()
     {
         _page = 0;
-        TagFilter = string.Empty;
+        _searchQuery = string.Empty;
+        _tagFilter = string.Empty;
+        _ = LoadSounds();
     }
 
     public void Dispose()

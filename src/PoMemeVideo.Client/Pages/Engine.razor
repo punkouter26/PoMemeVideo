@@ -7,81 +7,52 @@
 
 <PageTitle>PoMemeVideo — Processing</PageTitle>
 
-<div class="engine-page">
-    <MockDataBanner />
+<div class="engine-viewport">
+    <div class="engine-top-cluster">
+        <div class="engine-hero">
+            <h1 class="engine-hero-title">Processing Your Video</h1>
+            <span class="engine-hero-session">Session: @SessionId</span>
+        </div>
 
-    <div class="engine-hero">
-        <h1 class="engine-hero-title">Processing Your Video</h1>
-        <p class="engine-hero-session">Session: @SessionId</p>
+        <div class="engine-progress-strip">
+            <div class="engine-progress-step step-done"><span class="step-dot"></span> Connected</div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step step-done"><span class="step-dot"></span> Ingested</div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step step-active"><span class="step-dot"></span> AI Directing…</div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step"><span class="step-dot"></span> Rendering</div>
+            <span class="engine-step-sep">›</span>
+            <div class="engine-progress-step"><span class="step-dot"></span> Complete</div>
+        </div>
     </div>
 
+    <!-- Neural Core Compact Telemetry Strip -->
     <div class="neural-core-stage ascii-border-double vibe-glass-card">
         <canvas id="neural-core-canvas" class="neural-core-canvas"></canvas>
     </div>
 
     @if (_hubClient is not null)
     {
-        <div class="engine-progress-strip">
-            <div class="engine-progress-step step-done">
-                <span class="step-dot"></span> Connected
-            </div>
-            <span class="engine-step-sep">›</span>
-            <div class="engine-progress-step step-done">
-                <span class="step-dot"></span> Video Ready
-            </div>
-            <span class="engine-step-sep">›</span>
-            <div class="engine-progress-step step-active">
-                <span class="step-dot"></span> AI Directing…
-            </div>
-            <span class="engine-step-sep">›</span>
-            <div class="engine-progress-step">
-                <span class="step-dot"></span> Rendering
-            </div>
-            <span class="engine-step-sep">›</span>
-            <div class="engine-progress-step">
-                <span class="step-dot"></span> Complete
-            </div>
+        <!-- Mobile Segmented Tab Switcher (visible <= 820px) -->
+        <div class="engine-tab-switch-bar">
+            <button class="ascii-btn compact-btn @(_selectedTabIndex == 0 ? "primary-action is-active" : "")"
+                    @onclick="() => _selectedTabIndex = 0">
+                [ 🎬 Director's Script ]
+            </button>
+            <button class="ascii-btn compact-btn @(_selectedTabIndex == 1 ? "primary-action is-active" : "")"
+                    @onclick="() => _selectedTabIndex = 1">
+                [ 📜 Processing Log ]
+            </button>
         </div>
 
-        <!-- Mobile Viewport Optimized Tabs (prevents overflow & vertical scroll on small screens) -->
-        <div class="engine-mobile-tabs">
-            <div class="tab-button-group">
-                <button class="ascii-btn compact-btn @(_selectedTabIndex == 0 ? "primary-action" : "")" @onclick="() => _selectedTabIndex = 0">[ 🎬 Director's Script ]</button>
-                <button class="ascii-btn compact-btn @(_selectedTabIndex == 1 ? "primary-action" : "")" @onclick="() => _selectedTabIndex = 1">[ 📜 Processing Log ]</button>
-            </div>
-            @if (_selectedTabIndex == 0)
-            {
-                <div class="script-panel ascii-border-double engine-script-panel">
-                    <div class="engine-panel-title">
-                        <span>AI Director's Script</span>
-                        <span class="panel-subtitle">sounds added and why — live</span>
-                    </div>
-                    <DirectorScriptFeed HubClient="_hubClient" />
-                </div>
-            }
-            else
-            {
-                <div class="log-panel ascii-border-double engine-log-panel">
-                    <div class="engine-panel-title">Processing Log</div>
-                    <DirectorLogFeed HubClient="_hubClient" />
-                </div>
-            }
-        </div>
-
-        <!-- Desktop Dual-Column Split Grid -->
-        <div class="engine-desktop-grid engine-grid">
-            <!-- Left: AI Director's Script — primary panel -->
-            <div class="script-panel ascii-border-double engine-script-panel">
-                <div class="engine-panel-title">
-                    <span>AI Director's Script</span>
-                    <span class="panel-subtitle">sounds added and why — live</span>
-                </div>
+        <!-- Unified Dual Console (Single instantiation of each feed component) -->
+        <div class="engine-consoles-container">
+            <div class="console-panel script-console ascii-border-double vibe-glass-card @(_selectedTabIndex == 0 ? "is-visible-mobile" : "is-hidden-mobile")">
                 <DirectorScriptFeed HubClient="_hubClient" />
             </div>
 
-            <!-- Right: Processing Log -->
-            <div class="log-panel ascii-border-double engine-log-panel">
-                <div class="engine-panel-title">Processing Log</div>
+            <div class="console-panel log-console ascii-border-double vibe-glass-card @(_selectedTabIndex == 1 ? "is-visible-mobile" : "is-hidden-mobile")">
                 <DirectorLogFeed HubClient="_hubClient" />
             </div>
         </div>
@@ -151,8 +122,6 @@
 
         await _hubClient.JoinSessionAsync(SessionId);
 
-        // Kick off the engine pipeline. The server generates the Director's Script
-        // and renders the video; progress streams back over SignalR.
         _ = Task.Run(async () =>
         {
             try
@@ -162,11 +131,8 @@
                     null);
 
                 if (response.IsSuccessStatusCode)
-                    return; // 202 Accepted — processing started; await hub events.
+                    return; // 202 Accepted
 
-                // 409 Conflict means the session is already queued/running, or has
-                // already moved past Ingesting (e.g. revisiting a finished session).
-                // If a script already exists, the render is done — jump to the reveal.
                 if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
                 {
                     var scriptResponse = await Http.GetAsync(
@@ -176,7 +142,6 @@
                         await InvokeAsync(() => Nav.NavigateTo($"/reveal/{SessionId}"));
                         return;
                     }
-                    // Otherwise it's still running — the hub will deliver completion.
                     return;
                 }
 
@@ -203,24 +168,17 @@
         InvokeAsync(StateHasChanged);
     }
 
-    // ── Browser LLM round-trip ─────────────────────────────────────────────
-    // The server pauses the Director step and asks this client to run inference
-    // locally via Transformers.js, then POST the result back.
     private void OnBrowserLLMInferenceRequest(string payloadJson)
     {
         _ = Task.Run(async () =>
         {
             try
             {
-                // Run Transformers.js in browser — may take 5–30 s on first run
-                // while the ONNX model is being downloaded and cached.
                 var entriesJson = await JS.InvokeAsync<string>("browserLLM.generate", payloadJson);
 
-                // Parse sessionId from the payload so we know which endpoint to hit
                 using var doc = System.Text.Json.JsonDocument.Parse(payloadJson);
                 var sid = doc.RootElement.GetProperty("sessionId").GetGuid();
 
-                // POST the raw JSON array back; the server deserialises and resolves the TCS
                 using var content = new StringContent(
                     $"{{\"entries\":{entriesJson}}}",
                     System.Text.Encoding.UTF8,

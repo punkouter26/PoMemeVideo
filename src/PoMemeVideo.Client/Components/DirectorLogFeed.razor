@@ -1,31 +1,18 @@
 @implements IDisposable
 
-<div class="ascii-panel">
-    <pre class="panel-header">╔═══════════════════════════════════╗
-║  DIRECTOR'S LOG  ▓               ║
-╚═══════════════════════════════════╝</pre>
-    <pre class="director-log-feed" @ref="_feedRef">@foreach (var line in _lines)
-{<span class="log-line">@line
-</span>}</pre>
+<div class="director-log-container">
+    <div class="panel-header log-panel-header">[ 📜 DIRECTOR'S LOG STREAM ]</div>
+    <div class="director-log-feed" @ref="_feedRef">
+        @if (_lines.Count == 0)
+        {
+            <div class="log-waiting">[ AWAITING PROCESSING TELEMETRY… ]</div>
+        }
+        @foreach (var line in _lines)
+        {
+            <div class="log-line">@line</div>
+        }
+    </div>
 </div>
-
-<style>
-.director-log-feed {
-    height: 300px;
-    overflow-y: auto;
-    background: #000;
-    color: #00FF41;
-    font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
-    padding: 0.5rem;
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-.log-line {
-    display: block;
-}
-</style>
 
 @code {
     [Parameter, EditorRequired] public EngineHubClient HubClient { get; set; } = null!;

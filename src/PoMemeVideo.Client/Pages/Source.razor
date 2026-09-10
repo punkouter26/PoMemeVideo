@@ -14,233 +14,246 @@
 
 <PageTitle>PoMemeVideo — Create</PageTitle>
 
-<div class="source-page">
-
-    <div class="page-hero">
-        <h1 class="hero-title">Create a Meme Video</h1>
-        <p class="hero-sub">Upload a video · Choose AI mode · We do the rest</p>
-    </div>
-
-    <div class="step-track" aria-label="Source flow">
-        <div class="step-pill @GetStepClass(1)"><span class="step-num">1</span>&nbsp;Upload</div>
-        <div class="step-connector"></div>
-        <div class="step-pill @GetStepClass(2)"><span class="step-num">2</span>&nbsp;Analyze</div>
-        <div class="step-connector"></div>
-        <div class="step-pill @GetStepClass(3)"><span class="step-num">3</span>&nbsp;Render</div>
-    </div>
-
-    <div class="ai-mode-card ascii-border-double reveal-in vibe-glass-card vibe-3d-stage">
-        <div class="ai-mode-header">
-            <span class="ai-mode-label">AI Model</span>
-            <span class="ai-mode-active">ACTIVE: @_displayActiveModel</span>
+<div class="source-viewport">
+    <div class="source-topbar">
+        <div class="source-title-group">
+            <h1 class="hero-title">Create a Meme Video</h1>
+            <span class="hero-sub">Upload a video · Choose AI mode · We do the rest</span>
         </div>
 
-        <div class="ai-model-row">
-            <select class="ai-model-dropdown-select" @bind="_pendingModelSelection" @bind:after="OnModelSelectionChanged" aria-label="AI model selector">
-                @if (_foundryDeployments.Count > 0)
-                {
-                    <optgroup label="☁ Remote · AI Foundry">
-                        @foreach (var dep in _foundryDeployments)
-                        {
-                            <option value="@($"remote:{dep}")">@dep</option>
-                        }
-                    </optgroup>
-                }
-                @if (_localModels.Count > 0)
-                {
-                    <optgroup label="⚡ Browser · WebGPU">
-                        @foreach (var model in _localModels)
-                        {
-                            <option value="@($"browser:{model.Id}")">
-                                @model.Label @GetModelBadge(model.Id)
-                            </option>
-                        }
-                    </optgroup>
-                }
-            </select>
-            @if (_modelDirty)
+        <div class="step-track" aria-label="Source flow">
+            <div class="step-pill @GetStepClass(1)"><span class="step-num">1</span>&nbsp;Upload</div>
+            <div class="step-connector"></div>
+            <div class="step-pill @GetStepClass(2)"><span class="step-num">2</span>&nbsp;Analyze</div>
+            <div class="step-connector"></div>
+            <div class="step-pill @GetStepClass(3)"><span class="step-num">3</span>&nbsp;Render</div>
+        </div>
+    </div>
+
+    <div class="source-workspace-grid">
+        <!-- Column 1: Video Ingestion / Visual Inspection -->
+        <div class="source-pane source-pane-media">
+            @if (!_uploaded)
             {
-                <button class="ascii-btn apply-model-btn" @onclick="ApplyModelAsync" disabled="@_modelApplying">
-                    @(_modelApplying ? "[ Applying… ]" : "[ Apply ]")
-                </button>
-            }
-        </div>
-
-        @if (_isDownloadingModel)
-        {
-            <div class="browser-model-download-box ascii-border-single">
-                <div class="download-info-row">
-                    <span class="cyber-accent">⚡ DOWNLOADING TO BROWSER:</span>
-                    <span class="cyber-highlight">@_downloadingModelLabel</span>
-                    <span class="cyber-pct">@_downloadProgressPercent%</span>
+                <div class="dropzone-host ascii-border-double vibe-glass-card">
+                    <AsciiDropZone OnFileAccepted="OnFileAccepted" />
                 </div>
-                <div class="download-detail-row">
-                    <span>@_downloadStatusText</span>
-                    @if (_downloadTotalBytes > 0)
-                    {
-                        <span> · @((_downloadLoadedBytes / 1024.0 / 1024.0).ToString("0.0")) MB / @((_downloadTotalBytes / 1024.0 / 1024.0).ToString("0.0")) MB</span>
-                    }
-                </div>
-                <div class="retro-progress-bar"><div class="retro-progress-fill" style="--upload-progress: @(_downloadProgressPercent)%"></div></div>
-            </div>
-        }
-        else if (_pendingProvider == "BrowserLLM" && IsModelCached(_pendingBrowserModelId))
-        {
-            <div class="model-cached-banner">
-                <span><span class="cyber-accent">✓ BROWSER CACHED</span> · WebGPU ready for offline inference</span>
-                <button class="ascii-btn clear-cache-btn" @onclick="() => ClearBrowserCacheAsync(_pendingBrowserModelId)" title="Purge cached model weights from browser storage">[ Purge Cache ]</button>
-            </div>
-        }
-        else if (_pendingProvider == "BrowserLLM" && !_isDownloadingModel && !IsModelCached(_pendingBrowserModelId))
-        {
-            <div class="model-uncached-banner">
-                <span class="cyber-warn">⚡ NOT CACHED IN BROWSER</span>
-                <button class="ascii-btn download-model-btn" @onclick="() => TriggerModelDownloadAsync(_pendingBrowserModelId)">[ ⬇ Download to Browser Cache ]</button>
-            </div>
-        }
 
-        <span class="ai-model-dropdown-hint">@_dropdownHint</span>
-        @if (!string.IsNullOrWhiteSpace(_modelMessage))
-        {
-            <pre class="clear-status">@_modelMessage</pre>
-        }
-    </div>
-
-    <div class="dropzone-host @(_uploaded ? "is-uploaded" : null) vibe-glass-card vibe-3d-stage">
-        <AsciiDropZone OnFileAccepted="OnFileAccepted" />
-    </div>
-
-    @* Hidden video element used for keyframe extraction — not visible to the user *@
-    <video @ref="_videoRef"
-           class="keyframe-source"
-           preload="metadata"
-           muted
-           playsinline>
-    </video>
-
-    @if (_selectedFile is not null && !_uploaded)
-    {
-        <div class="upload-status ascii-border-double vibe-glass-card">
-            <pre>
+                @if (_selectedFile is not null)
+                {
+                    <div class="upload-status ascii-border-double vibe-glass-card">
+                        <pre class="upload-status-meta">
  FILE    : @_selectedFile.Name
  SIZE    : @(_selectedFile.Size / 1024 / 1024) MB
  STATUS  : @_statusMessage</pre>
-
-            <div class="retro-progress-bar upload-progress-bar"><div class="retro-progress-fill" style="--upload-progress: @(_uploadProgress)%"></div></div>
-        </div>
-    }
-
-    @if (_keyframeStripVisible)
-    {
-        <DitheredKeyframeStrip @ref="_keyframeStrip" VideoElement="_videoRef" />
-
-        @if (_visionLabels.Count > 0)
-        {
-            <div class="vision-labels ascii-border-double">
-                <pre class="vision-header">╔══════════════════════════════════════╗
-║  AI VISION — SCENE ANALYSIS         ║
-╚══════════════════════════════════════╝</pre>
-                @foreach (var label in _visionLabels)
-                {
-                    <pre class="vision-entry"> t=@(label.TimestampSeconds.ToString("F1"))s │ @label.Label.ToUpperInvariant()</pre>
-                }
-            </div>
-        }
-        else if (_visionAnalysed)
-        {
-            <pre class="vision-fallback"> @_visionFallbackMessage</pre>
-        }
-
-        <div class="session-tuning-card ascii-border-double vibe-glass-card">
-            <div class="tuning-header">
-                🎬 DIRECTING CONFIG & FRAMING
-            </div>
-
-            <div class="tuning-grid">
-                <!-- Aspect Ratio -->
-                <div class="tuning-group">
-                    <label class="tuning-label">ASPECT RATIO</label>
-                    <div class="aspect-ratio-buttons">
-                        <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "original" ? "is-active" : "")"
-                                @onclick='() => SetAspectRatio("original")'>
-                            16:9 Landscape
-                        </button>
-                        <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "9:16" ? "is-active" : "")"
-                                @onclick='() => SetAspectRatio("9:16")'>
-                            9:16 Vertical
-                        </button>
-                        <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "1:1" ? "is-active" : "")"
-                                @onclick='() => SetAspectRatio("1:1")'>
-                            1:1 Square
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Meme Persona -->
-                <div class="tuning-group">
-                    <label class="tuning-label">DIRECTOR PERSONA</label>
-                    <select class="ai-model-dropdown-select persona-select" @bind="_memePersona" @bind:after="OnPersonaChanged">
-                        <option value="Standard">Standard Modern Meme</option>
-                        <option value="Brainrot">Gen-Z Brainrot (Chaos / Vine Boom)</option>
-                        <option value="MLG">2016 MLG Parody (Airhorn / Hitmarkers)</option>
-                        <option value="Sitcom">90s TV Sitcom (Punchline & Laughs)</option>
-                        <option value="Drama">Cinematic Drama Thriller</option>
-                        <option value="Anime">Anime Melodrama</option>
-                    </select>
-                </div>
-
-                <!-- Video Trimmer -->
-                @if (_videoDurationSeconds > 3)
-                {
-                    <div class="tuning-group tuning-group-wide">
-                        <label class="tuning-label">
-                            TRIM TIMELINE: @(_trimStart.ToString("F1"))s - @(_trimEnd.ToString("F1"))s (@((_trimEnd - _trimStart).ToString("F1"))s selected)
-                        </label>
-                        <div class="trim-row">
-                            <span class="trim-label">Start:</span>
-                            <input type="range" min="0" max="@(_videoDurationSeconds - 1)" step="0.5"
-                                   @bind="_trimStart" @bind:after="OnTrimChanged" class="trim-slider" />
-                            <span class="trim-label">End:</span>
-                            <input type="range" min="@(_trimStart + 1)" max="@_videoDurationSeconds" step="0.5"
-                                   @bind="_trimEnd" @bind:after="OnTrimChanged" class="trim-slider" />
+                        <div class="retro-progress-bar upload-progress-bar">
+                            <div class="retro-progress-fill" style="--upload-progress: @(_uploadProgress)%"></div>
                         </div>
                     </div>
                 }
+            }
+            else
+            {
+                <div class="visual-analysis-card ascii-border-double vibe-glass-card">
+                    <div class="visual-card-header">[ 👁️ SCENE &amp; KEYFRAME TELEMETRY ]</div>
+                    @if (_keyframeStripVisible)
+                    {
+                        <DitheredKeyframeStrip @ref="_keyframeStrip" VideoElement="_videoRef" />
+
+                        @if (_visionLabels.Count > 0)
+                        {
+                            <div class="vision-labels-scroll">
+                                @foreach (var label in _visionLabels)
+                                {
+                                    <div class="vision-entry-chip">
+                                        <span class="vision-time">t=@(label.TimestampSeconds.ToString("F1"))s</span>
+                                        <span class="vision-tag">@label.Label.ToUpperInvariant()</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else if (_visionAnalysed)
+                        {
+                            <pre class="vision-fallback">@_visionFallbackMessage</pre>
+                        }
+                    }
+                </div>
+            }
+
+            @* Offscreen decoder surface for keyframe extraction *@
+            <video @ref="_videoRef" class="keyframe-source" preload="metadata" muted playsinline></video>
+        </div>
+
+        <!-- Column 2: AI Config & Directing Controls -->
+        <div class="source-pane source-pane-config">
+            <div class="ai-mode-card ascii-border-double vibe-glass-card">
+                <div class="ai-mode-header">
+                    <span class="ai-mode-label">AI DIRECTOR MODEL</span>
+                    <span class="ai-mode-active">ACTIVE: @_displayActiveModel</span>
+                </div>
+
+                <div class="ai-model-row">
+                    <select class="ai-model-dropdown-select" @bind="_pendingModelSelection" @bind:after="OnModelSelectionChanged" aria-label="AI model selector">
+                        @if (_foundryDeployments.Count > 0)
+                        {
+                            <optgroup label="☁ Remote · AI Foundry">
+                                @foreach (var dep in _foundryDeployments)
+                                {
+                                    <option value="@($"remote:{dep}")">@dep</option>
+                                }
+                            </optgroup>
+                        }
+                        @if (_localModels.Count > 0)
+                        {
+                            <optgroup label="⚡ Browser · WebGPU">
+                                @foreach (var model in _localModels)
+                                {
+                                    <option value="@($"browser:{model.Id}")">
+                                        @model.Label @GetModelBadge(model.Id)
+                                    </option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                    @if (_modelDirty)
+                    {
+                        <button class="ascii-btn apply-model-btn" @onclick="ApplyModelAsync" disabled="@_modelApplying">
+                            @(_modelApplying ? "[ Applying… ]" : "[ Apply ]")
+                        </button>
+                    }
+                </div>
+
+                @if (_isDownloadingModel)
+                {
+                    <div class="browser-model-download-box ascii-border-single">
+                        <div class="download-info-row">
+                            <span class="cyber-accent">⚡ DOWNLOADING TO BROWSER:</span>
+                            <span class="cyber-highlight">@_downloadingModelLabel</span>
+                            <span class="cyber-pct">@_downloadProgressPercent%</span>
+                        </div>
+                        <div class="download-detail-row">
+                            <span>@_downloadStatusText</span>
+                            @if (_downloadTotalBytes > 0)
+                            {
+                                <span> · @((_downloadLoadedBytes / 1024.0 / 1024.0).ToString("0.0")) MB / @((_downloadTotalBytes / 1024.0 / 1024.0).ToString("0.0")) MB</span>
+                            }
+                        </div>
+                        <div class="retro-progress-bar"><div class="retro-progress-fill" style="--upload-progress: @(_downloadProgressPercent)%"></div></div>
+                    </div>
+                }
+                else if (_pendingProvider == "BrowserLLM" && IsModelCached(_pendingBrowserModelId))
+                {
+                    <div class="model-cached-banner">
+                        <span><span class="cyber-accent">✓ BROWSER CACHED</span> · WebGPU ready</span>
+                        <button class="ascii-btn compact-btn clear-cache-btn" @onclick="() => ClearBrowserCacheAsync(_pendingBrowserModelId)" title="Purge cached model weights">[ Purge Cache ]</button>
+                    </div>
+                }
+                else if (_pendingProvider == "BrowserLLM" && !_isDownloadingModel && !IsModelCached(_pendingBrowserModelId))
+                {
+                    <div class="model-uncached-banner">
+                        <span class="cyber-warn">⚡ NOT CACHED IN BROWSER</span>
+                        <button class="ascii-btn compact-btn download-model-btn" @onclick="() => TriggerModelDownloadAsync(_pendingBrowserModelId)">[ ⬇ Download ]</button>
+                    </div>
+                }
+
+                <span class="ai-model-dropdown-hint">@_dropdownHint</span>
+                @if (!string.IsNullOrWhiteSpace(_modelMessage))
+                {
+                    <pre class="clear-status">@_modelMessage</pre>
+                }
             </div>
+
+            @if (_uploaded)
+            {
+                <div class="session-tuning-card ascii-border-double vibe-glass-card">
+                    <div class="tuning-header">🎬 DIRECTING CONFIG &amp; FRAMING</div>
+
+                    <div class="tuning-grid">
+                        <div class="tuning-group">
+                            <label class="tuning-label">ASPECT RATIO</label>
+                            <div class="aspect-ratio-buttons">
+                                <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "original" ? "is-active" : "")"
+                                        @onclick='() => SetAspectRatio("original")'>
+                                    16:9
+                                </button>
+                                <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "9:16" ? "is-active" : "")"
+                                        @onclick='() => SetAspectRatio("9:16")'>
+                                    9:16
+                                </button>
+                                <button type="button" class="ascii-btn aspect-btn @(_aspectRatio == "1:1" ? "is-active" : "")"
+                                        @onclick='() => SetAspectRatio("1:1")'>
+                                    1:1
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="tuning-group">
+                            <label class="tuning-label">DIRECTOR PERSONA</label>
+                            <select class="ai-model-dropdown-select persona-select" @bind="_memePersona" @bind:after="OnPersonaChanged">
+                                <option value="Standard">Standard Modern Meme</option>
+                                <option value="Brainrot">Gen-Z Brainrot (Chaos / Vine Boom)</option>
+                                <option value="MLG">2016 MLG Parody (Airhorn / Hitmarkers)</option>
+                                <option value="Sitcom">90s TV Sitcom (Punchline &amp; Laughs)</option>
+                                <option value="Drama">Cinematic Drama Thriller</option>
+                                <option value="Anime">Anime Melodrama</option>
+                            </select>
+                        </div>
+
+                        @if (_videoDurationSeconds > 3)
+                        {
+                            <div class="tuning-group tuning-group-wide">
+                                <label class="tuning-label">
+                                    TRIM TIMELINE: @(_trimStart.ToString("F1"))s - @(_trimEnd.ToString("F1"))s (@((_trimEnd - _trimStart).ToString("F1"))s selected)
+                                </label>
+                                <div class="trim-row">
+                                    <span class="trim-label">Start:</span>
+                                    <input type="range" min="0" max="@(_videoDurationSeconds - 1)" step="0.5"
+                                           @bind="_trimStart" @bind:after="OnTrimChanged" class="trim-slider" />
+                                    <span class="trim-label">End:</span>
+                                    <input type="range" min="@(_trimStart + 1)" max="@_videoDurationSeconds" step="0.5"
+                                           @bind="_trimEnd" @bind:after="OnTrimChanged" class="trim-slider" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="controls-card ascii-border-double vibe-glass-card">
+                    <label class="ascii-toggle">
+                        <input type="checkbox" @bind="_aggressiveVisuals" />
+                        [ AGGRESSIVE VISUALS : @(_aggressiveVisuals ? "ON " : "OFF") ]
+                    </label>
+
+                    <button class="ascii-btn primary-action source-create-btn"
+                            @onclick="OnInitiate"
+                            disabled="@(_initiating || _visionInProgress)">
+                        @if (_visionInProgress)
+                        {
+                            <span>[ Analysing… please wait ]</span>
+                        }
+                        else
+                        {
+                            <span>@(_initiating ? "[ Starting… ]" : "[ Create Meme Video ]")</span>
+                        }
+                    </button>
+
+                    <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
+                </div>
+            }
         </div>
-
-        <div class="controls">
-            <label class="ascii-toggle">
-                <input type="checkbox" @bind="_aggressiveVisuals" />
-                [ AGGRESSIVE VISUALS : @(_aggressiveVisuals ? "ON " : "OFF") ]
-            </label>
-
-            <button class="ascii-btn primary-action"
-                    @onclick="OnInitiate"
-                    disabled="@(_initiating || _visionInProgress)">
-                @if (_visionInProgress)
-                {
-                    <span>[ Analysing… please wait ]</span>
-                }
-                else
-                {
-                    <span>@(_initiating ? "[ Starting… ]" : "[ Create Meme Video ]")</span>
-                }
-            </button>
-
-            <button class="ascii-btn compact-btn" @onclick='() => Nav.NavigateTo("/results")'>[ View History ]</button>
-        </div>
-    }
+    </div>
 
     @if (_soundLibraryEmpty)
     {
-        <pre class="page-error">⚠ SOUND LIBRARY IS EMPTY — run: dotnet run -- seed-sounds  (or: python SCRIPTS/seed-meme-sounds.py)
-  Videos will be created without meme sounds until the library is seeded.</pre>
+        <div class="source-bottom-alert">
+            <pre class="page-error">⚠ SOUND LIBRARY IS EMPTY — Seed via: dotnet run -- seed-sounds</pre>
+        </div>
     }
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
-        <pre class="page-error">⚠ @_errorMessage</pre>
+        <div class="source-bottom-alert">
+            <pre class="page-error">⚠ @_errorMessage</pre>
+        </div>
     }
-
 </div>

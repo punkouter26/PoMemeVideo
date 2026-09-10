@@ -12,6 +12,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.7" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.7" />
+    <PackageVersion Include="Radzen.Blazor" Version="11.3.2" />
   </ItemGroup>
   <!-- OpenAPI / Scalar -->
   <ItemGroup>
@@ -45,10 +46,10 @@
   <!-- Caching / Options -->
   <ItemGroup>
     <!-- Floor set by Microsoft.Extensions.Caching.Hybrid 10.8.0, which requires >= 10.0.10. -->
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.8.0" />
-    <!-- Floor set by Microsoft.Extensions.Caching.Hybrid 10.8.0, which requires >= 10.0.10. -->
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
+    <!-- Floor set by Microsoft.Extensions.Caching.Hybrid 10.8.0 and Radzen.Blazor, which requires >= 10.0.11. -->
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
   </ItemGroup>
   <!-- Authentication -->
   <ItemGroup>
