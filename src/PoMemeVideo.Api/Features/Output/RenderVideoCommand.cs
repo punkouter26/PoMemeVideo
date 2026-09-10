@@ -93,7 +93,12 @@ public class RenderVideoCommand : IRenderVideoCommand
                                 EffectIntensity: entry.EffectIntensity,
                                 OverlayAssetId: entry.OverlayAssetId,
                                 CaptionText: entry.CaptionText,
-                                CaptionPosition: entry.CaptionPosition);
+                                CaptionPosition: entry.CaptionPosition,
+                                HotspotX: entry.HotspotX,
+                                HotspotY: entry.HotspotY,
+                                OverlayX: entry.OverlayX,
+                                OverlayY: entry.OverlayY,
+                                OverlayScale: entry.OverlayScale);
                         })
                         .ToList();
                 }

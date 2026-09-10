@@ -252,3 +252,32 @@
     display: flex;
     gap: 0.5rem;
 }
+
+.cue-coord-input {
+    width: 4.5rem;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.75rem;
+    margin: 0 0.25rem;
+}
+
+.cue-param-label {
+    font-family: var(--rt-font-mono, monospace);
+    font-size: 0.75rem;
+    color: var(--rt-text-dim, #888);
+    margin-left: 0.4rem;
+}
+
+.cue-hint {
+    font-size: 0.75rem;
+    color: var(--rt-accent-cyan, #00ffdc);
+    margin-left: 0.5rem;
+}
+
+.sticker-thumb-preview {
+    max-height: 24px;
+    max-width: 60px;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+    border: 1px solid var(--rt-border, #00ff41);
+    background: #000;
+}

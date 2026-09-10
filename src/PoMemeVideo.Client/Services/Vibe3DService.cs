@@ -41,6 +41,18 @@ public class Vibe3DService
         }
     }
 
+    public async ValueTask SetPersonaPaletteAsync(string persona)
+    {
+        try
+        {
+            await _js.InvokeVoidAsync("Vibe3D.setPersonaPalette", persona);
+        }
+        catch
+        {
+            // Non-critical
+        }
+    }
+
     public async ValueTask TriggerCelebrationBurstAsync(double? x = null, double? y = null)
     {
         try

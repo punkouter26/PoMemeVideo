@@ -186,10 +186,22 @@
 
         const lerpFactor = 0.04;
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const audioData = new Uint8Array(32);
 
         function frame(now) {
             if (!Vibe3D.auroraGl) return;
-            const elapsed = (now - Vibe3D.auroraStartTime) * (prefersReducedMotion ? 0.0002 : 0.001);
+
+            // Audio-reactive boost from cyberAudio analyser
+            let audioBoost = 0;
+            if (window.cyberAudio && window.cyberAudio.analyser) {
+                window.cyberAudio.analyser.getByteFrequencyData(audioData);
+                let sum = 0;
+                for (let i = 0; i < 16; i++) sum += audioData[i];
+                audioBoost = (sum / 16) / 255.0; // 0.0 to 1.0
+            }
+
+            const speedMultiplier = 1.0 + audioBoost * 2.5;
+            const elapsed = (now - Vibe3D.auroraStartTime) * (prefersReducedMotion ? 0.0002 : 0.001) * speedMultiplier;
 
             for (let i = 0; i < 3; i++) {
                 Vibe3D.auroraCurrentColors.color1[i] += (Vibe3D.auroraTargetColors.color1[i] - Vibe3D.auroraCurrentColors.color1[i]) * lerpFactor;
@@ -205,11 +217,52 @@
             gl.uniform3fv(uC2, Vibe3D.auroraCurrentColors.color2);
             gl.uniform3fv(uC3, Vibe3D.auroraCurrentColors.color3);
             gl.uniform3fv(uC4, Vibe3D.auroraCurrentColors.color4);
-            gl.uniform1f(uI, prefersReducedMotion ? 0.55 : 1.0);
+            const baseIntensity = prefersReducedMotion ? 0.55 : 1.0;
+            gl.uniform1f(uI, baseIntensity + audioBoost * 0.5);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);
+    };
+
+    Vibe3D.setPersonaPalette = function (persona) {
+        if (persona === 'Brainrot') {
+            Vibe3D.auroraTargetColors = {
+                color1: [0.15, 0.00, 0.25],
+                color2: [0.75, 0.00, 1.00],
+                color3: [0.20, 1.00, 0.10],
+                color4: [1.00, 0.00, 0.80]
+            };
+        } else if (persona === 'MLG') {
+            Vibe3D.auroraTargetColors = {
+                color1: [0.05, 0.00, 0.15],
+                color2: [0.00, 0.90, 1.00],
+                color3: [1.00, 0.00, 0.50],
+                color4: [1.00, 0.90, 0.00]
+            };
+        } else if (persona === 'Sitcom') {
+            Vibe3D.auroraTargetColors = {
+                color1: [0.12, 0.04, 0.00],
+                color2: [1.00, 0.55, 0.00],
+                color3: [0.85, 0.20, 0.00],
+                color4: [1.00, 0.80, 0.20]
+            };
+        } else if (persona === 'Drama' || persona === 'Anime') {
+            Vibe3D.auroraTargetColors = {
+                color1: [0.15, 0.00, 0.05],
+                color2: [1.00, 0.00, 0.20],
+                color3: [0.45, 0.00, 0.85],
+                color4: [0.90, 0.10, 0.40]
+            };
+        } else {
+            // Standard Modern Meme
+            Vibe3D.auroraTargetColors = {
+                color1: [0.02, 0.08, 0.04],
+                color2: [0.00, 0.95, 0.40],
+                color3: [0.00, 0.45, 0.55],
+                color4: [0.00, 0.90, 0.70]
+            };
+        }
     };
 
     Vibe3D.setAuroraState = function (state) {
@@ -382,6 +435,14 @@
        3. CELEBRATION BURST — used by Reveal.razor when render completes.
        ========================================================================= */
 
+    const celebrationStickers = [];
+    const stickerNames = ['deal-with-it', 'laser-eyes', 'thug-life', 'clown-wig', 'explosion'];
+    stickerNames.forEach(name => {
+        const img = new Image();
+        img.src = `/overlays/${name}.png`;
+        img.onload = () => celebrationStickers.push(img);
+    });
+
     Vibe3D.triggerCelebrationBurst = function (x, y) {
         const canvas = Vibe3D.fx.canvas;
         if (!canvas) {
@@ -408,30 +469,55 @@
         const originX = x !== undefined ? x : window.innerWidth * 0.5;
         const originY = y !== undefined ? y : window.innerHeight * 0.4;
 
+        // Chromatic shockwaves (Cyan, Magenta, Yellow)
         Vibe3D.fx.shockwaves.push({
-            x: originX, y: originY, radius: 10, speed: 600, thickness: 8,
-            alpha: 1.0, decay: 1.4, r: 0, g: 255, b: 220
+            x: originX, y: originY, radius: 10, speed: 650, thickness: 10,
+            alpha: 1.0, decay: 1.2, r: 0, g: 255, b: 220
         });
         Vibe3D.fx.shockwaves.push({
-            x: originX, y: originY, radius: 5, speed: 400, thickness: 12,
-            alpha: 0.8, decay: 1.0, r: 255, g: 0, b: 180
+            x: originX, y: originY, radius: 5, speed: 500, thickness: 14,
+            alpha: 0.9, decay: 0.9, r: 255, g: 0, b: 180
+        });
+        Vibe3D.fx.shockwaves.push({
+            x: originX, y: originY, radius: 0, speed: 380, thickness: 8,
+            alpha: 0.8, decay: 0.8, r: 255, g: 230, b: 0
         });
 
-        const colors = ['#00ffdc', '#ff007f', '#ffe600', '#00e5ff', '#ffffff', '#bf00ff', '#ff3d00'];
-        for (let i = 0; i < 120; i++) {
+        // Trigger Audio: 808 Sub-Bass Drop + Cyber Fanfare
+        if (window.cyberAudio) {
+            window.cyberAudio.playSubBassDrop();
+            setTimeout(() => {
+                if (window.cyberAudio) window.cyberAudio.playFanfare();
+            }, 120);
+        }
+
+        // Camera Shake Impulse
+        const targetHost = document.querySelector('.reveal-page') || document.body;
+        targetHost.classList.remove('camera-shake-impulse');
+        void targetHost.offsetWidth; // trigger reflow
+        targetHost.classList.add('camera-shake-impulse');
+        setTimeout(() => targetHost.classList.remove('camera-shake-impulse'), 650);
+
+        const colors = ['#00ffdc', '#ff007f', '#ffe600', '#00e5ff', '#ffffff', '#bf00ff', '#ff3d00', '#00ff41'];
+        for (let i = 0; i < 150; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 250 + Math.random() * 650;
+            const speed = 280 + Math.random() * 700;
+            const isSticker = celebrationStickers.length > 0 && Math.random() < 0.28;
+
             Vibe3D.fx.particles.push({
                 x: originX, y: originY,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 200,
-                size: 8 + Math.random() * 8,
+                vy: Math.sin(angle) * speed - 260,
+                size: isSticker ? (24 + Math.random() * 20) : (8 + Math.random() * 9),
                 color: colors[Math.floor(Math.random() * colors.length)],
                 rotX: Math.random() * Math.PI,
                 rotY: Math.random() * Math.PI,
                 rotSpeedX: (Math.random() - 0.5) * 12,
                 rotSpeedY: (Math.random() - 0.5) * 14,
-                life: 3.5 + Math.random() * 1.5
+                life: 4.0 + Math.random() * 2.0,
+                bounces: 0,
+                isSticker: isSticker,
+                stickerImg: isSticker ? celebrationStickers[Math.floor(Math.random() * celebrationStickers.length)] : null
             });
         }
     };
@@ -460,25 +546,45 @@
                     ctx.stroke();
                 }
 
+                const floorY = window.innerHeight - 20;
                 for (let i = Vibe3D.fx.particles.length - 1; i >= 0; i--) {
                     const p = Vibe3D.fx.particles[i];
-                    p.vy += 800 * dt;
-                    p.vx *= 0.99;
+                    p.vy += 850 * dt; // Gravity
+                    p.vx *= 0.985;   // Air resistance
                     p.x += p.vx * dt;
                     p.y += p.vy * dt;
                     p.rotX += p.rotSpeedX * dt;
                     p.rotY += p.rotSpeedY * dt;
                     p.life -= dt;
-                    if (p.life <= 0 || p.y > window.innerHeight + 50) { Vibe3D.fx.particles.splice(i, 1); continue; }
+
+                    // Floor bounce collision physics
+                    if (p.y > floorY && p.bounces < 3) {
+                        p.y = floorY;
+                        p.vy = -p.vy * 0.55;
+                        p.vx *= 0.75;
+                        p.bounces++;
+                    }
+
+                    if (p.life <= 0 || p.y > window.innerHeight + 100) {
+                        Vibe3D.fx.particles.splice(i, 1);
+                        continue;
+                    }
 
                     ctx.save();
                     ctx.translate(p.x, p.y);
                     ctx.rotate(p.rotX);
-                    ctx.scale(1, Math.cos(p.rotY));
-                    ctx.fillStyle = p.color;
-                    ctx.shadowColor = p.color;
-                    ctx.shadowBlur = 6;
-                    ctx.fillRect(-p.size * 0.5, -p.size * 0.5, p.size, p.size * 1.5);
+
+                    if (p.isSticker && p.stickerImg && p.stickerImg.complete) {
+                        const sz = p.size;
+                        ctx.globalAlpha = Math.min(1.0, p.life);
+                        ctx.drawImage(p.stickerImg, -sz * 0.5, -sz * 0.5, sz, sz);
+                    } else {
+                        ctx.scale(1, Math.cos(p.rotY));
+                        ctx.fillStyle = p.color;
+                        ctx.shadowColor = p.color;
+                        ctx.shadowBlur = 6;
+                        ctx.fillRect(-p.size * 0.5, -p.size * 0.5, p.size, p.size * 1.5);
+                    }
                     ctx.restore();
                 }
             }
@@ -486,6 +592,7 @@
         }
         Vibe3D.fx.animFrame = requestAnimationFrame(updateFx);
     }
+
 
     window.Vibe3D = Vibe3D;
     Vibe3D.initialized = true;

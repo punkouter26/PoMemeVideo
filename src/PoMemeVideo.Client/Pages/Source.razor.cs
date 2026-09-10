@@ -67,8 +67,9 @@ public partial class Source
         _aspectRatio = ratio;
     }
 
-    private void OnPersonaChanged()
+    private async Task OnPersonaChanged()
     {
+        await Vibe3D.SetPersonaPaletteAsync(_memePersona);
     }
 
     private void OnTrimChanged()

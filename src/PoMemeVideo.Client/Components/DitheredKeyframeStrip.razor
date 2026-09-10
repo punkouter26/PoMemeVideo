@@ -55,6 +55,13 @@
                 FileInputId);
 
             _dataUrls.AddRange(frames);
+            StateHasChanged();
+            await Task.Delay(50);
+            try
+            {
+                await JS.InvokeVoidAsync("keyframeHologram.attach", ".keyframe-strip");
+            }
+            catch { }
         }
         catch
         {

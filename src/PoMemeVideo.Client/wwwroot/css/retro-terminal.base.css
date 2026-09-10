@@ -296,3 +296,180 @@ code {
     align-items: center;
     margin-bottom: 0.4rem;
 }
+
+/* =========================================================================
+   NEW GFX & SOUND FX SYSTEM STYLES
+   ========================================================================= */
+
+/* 1. Nav Audio Controls */
+.nav-audio-cluster {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: auto;
+}
+
+.nav-audio-btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+}
+
+.nav-audio-btn.is-muted {
+    opacity: 0.5;
+    border-color: #888;
+    color: #888;
+}
+
+.nav-audio-btn.active {
+    border-color: #00ffdc;
+    color: #00ffdc;
+    box-shadow: 0 0 8px rgba(0, 255, 220, 0.4);
+}
+
+/* 2. Neural Core 3D Telemetry (Engine Page) */
+.neural-core-stage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    padding: 0.5rem;
+    background: radial-gradient(circle at center, rgba(0, 255, 220, 0.06) 0%, rgba(3, 7, 6, 0.85) 75%);
+    border-radius: 6px;
+}
+
+.neural-core-canvas {
+    width: 100%;
+    max-width: 600px;
+    height: 180px;
+    display: block;
+}
+
+/* 3. Holographic Cue Scrubber (Reveal Cue Studio) */
+.cue-scrubber-stage {
+    margin-bottom: 1rem;
+    padding: 0.6rem;
+    background: rgba(4, 10, 8, 0.9);
+    border-radius: 4px;
+}
+
+.cue-scrubber-title {
+    font-size: 0.75rem;
+    color: #00ffdc;
+    margin-bottom: 0.4rem;
+    font-weight: bold;
+    text-shadow: 0 0 6px rgba(0, 255, 220, 0.5);
+}
+
+.cue-scrubber-canvas {
+    width: 100%;
+    height: 44px;
+    display: block;
+    cursor: pointer;
+}
+
+/* 4. Laser Wipe Split Player (Reveal Page) */
+.laser-wipe-stage {
+    position: relative;
+    width: 100%;
+    background: #000;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+}
+
+.laser-wipe-canvas-wrap {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 520px;
+    position: relative;
+    cursor: ew-resize;
+}
+
+.laser-wipe-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 5. Meme DSP Soundboard Rack (MemeLibrary) */
+.soundboard-rack-panel {
+    margin-bottom: 1.2rem;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(180deg, rgba(8, 18, 14, 0.8) 0%, rgba(3, 7, 6, 0.92) 100%);
+}
+
+.soundboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-bottom: 0.6rem;
+}
+
+.soundboard-title {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #00ffdc;
+    text-shadow: 0 0 8px rgba(0, 255, 220, 0.4);
+}
+
+.soundboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.soundboard-controls .ascii-btn.active {
+    border-color: #00ffdc;
+    color: #00ffdc;
+    box-shadow: 0 0 10px rgba(0, 255, 220, 0.5);
+    background: rgba(0, 255, 220, 0.12);
+}
+
+.soundboard-speed-label {
+    font-size: 0.75rem;
+    color: #ffe600;
+    font-weight: bold;
+}
+
+.soundboard-slider {
+    accent-color: #00ffdc;
+    cursor: pointer;
+    width: 90px;
+}
+
+.soundboard-spectrum-canvas {
+    width: 100%;
+    height: 70px;
+    display: block;
+    border-radius: 4px;
+}
+
+/* 6. Camera Shake Impulse for Celebration */
+@keyframes cameraShakeAnim {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    15% { transform: translate(-8px, 6px) rotate(-1deg); }
+    30% { transform: translate(7px, -6px) rotate(1.2deg); }
+    45% { transform: translate(-6px, -4px) rotate(-0.8deg); }
+    60% { transform: translate(5px, 4px) rotate(0.6deg); }
+    75% { transform: translate(-3px, 2px) rotate(-0.3deg); }
+    90% { transform: translate(2px, -1px) rotate(0.2deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.camera-shake-impulse {
+    animation: cameraShakeAnim 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* 7. Hidden elements */
+.is-hidden {
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}

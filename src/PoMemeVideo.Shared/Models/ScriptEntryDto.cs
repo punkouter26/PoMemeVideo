@@ -21,4 +21,9 @@ public class ScriptEntryDto
     public PlacementType PlacementType { get; set; }
     public string? CaptionText { get; set; }
     public string? CaptionPosition { get; set; }
+    public double? HotspotX { get; set; }
+    public double? HotspotY { get; set; }
+    public double? OverlayX { get; set; }
+    public double? OverlayY { get; set; }
+    public double? OverlayScale { get; set; }
 }

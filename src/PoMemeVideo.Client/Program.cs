@@ -22,6 +22,7 @@ builder.Services.AddScoped(sp => new HttpClient(
 builder.Services.AddScoped<BlobUploadService>();
 builder.Services.AddSingleton<NavRefreshService>();
 builder.Services.AddScoped<Vibe3DService>();
+builder.Services.AddScoped<CyberAudioService>();
 
 
 builder.Services.AddAuthorizationCore();

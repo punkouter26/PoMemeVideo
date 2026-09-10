@@ -117,14 +117,35 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             // (referencing [0:a] on a silent video would fail the filter graph).
             var sourceHasAudio = await ProbeHasAudioStreamAsync(sourcePath, cancellationToken);
 
-            // ── 2. Download each sound file from blob ─────────────────────────
-            var soundPaths = new List<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)>();
+            // ── 2. Download each sound file and resolve overlays ──────────────
+            var renderEntries = new List<RenderVisualEntry>();
             for (var i = 0; i < job.SoundEntries.Count; i++)
             {
                 var entry = job.SoundEntries[i];
                 var soundExt = Path.GetExtension(entry.SoundBlobUrl);
                 if (string.IsNullOrEmpty(soundExt)) soundExt = ".mp3";
                 var soundPath = Path.Combine(tempDir, $"sound_{i}{soundExt}");
+
+                string? overlayPath = null;
+                if (!string.IsNullOrWhiteSpace(entry.OverlayAssetId))
+                {
+                    overlayPath = ResolveOverlayAssetPath(entry.OverlayAssetId);
+                    if (overlayPath is null && entry.OverlayAssetId.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var ovlExt = Path.GetExtension(entry.OverlayAssetId);
+                        if (string.IsNullOrEmpty(ovlExt)) ovlExt = ".png";
+                        var tempOvl = Path.Combine(tempDir, $"overlay_{i}{ovlExt}");
+                        try
+                        {
+                            await DownloadBlobToFileAsync(entry.OverlayAssetId, tempOvl, cancellationToken);
+                            overlayPath = tempOvl;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Could not download overlay {Index} ({Url})", i, entry.OverlayAssetId);
+                        }
+                    }
+                }
 
                 try
                 {
@@ -134,7 +155,19 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                         _logger.LogWarning("Sound {Index} ({Path}) has no valid audio stream — skipping", i, soundPath);
                         continue;
                     }
-                    soundPaths.Add((entry.TimestampMs, soundPath, entry.VisualEffect, entry.EffectIntensity, entry.CaptionText, entry.CaptionPosition));
+                    renderEntries.Add(new RenderVisualEntry(
+                        entry.TimestampMs,
+                        soundPath,
+                        entry.VisualEffect,
+                        entry.EffectIntensity,
+                        entry.CaptionText,
+                        entry.CaptionPosition,
+                        entry.HotspotX,
+                        entry.HotspotY,
+                        overlayPath,
+                        entry.OverlayX,
+                        entry.OverlayY,
+                        entry.OverlayScale));
                     _logger.LogDebug("Sound {Index} downloaded: {Path}", i, soundPath);
                 }
                 catch (Exception ex)
@@ -152,7 +185,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             var outputPath = Path.Combine(tempDir, "output.mp4");
             var args = BuildFFmpegArgs(
                 sourcePath,
-                soundPaths,
+                renderEntries,
                 outputPath,
                 job.AggressiveVisuals,
                 effectiveDuration,
@@ -186,16 +219,90 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         }
     }
 
+    internal readonly record struct RenderVisualEntry(
+        long TimestampMs,
+        string SoundFilePath,
+        string? VisualEffect,
+        double? Intensity,
+        string? CaptionText,
+        string? CaptionPosition,
+        double? HotspotX = null,
+        double? HotspotY = null,
+        string? OverlayPath = null,
+        double? OverlayX = null,
+        double? OverlayY = null,
+        double? OverlayScale = null);
+
+    internal static string? ResolveOverlayAssetPath(string overlayAssetId)
+    {
+        if (string.IsNullOrWhiteSpace(overlayAssetId)) return null;
+
+        var cleanId = Path.GetFileNameWithoutExtension(overlayAssetId).ToLowerInvariant();
+        var fileName = cleanId + ".png";
+
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "wwwroot", "overlays", fileName),
+            Path.Combine(AppContext.BaseDirectory, "wwwroot", "overlays", overlayAssetId),
+            Path.Combine(Directory.GetCurrentDirectory(), "src", "PoMemeVideo.Client", "wwwroot", "overlays", fileName),
+            Path.Combine(Directory.GetCurrentDirectory(), "src", "PoMemeVideo.Client", "wwwroot", "overlays", overlayAssetId),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "src", "PoMemeVideo.Client", "wwwroot", "overlays", fileName),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PoMemeVideo.Client", "wwwroot", "overlays", fileName),
+        };
+
+        foreach (var path in candidates)
+        {
+            try
+            {
+                if (File.Exists(path)) return Path.GetFullPath(path);
+            }
+            catch { }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Backwards-compatible overload for string building / unit test callers.
+    /// </summary>
+    internal static string BuildFFmpegArgs(
+        string sourcePath,
+        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)> sounds,
+        string outputPath,
+        bool aggressiveVisuals,
+        double sourceDurationSeconds,
+        bool sourceHasAudio,
+        double? trimStartSeconds = null,
+        string? aspectRatio = null)
+    {
+        var entries = sounds.Select(s => new RenderVisualEntry(
+            s.TimestampMs,
+            s.FilePath,
+            s.VisualEffect,
+            s.Intensity,
+            s.CaptionText,
+            s.CaptionPosition)).ToList();
+
+        return BuildFFmpegArgs(
+            sourcePath,
+            entries,
+            outputPath,
+            aggressiveVisuals,
+            sourceDurationSeconds,
+            sourceHasAudio,
+            trimStartSeconds,
+            aspectRatio);
+    }
+
     /// <summary>
     /// GoF: Template Method — builds the -filter_complex string based on effect types.
     /// Audio: keeps the original video audio and layers each meme sound on top (adelay + amix),
-    /// with a limiter to prevent clipping. The original track sits slightly under the sounds so
-    /// the effects still cut through. Falls back gracefully when the source has no audio stream.
-    /// Video: chains optional deep-fry / snap-zoom / motion-blur filters.
+    /// with a limiter to prevent clipping.
+    /// Video: chains optional deep-fry / snap-zoom / motion-blur / sticker overlay filters.
     /// </summary>
-    private static string BuildFFmpegArgs(
+    internal static string BuildFFmpegArgs(
         string sourcePath,
-        IReadOnlyList<(long TimestampMs, string FilePath, string? VisualEffect, double? Intensity, string? CaptionText, string? CaptionPosition)> sounds,
+        IReadOnlyList<RenderVisualEntry> entries,
         string outputPath,
         bool aggressiveVisuals,
         double sourceDurationSeconds,
@@ -213,22 +320,87 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         sb.Append($"-i \"{sourcePath}\"");
 
         // Inputs 1..N: sound files
-        foreach (var (_, filePath, _, _, _, _) in sounds)
-            sb.Append($" -i \"{filePath}\"");
+        foreach (var entry in entries)
+            sb.Append($" -i \"{entry.SoundFilePath}\"");
 
-        var videoChain = BuildVideoFilterChain(sounds, aggressiveVisuals, aspectRatio);
-        var hasVideoFilters = !string.IsNullOrWhiteSpace(videoChain);
-        // Build a mixed audio track whenever there are meme sounds. The original audio is layered
-        // in as an extra amix input when the source has one. With no meme sounds we keep the
-        // original audio as-is; with neither, the output is silent.
-        var buildAudioMix = sounds.Count > 0;
+        // Overlay inputs (distinct file paths to avoid duplicate inputs)
+        var overlayEntries = entries.Where(e => !string.IsNullOrEmpty(e.OverlayPath)).ToList();
+        var distinctOverlays = overlayEntries.Select(e => e.OverlayPath!).Distinct().ToList();
+        var overlayInputMap = new Dictionary<string, int>();
+        for (var i = 0; i < distinctOverlays.Count; i++)
+        {
+            var inputIndex = entries.Count + 1 + i;
+            overlayInputMap[distinctOverlays[i]] = inputIndex;
+            sb.Append($" -i \"{distinctOverlays[i]}\"");
+        }
+
+        var legacySounds = entries.Select(e => (e.TimestampMs, e.SoundFilePath, e.VisualEffect, e.Intensity, e.CaptionText, e.CaptionPosition)).ToList();
+        var videoChain = BuildVideoFilterChain(legacySounds, aggressiveVisuals, aspectRatio);
+        var hasBaseVideoFilters = !string.IsNullOrWhiteSpace(videoChain);
+
+        var snapZoomCues = entries.Where(e => string.Equals(e.VisualEffect, "SnapZoom", StringComparison.OrdinalIgnoreCase)).ToList();
+        var hasAdvancedVideo = snapZoomCues.Count > 0 || overlayEntries.Count > 0;
+        var hasVideoFilters = hasBaseVideoFilters || hasAdvancedVideo;
+
+        var buildAudioMix = entries.Count > 0;
 
         if (hasVideoFilters || buildAudioMix)
         {
             var fc = new StringBuilder();
 
             if (hasVideoFilters)
-                fc.Append($"[0:v]{videoChain}[vout]");
+            {
+                if (hasAdvancedVideo)
+                {
+                    var currentLabel = "v0";
+                    if (hasBaseVideoFilters)
+                        fc.Append($"[0:v]{videoChain}[{currentLabel}]");
+                    else
+                        fc.Append($"[0:v]null[{currentLabel}]");
+
+                    var step = 0;
+                    foreach (var snap in snapZoomCues)
+                    {
+                        var nextLabel = $"v{step + 1}";
+                        var hx = (snap.HotspotX ?? 0.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var hy = (snap.HotspotY ?? 0.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var startSec = (snap.TimestampMs / 1000.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var endSec = (snap.TimestampMs / 1000.0 + 1.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+                        fc.Append($";[{currentLabel}]split[vb{step}][vz{step}];[vz{step}]crop=w=iw/2:h=ih/2:x='min(max(0,iw*{hx}-iw/4),iw-iw/2)':y='min(max(0,ih*{hy}-ih/4),ih-ih/2)',scale=iw:ih[vzs{step}];[vb{step}][vzs{step}]overlay=enable='between(t\\,{startSec}\\,{endSec})'[{nextLabel}]");
+                        currentLabel = nextLabel;
+                        step++;
+                    }
+
+                    foreach (var ovl in overlayEntries)
+                    {
+                        var nextLabel = $"v{step + 1}";
+                        var inputIdx = overlayInputMap[ovl.OverlayPath!];
+                        var ox = (ovl.OverlayX ?? 0.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var oy = (ovl.OverlayY ?? 0.3).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var startSec = (ovl.TimestampMs / 1000.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var endSec = (ovl.TimestampMs / 1000.0 + 2.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+                        if (ovl.OverlayScale.HasValue && Math.Abs(ovl.OverlayScale.Value - 1.0) > 0.05)
+                        {
+                            var scaleStr = ovl.OverlayScale.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                            fc.Append($";[{inputIdx}:v]scale=iw*{scaleStr}:-1[ovs{step}];[{currentLabel}][ovs{step}]overlay=x='min(max(0,W*{ox}-w/2),W-w)':y='min(max(0,H*{oy}-h/2),H-h)':enable='between(t\\,{startSec}\\,{endSec})'[{nextLabel}]");
+                        }
+                        else
+                        {
+                            fc.Append($";[{currentLabel}][{inputIdx}:v]overlay=x='min(max(0,W*{ox}-w/2),W-w)':y='min(max(0,H*{oy}-h/2),H-h)':enable='between(t\\,{startSec}\\,{endSec})'[{nextLabel}]");
+                        }
+                        currentLabel = nextLabel;
+                        step++;
+                    }
+
+                    fc.Append($";[{currentLabel}]null[vout]");
+                }
+                else
+                {
+                    fc.Append($"[0:v]{videoChain}[vout]");
+                }
+            }
 
             if (buildAudioMix)
             {
@@ -240,9 +412,9 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                     fc.Append("[0:a]volume=0.85[aorig]");
                 }
 
-                for (var i = 0; i < sounds.Count; i++)
+                for (var i = 0; i < entries.Count; i++)
                 {
-                    var delayMs = sounds[i].TimestampMs;
+                    var delayMs = entries[i].TimestampMs;
                     if (fc.Length > 0)
                         fc.Append(';');
                     fc.Append($"[{i + 1}:a]adelay={delayMs}|{delayMs}[a{i}]");
@@ -251,7 +423,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                 var labels = new List<string>();
                 if (sourceHasAudio)
                     labels.Add("[aorig]");
-                labels.AddRange(Enumerable.Range(0, sounds.Count).Select(i => $"[a{i}]"));
+                labels.AddRange(Enumerable.Range(0, entries.Count).Select(i => $"[a{i}]"));
 
                 var mixInputs = string.Concat(labels);
                 // normalize=0 keeps each source at full level; alimiter tames the clipping that
@@ -279,11 +451,7 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             // first input (often 5.1 from phone videos) and Chromium silently fails to decode the
             // audio track, so the resulting MP4 has zero sound when played in <video>.
             sb.Append(" -c:a aac -b:a 192k -ac 2");
-        // Cap the output to the source video's duration. amix=duration=longest stretches the
-        // mixed audio to the longest *sound clip* (after its adelay), so a meme sound placed
-        // near the end can run past the video — leaving the output longer than the source with
-        // audio still playing after the picture ends. -t hard-trims both streams to the source
-        // length; audio shorter than the video simply ends in silence (the video governs).
+        // Cap the output to the source video's duration.
         if (sourceDurationSeconds > 0)
             sb.Append($" -t {sourceDurationSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}");
         sb.Append(" -movflags +faststart");
@@ -342,6 +510,11 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             filters.Add("tblend=all_mode=average");
         }
 
+        if (effectCounts.ContainsKey("SnapZoom"))
+        {
+            filters.Add(BuildSnapZoomFilter(0.5, 0.5));
+        }
+
         // Add text captions / meme punchline overlays
         var fontArg = ResolveFontArg();
         foreach (var s in sounds)
@@ -360,6 +533,22 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         }
 
         return string.Join(',', filters);
+    }
+
+    internal static string BuildSnapZoomFilter(double hotspotX, double hotspotY)
+    {
+        var hx = hotspotX.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        var hy = hotspotY.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        return $"crop=w=iw/2:h=ih/2:x='min(max(0,iw*{hx}-iw/4),iw-iw/2)':y='min(max(0,ih*{hy}-ih/4),ih-ih/2)',scale=iw:ih";
+    }
+
+    internal static string BuildOverlayFilter(double overlayX, double overlayY, double startSec, double endSec)
+    {
+        var ox = overlayX.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        var oy = overlayY.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        var sSec = startSec.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        var eSec = endSec.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+        return $"overlay=x='min(max(0,W*{ox}-w/2),W-w)':y='min(max(0,H*{oy}-h/2),H-h)':enable='between(t\\,{sSec}\\,{eSec})'";
     }
 
     internal static string SanitizeForDrawtext(string text)

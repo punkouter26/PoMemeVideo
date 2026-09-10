@@ -63,6 +63,23 @@
         }
     </div>
 
+    <div class="soundboard-rack-panel ascii-border-double reveal-in vibe-glass-card">
+        <div class="soundboard-header">
+            <span class="soundboard-title">[ 🎛️ MEME DSP SOUNDBOARD RACK &amp; SPECTRUM ANALYZER ]</span>
+            <div class="soundboard-controls">
+                <button class="ascii-btn compact-btn @(_bitcrusherOn ? "active" : "")" @onclick="ToggleBitcrusher">
+                    @(_bitcrusherOn ? "[ 👾 8-BIT CRUNCH: ON ]" : "[ 16-BIT AUDIO ]")
+                </button>
+                <button class="ascii-btn compact-btn @(_bassBoostOn ? "active" : "")" @onclick="ToggleBassBoost">
+                    @(_bassBoostOn ? "[ 💥 BASS BOOST: ON ]" : "[ NORMAL BASS ]")
+                </button>
+                <span class="soundboard-speed-label">SPEED: @(_playbackRate.ToString("F1"))x</span>
+                <input type="range" min="0.5" max="2.0" step="0.1" @bind="_playbackRate" @bind:after="OnRateChanged" class="soundboard-slider" />
+            </div>
+        </div>
+        <canvas id="soundboard-spectrum-canvas" class="soundboard-spectrum-canvas"></canvas>
+    </div>
+
     @if (_showUploadModal)
     {
         <div class="upload-modal-panel ascii-border-double reveal-in vibe-glass-card">
@@ -160,12 +177,15 @@
                                         <button class="ascii-btn compact-btn"
                                                 onclick="(function(btn){
                                                     var audio = document.getElementById('grid-audio-@sound.SoundId');
-                                                    if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
-                                                    document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                                    if (!audio.paused) { if (window.soundboardFx) window.soundboardFx.stopAll(); else { audio.pause(); audio.currentTime = 0; } btn.textContent = '[ ▶ ]'; return; }
                                                     document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
-                                                    audio.play();
+                                                    if (window.soundboardFx) {
+                                                        window.soundboardFx.playAudio('grid-audio-@sound.SoundId', function(){ btn.textContent = '[ ▶ ]'; });
+                                                    } else {
+                                                        audio.play();
+                                                        audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
+                                                    }
                                                     btn.textContent = '[ ■ ]';
-                                                    audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
                                                 })(this)">[ &#9654; ]</button>
                                     </div>
                                 </td>
@@ -203,12 +223,15 @@
                             <button class="ascii-btn"
                                     onclick="(function(btn){
                                         var audio = document.getElementById('audio-@sound.SoundId');
-                                        if (!audio.paused) { audio.pause(); audio.currentTime = 0; btn.textContent = '[ ▶ ]'; return; }
-                                        document.querySelectorAll('audio').forEach(function(a){ a.pause(); a.currentTime = 0; });
+                                        if (!audio.paused) { if (window.soundboardFx) window.soundboardFx.stopAll(); else { audio.pause(); audio.currentTime = 0; } btn.textContent = '[ ▶ ]'; return; }
                                         document.querySelectorAll('.retro-audio-player .ascii-btn').forEach(function(b){ b.textContent = '[ ▶ ]'; });
-                                        audio.play();
+                                        if (window.soundboardFx) {
+                                            window.soundboardFx.playAudio('audio-@sound.SoundId', function(){ btn.textContent = '[ ▶ ]'; });
+                                        } else {
+                                            audio.play();
+                                            audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
+                                        }
                                         btn.textContent = '[ ■ ]';
-                                        audio.onended = function(){ btn.textContent = '[ ▶ ]'; };
                                     })(this)">[ &#9654; ]</button>
                         </div>
                     </div>
@@ -248,6 +271,40 @@
     private string _uploadTags = string.Empty;
     private bool _uploading;
     private string? _uploadMessage;
+
+    // DSP Soundboard Controls
+    private bool _bitcrusherOn;
+    private bool _bassBoostOn;
+    private double _playbackRate = 1.0;
+
+    private async Task ToggleBitcrusher()
+    {
+        _bitcrusherOn = !_bitcrusherOn;
+        await JS.InvokeVoidAsync("soundboardFx.setBitcrusher", _bitcrusherOn);
+    }
+
+    private async Task ToggleBassBoost()
+    {
+        _bassBoostOn = !_bassBoostOn;
+        await JS.InvokeVoidAsync("soundboardFx.setBassBoost", _bassBoostOn);
+    }
+
+    private async Task OnRateChanged()
+    {
+        await JS.InvokeVoidAsync("soundboardFx.setPlaybackRate", _playbackRate);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("soundboardFx.init", "soundboard-spectrum-canvas");
+            }
+            catch { }
+        }
+    }
 
     private CancellationTokenSource? _debounceCts;
 

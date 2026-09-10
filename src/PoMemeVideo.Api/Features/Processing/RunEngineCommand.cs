@@ -495,5 +495,10 @@ public sealed partial class RunEngineCommand
         PlacementType = entry.PlacementType,
         CaptionText = entry.CaptionText,
         CaptionPosition = entry.CaptionPosition,
+        HotspotX = entry.HotspotX,
+        HotspotY = entry.HotspotY,
+        OverlayX = entry.OverlayX,
+        OverlayY = entry.OverlayY,
+        OverlayScale = entry.OverlayScale,
     };
 }

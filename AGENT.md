@@ -324,7 +324,21 @@ Local dev uses `dev` environment (real AI calls).
 
 ---
 
-## 16. Relevant Skills Available
+## 16. Agent Operating & Workflow Rules
+
+- Only use the `master` branch for all work and only use other branches if specifically asked to.
+- Always restart app and verify it restarts successfully after making code change.
+- Check for a `docs` folder in the root to get an overall summary of the project.
+- Do not use dotnet secrets to store data locally / Put it in appSettings or Azure Key Vault (if one exists).
+- Never push code to remote without me specifically asking unless I typed `git sync`.
+- When `git sync` happens, create a git commit that is short and uses american slang so it seems a human wrote it and also push code.
+- At the end of any prompt that has an answer longer than 100 words, add a TLDR 20 word summary.
+- Do not run all tests after code changes. Only run the tests related to the code change.
+- Avoid making me manually type in commands to the CLI if you can do it for me automatically.
+
+---
+
+## 17. Relevant Skills Available
 
 These global Copilot skills can be invoked by name:
 

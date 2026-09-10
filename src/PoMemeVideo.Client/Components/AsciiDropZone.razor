@@ -1,13 +1,19 @@
 @using Microsoft.AspNetCore.Components.Forms
+@using PoMemeVideo.Client.Services
+@inject IJSRuntime JS
+@inject CyberAudioService Audio
 
-<div class="ascii-drop-zone @(_isDragOver ? "drag-over" : "")"
+<div id="ascii-drop-zone-container"
+     class="ascii-drop-zone @(_isDragOver ? "drag-over" : "")"
      @ondragover="OnDragOver"
      @ondragover:preventDefault="true"
      @ondragleave="OnDragLeave"
      @ondrop="OnDrop"
      @ondrop:preventDefault="true">
 
-    <div class="ascii-border-double">
+    <canvas id="dropzone-physics-canvas" class="dropzone-physics-canvas" aria-hidden="true"></canvas>
+
+    <div class="ascii-border-double dropzone-art-wrap">
         <pre class="drop-zone-art">
 ╔══════════════════════════════════════╗
 ║                                      ║
@@ -82,20 +88,53 @@
             return;
         }
 
+        try
+        {
+            await JS.InvokeVoidAsync("dropzonePhysics.triggerDropImpact");
+        }
+        catch { }
+
         await OnFileAccepted.InvokeAsync(file);
     }
 
-
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("dropzonePhysics.init", "dropzone-physics-canvas", "ascii-drop-zone-container");
+            }
+            catch { }
+        }
+    }
 }
 
 <style>
     .ascii-drop-zone {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 0.5rem;
         cursor: pointer;
         transition: opacity 0.2s;
+        overflow: hidden;
+    }
+
+    .dropzone-physics-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .dropzone-art-wrap {
+        position: relative;
+        z-index: 2;
     }
 
     .ascii-drop-zone.drag-over .ascii-border-double {

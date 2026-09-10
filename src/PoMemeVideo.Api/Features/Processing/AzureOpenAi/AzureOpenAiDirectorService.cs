@@ -203,6 +203,14 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
                 IsIronic = e.IsIronic,
                 VisualEffect = e.VisualEffect,
                 EffectIntensity = e.EffectIntensity,
+                OverlayAssetId = e.OverlayAssetId,
+                OverlayX = e.OverlayX,
+                OverlayY = e.OverlayY,
+                OverlayScale = e.OverlayScale,
+                HotspotX = e.HotspotX,
+                HotspotY = e.HotspotY,
+                CaptionText = e.CaptionText,
+                CaptionPosition = e.CaptionPosition,
                 PlacementType = PlacementType.Triggered,
             }).ToArray();
 
@@ -245,5 +253,29 @@ public sealed class AzureOpenAiDirectorService : IDirectorService
 
         [JsonPropertyName("effectIntensity")]
         public double? EffectIntensity { get; init; }
+
+        [JsonPropertyName("overlayAssetId")]
+        public string? OverlayAssetId { get; init; }
+
+        [JsonPropertyName("overlayX")]
+        public double? OverlayX { get; init; }
+
+        [JsonPropertyName("overlayY")]
+        public double? OverlayY { get; init; }
+
+        [JsonPropertyName("overlayScale")]
+        public double? OverlayScale { get; init; }
+
+        [JsonPropertyName("hotspotX")]
+        public double? HotspotX { get; init; }
+
+        [JsonPropertyName("hotspotY")]
+        public double? HotspotY { get; init; }
+
+        [JsonPropertyName("captionText")]
+        public string? CaptionText { get; init; }
+
+        [JsonPropertyName("captionPosition")]
+        public string? CaptionPosition { get; init; }
     }
 }

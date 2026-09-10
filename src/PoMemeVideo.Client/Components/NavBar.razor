@@ -13,6 +13,7 @@
 @inject NavigationManager Nav
 @inject NavRefreshService NavRefresh
 @inject AuthenticationStateProvider AuthProvider
+@inject CyberAudioService CyberAudio
 @implements IDisposable
 @implements IAsyncDisposable
 
@@ -29,6 +30,15 @@
         <NavLink href="/memelibrary">[ SOUNDS ]</NavLink>
         <NavLink href="/results">[ HISTORY ]</NavLink>
         <a href="/scalar/" target="_blank" rel="noopener noreferrer" class="nav-api-link" hidden="@(!_isDevelopment)">[ API ]</a>
+    </div>
+
+    <div class="nav-audio-cluster">
+        <button class="ascii-btn compact-btn nav-audio-btn @(_sfxMuted ? "is-muted" : "")" @onclick="ToggleSfx" title="Toggle Programmatic UI Audio SFX">
+            @(_sfxMuted ? "[ 🔇 SFX ]" : "[ 🔊 SFX ]")
+        </button>
+        <button class="ascii-btn compact-btn nav-audio-btn @(_ambienceEnabled ? "active" : "")" @onclick="ToggleAmbience" title="Toggle Generative Cyberpunk Ambience">
+            @(_ambienceEnabled ? "[ ♫ DRONE ]" : "[ ♩ OFF ]")
+        </button>
     </div>
 
     <div class="status-cluster" aria-label="Runtime status">
@@ -73,6 +83,23 @@
     private bool _isAuthenticated;
     private bool _isDevelopment;
     private bool _mobileMenuOpen;
+    private bool _sfxMuted;
+    private bool _ambienceEnabled;
+
+    private async Task ToggleSfx()
+    {
+        _sfxMuted = await CyberAudio.ToggleMuteAsync();
+    }
+
+    private async Task ToggleAmbience()
+    {
+        try
+        {
+            _ambienceEnabled = await JS.InvokeAsync<bool>("cyberAmbience.toggle");
+        }
+        catch { }
+    }
+
     private void ToggleMobileMenu()
     {
         _mobileMenuOpen = !_mobileMenuOpen;
@@ -89,6 +116,13 @@
         await LoadAiAsync();
         await LoadConfigAsync();
         NavRefresh.Subscribe(OnAiChangedAsync);
+
+        _sfxMuted = await CyberAudio.GetMutedAsync();
+        try
+        {
+            _ambienceEnabled = await JS.InvokeAsync<bool>("cyberAmbience.isEnabled");
+        }
+        catch { }
 
         // React to login/logout via the authentication state provider instead of polling.
         AuthProvider.AuthenticationStateChanged += OnAuthStateChanged;

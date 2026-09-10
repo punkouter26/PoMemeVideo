@@ -61,6 +61,11 @@ public static class OutputEndpoints
                     PlacementType = e.PlacementType,
                     CaptionText = e.CaptionText,
                     CaptionPosition = e.CaptionPosition,
+                    HotspotX = e.HotspotX,
+                    HotspotY = e.HotspotY,
+                    OverlayX = e.OverlayX,
+                    OverlayY = e.OverlayY,
+                    OverlayScale = e.OverlayScale,
                 }).ToList(),
             };
 
@@ -250,6 +255,11 @@ public static class OutputEndpoints
                 PlacementType = e.PlacementType,
                 CaptionText = e.CaptionText,
                 CaptionPosition = e.CaptionPosition,
+                HotspotX = e.HotspotX,
+                HotspotY = e.HotspotY,
+                OverlayX = e.OverlayX,
+                OverlayY = e.OverlayY,
+                OverlayScale = e.OverlayScale,
             }).ToList();
 
             var jsonOpts = new JsonSerializerOptions

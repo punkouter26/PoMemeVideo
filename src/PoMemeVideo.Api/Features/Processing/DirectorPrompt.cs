@@ -85,15 +85,31 @@ internal static class DirectorPrompt
                "- isIronic: true if the sound choice is ironic/subversive\n" +
                "- visualEffect: one of None, DeepFry, SnapZoom, MotionBlur, Overlay\n" +
                "- effectIntensity: 0.0 to 1.0\n" +
+               "- overlayAssetId: optional sticker overlay (e.g. 'deal-with-it', 'laser-eyes', 'thug-life', 'red-circle', 'clown-wig', 'explosion')\n" +
+               "- overlayX: optional horizontal position 0.0 (left) to 1.0 (right)\n" +
+               "- overlayY: optional vertical position 0.0 (top) to 1.0 (bottom)\n" +
+               "- overlayScale: optional scale 0.5 to 2.0\n" +
+               "- hotspotX: optional focal center coordinate 0.0 to 1.0 for SnapZoom\n" +
+               "- hotspotY: optional focal center coordinate 0.0 to 1.0 for SnapZoom\n" +
                "- captionText: short punchy meme text caption (e.g. 'BRO THOUGHT', 'WAIT FOR IT', 'EMOTIONAL DAMAGE', 'POV: MONDAY')\n" +
                "- captionPosition: one of 'Top', 'Bottom', 'Center'\n\n" +
                "Example format:\n" +
-               "[{\"timestampMs\": 3000, \"soundId\": \"...\", \"soundIndex\": 0, \"actionVectorTags\": [\"explosion\"], " +
-               "\"sceneDescription\": \"A character stumbles backward after being hit.\", " +
-               "\"selectionRationale\": \"Comedic punch punctuates the physical chaos.\", " +
-               "\"isIronic\": false, \"visualEffect\": \"SnapZoom\", \"effectIntensity\": 0.8, " +
-               "\"captionText\": \"BRO THOUGHT\", \"captionPosition\": \"Top\"}]\n" +
-               "No extra text outside the JSON array.";
+               "[\n" +
+               "  {\n" +
+               "    \"timestampMs\": 1200,\n" +
+               "    \"soundIndex\": 0,\n" +
+               "    \"actionVectorTags\": [\"shock\", \"bass\"],\n" +
+               "    \"sceneDescription\": \"sudden movement\",\n" +
+               "    \"selectionRationale\": \"Vine boom hits the sudden motion perfectly\",\n" +
+               "    \"isIronic\": false,\n" +
+               "    \"visualEffect\": \"SnapZoom\",\n" +
+               "    \"effectIntensity\": 0.8,\n" +
+               "    \"hotspotX\": 0.5,\n" +
+               "    \"hotspotY\": 0.4,\n" +
+               "    \"captionText\": \"BRO THOUGHT\",\n" +
+               "    \"captionPosition\": \"Top\"\n" +
+               "  }\n" +
+               "]";
     }
 
     public static ScriptEntry[] ParseResponse(
@@ -166,6 +182,12 @@ internal static class DirectorPrompt
             IsIronic = e.IsIronic,
             VisualEffect = e.VisualEffect,
             EffectIntensity = e.EffectIntensity,
+            OverlayAssetId = e.OverlayAssetId,
+            OverlayX = e.OverlayX,
+            OverlayY = e.OverlayY,
+            OverlayScale = e.OverlayScale,
+            HotspotX = e.HotspotX,
+            HotspotY = e.HotspotY,
             PlacementType = PlacementType.Triggered,
             CaptionText = e.CaptionText,
             CaptionPosition = e.CaptionPosition,
@@ -183,6 +205,12 @@ internal static class DirectorPrompt
         [JsonPropertyName("isIronic")] public bool IsIronic { get; init; }
         [JsonPropertyName("visualEffect")] public VisualEffectType? VisualEffect { get; init; }
         [JsonPropertyName("effectIntensity")] public double? EffectIntensity { get; init; }
+        [JsonPropertyName("overlayAssetId")] public string? OverlayAssetId { get; init; }
+        [JsonPropertyName("overlayX")] public double? OverlayX { get; init; }
+        [JsonPropertyName("overlayY")] public double? OverlayY { get; init; }
+        [JsonPropertyName("overlayScale")] public double? OverlayScale { get; init; }
+        [JsonPropertyName("hotspotX")] public double? HotspotX { get; init; }
+        [JsonPropertyName("hotspotY")] public double? HotspotY { get; init; }
         [JsonPropertyName("captionText")] public string? CaptionText { get; init; }
         [JsonPropertyName("captionPosition")] public string? CaptionPosition { get; init; }
     }

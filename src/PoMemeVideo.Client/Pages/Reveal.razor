@@ -3,9 +3,11 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject Vibe3DService Vibe3D
+@inject CyberAudioService Audio
 @using PoMemeVideo.Shared.Models
 @using PoMemeVideo.Shared.Enums
 @using PoMemeVideo.Client.Components
+@using PoMemeVideo.Client.Services
 @implements IAsyncDisposable
 
 <PageTitle>PoMemeVideo — Review &amp; Studio</PageTitle>
@@ -52,10 +54,13 @@
                 {
                     <div class="ascii-border-double vibe-3d-stage vibe-glass-card @(_theaterMode ? "theater-mode-stage" : "")">
                         <div class="video-header-row">
-                            <pre class="panel-header panel-header-flush">[ @(_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO")) ]</pre>
+                            <pre class="panel-header panel-header-flush">[ @(_showLaserWipe ? "INTERACTIVE LASER WIPE" : (_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO"))) ]</pre>
                             <div class="video-header-actions">
+                                <button class="ascii-btn compact-btn @(_showLaserWipe ? "active" : "")" @onclick="ToggleLaserWipe" title="Interactive Draggable Laser Seam">
+                                    @(_showLaserWipe ? "[ ⚡ Exit Laser Wipe ]" : "[ ⚡ Laser Wipe ]")
+                                </button>
                                 <button class="ascii-btn compact-btn @(_showSplitPlayer ? "active" : "")" @onclick="ToggleSplitPlayer">
-                                    @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Split Before/After ]")
+                                    @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Dual Split ]")
                                 </button>
                                 <button class="ascii-btn compact-btn @(_theaterMode ? "active" : "")" @onclick="ToggleTheaterMode" title="Toggle Fullscreen Theater Presentation">
                                     @(_theaterMode ? "[ ✕ Exit Theater ]" : "[ ⛶ Theater Mode ]")
@@ -63,13 +68,34 @@
                             </div>
                         </div>
 
-                        @if (_showSplitPlayer)
+                        @if (_showLaserWipe)
+                        {
+                            <div class="split-master-toolbar ascii-border-double">
+                                <span class="split-master-label">LASER WIPE DRAG &amp; SYNC:</span>
+                                <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("laser-source-video", "laser-meme-video")'>[ ▶ PLAY ]</button>
+                                <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("laser-source-video", "laser-meme-video")'>[ ⏸ PAUSE ]</button>
+                                <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("laser-source-video", "laser-meme-video")'>[ ⏮ RESTART ]</button>
+                            </div>
+
+                            <div class="laser-wipe-stage ascii-border-double">
+                                <canvas id="laser-wipe-canvas" class="laser-wipe-canvas"></canvas>
+                            </div>
+
+                            @* Hidden videos providing frames for the laser-wipe canvas *@
+                            <video id="laser-source-video" class="is-hidden" preload="auto" playsinline muted>
+                                <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
+                            </video>
+                            <video id="laser-meme-video" class="is-hidden" preload="auto" playsinline>
+                                <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
+                            </video>
+                        }
+                        else if (_showSplitPlayer)
                         {
                             <div class="split-master-toolbar ascii-border-double">
                                 <span class="split-master-label">MASTER SYNC:</span>
-                                <button class="ascii-btn compact-btn" @onclick="MasterPlaySync">[ ▶ PLAY BOTH ]</button>
-                                <button class="ascii-btn compact-btn" @onclick="MasterPauseSync">[ ⏸ PAUSE BOTH ]</button>
-                                <button class="ascii-btn compact-btn" @onclick="MasterRestartSync">[ ⏮ RESTART ]</button>
+                                <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("split-source-video", "split-meme-video")'>[ ▶ PLAY BOTH ]</button>
+                                <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("split-source-video", "split-meme-video")'>[ ⏸ PAUSE BOTH ]</button>
+                                <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("split-source-video", "split-meme-video")'>[ ⏮ RESTART ]</button>
                             </div>
 
                             <div class="split-player-container">
@@ -138,6 +164,10 @@
 
                 @if (_script is not null && _script.Entries.Count > 0)
                 {
+                    <div class="cue-scrubber-stage ascii-border-double">
+                        <canvas id="cue-scrubber-canvas" class="cue-scrubber-canvas"></canvas>
+                    </div>
+
                     <div class="script-scroll">
                         @foreach (var (entry, idx) in _script.Entries.Select((e, i) => (e, i + 1)))
                         {
@@ -206,14 +236,75 @@
                                                 <option value="@VisualEffectType.DeepFry">DeepFry</option>
                                                 <option value="@VisualEffectType.MotionBlur">MotionBlur</option>
                                                 <option value="@VisualEffectType.SnapZoom">SnapZoom</option>
+                                                <option value="@VisualEffectType.Overlay">Overlay</option>
                                             </select>
                                         </div>
+
+                                        @if (entry.VisualEffect == VisualEffectType.SnapZoom)
+                                        {
+                                            <div class="cut-row cut-row-spaced">
+                                                <span class="cut-k">HOTSPOT:</span>
+                                                <span class="cue-param-label">X:</span>
+                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                       value="@(entry.HotspotX ?? 0.5)"
+                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotX = v; })" />
+                                                <span class="cue-param-label">Y:</span>
+                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                       value="@(entry.HotspotY ?? 0.5)"
+                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotY = v; })" />
+                                                <span class="cue-hint">[ 🎯 Center: @(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))% ]</span>
+                                            </div>
+                                        }
+
+                                        <div class="cut-row cut-row-spaced">
+                                            <span class="cut-k">STICKER:</span>
+                                            <select class="cue-select is-inline" @bind="entry.OverlayAssetId">
+                                                <option value="">-- No Sticker --</option>
+                                                <option value="deal-with-it">🕶️ Deal With It (Pixel Shades)</option>
+                                                <option value="laser-eyes">🔥 Laser Eyes (Glowing Flare)</option>
+                                                <option value="thug-life">👑 Thug Life (Gold Chain)</option>
+                                                <option value="red-circle">⭕ Red Circle &amp; Arrow</option>
+                                                <option value="clown-wig">🤡 Clown Wig &amp; Nose</option>
+                                                <option value="explosion">💥 Comic Explosion</option>
+                                            </select>
+                                            @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                            {
+                                                <img src="/overlays/@(entry.OverlayAssetId).png" class="sticker-thumb-preview" alt="Sticker preview" />
+                                            }
+                                        </div>
+
+                                        @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                        {
+                                            <div class="cut-row cut-row-spaced">
+                                                <span class="cut-k">STICKER POS:</span>
+                                                <span class="cue-param-label">X:</span>
+                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                       value="@(entry.OverlayX ?? 0.5)"
+                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayX = v; })" />
+                                                <span class="cue-param-label">Y:</span>
+                                                <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
+                                                       value="@(entry.OverlayY ?? 0.3)"
+                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayY = v; })" />
+                                                <span class="cue-param-label">Scale:</span>
+                                                <input type="number" class="ascii-input cue-coord-input" step="0.1" min="0.2" max="3.0"
+                                                       value="@(entry.OverlayScale ?? 1.0)"
+                                                       @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.OverlayScale = v; })" />
+                                            </div>
+                                        }
                                     }
                                     else
                                     {
                                         @if (!string.IsNullOrWhiteSpace(entry.CaptionText))
                                         {
                                             <div class="cut-row"><span class="cut-k">CAPTION:</span> <span class="cut-v cut-v-caption">"@entry.CaptionText" (@(entry.CaptionPosition ?? "Top"))</span></div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
+                                        {
+                                            <div class="cut-row"><span class="cut-k">STICKER:</span> <span class="cut-v cut-v-caption">@entry.OverlayAssetId (at @(((entry.OverlayX ?? 0.5)*100).ToString("F0"))%, @(((entry.OverlayY ?? 0.3)*100).ToString("F0"))%, scale: @((entry.OverlayScale ?? 1.0).ToString("F1"))x)</span></div>
+                                        }
+                                        @if (entry.VisualEffect == VisualEffectType.SnapZoom && (entry.HotspotX.HasValue || entry.HotspotY.HasValue))
+                                        {
+                                            <div class="cut-row"><span class="cut-k">HOTSPOT:</span> <span class="cut-v">Focus: (@(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))%)</span></div>
                                         }
                                         <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
                                         <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
@@ -297,6 +388,7 @@
     private bool _exportingGif;
     private bool _exportingPunchline;
     private bool _rerendering;
+    private bool _showLaserWipe;
     private IJSObjectReference? _revealJs;
     private readonly Dictionary<int, long> _editedTimings = [];
     private string? _statusBanner;
@@ -320,39 +412,62 @@
     private async Task ToggleSplitPlayer()
     {
         _showSplitPlayer = !_showSplitPlayer;
-        if (_showSplitPlayer && _revealJs is not null)
+        if (_showSplitPlayer)
         {
+            _showLaserWipe = false;
+            if (_revealJs is not null)
+            {
+                await Task.Delay(100);
+                try
+                {
+                    await _revealJs.InvokeVoidAsync("setupDualVideoSync", "split-source-video", "split-meme-video");
+                }
+                catch { }
+            }
+        }
+    }
+
+    private async Task ToggleLaserWipe()
+    {
+        _showLaserWipe = !_showLaserWipe;
+        if (_showLaserWipe)
+        {
+            _showSplitPlayer = false;
             await Task.Delay(100);
             try
             {
-                await _revealJs.InvokeVoidAsync("setupDualVideoSync", "split-source-video", "split-meme-video");
+                await JS.InvokeVoidAsync("laserWipePlayer.init", "laser-wipe-canvas", "laser-source-video", "laser-meme-video");
+                if (_revealJs is not null)
+                {
+                    await _revealJs.InvokeVoidAsync("setupDualVideoSync", "laser-source-video", "laser-meme-video");
+                }
             }
             catch { }
         }
     }
 
-    private async Task MasterPlaySync()
+    private async Task MasterPlaySync(string v1 = "split-source-video", string v2 = "split-meme-video")
     {
         if (_revealJs is not null)
         {
-            await _revealJs.InvokeVoidAsync("masterPlay", "split-source-video", "split-meme-video");
+            await _revealJs.InvokeVoidAsync("masterPlay", v1, v2);
         }
     }
 
-    private async Task MasterPauseSync()
+    private async Task MasterPauseSync(string v1 = "split-source-video", string v2 = "split-meme-video")
     {
         if (_revealJs is not null)
         {
-            await _revealJs.InvokeVoidAsync("masterPause", "split-source-video", "split-meme-video");
+            await _revealJs.InvokeVoidAsync("masterPause", v1, v2);
         }
     }
 
-    private async Task MasterRestartSync()
+    private async Task MasterRestartSync(string v1 = "split-source-video", string v2 = "split-meme-video")
     {
         if (_revealJs is not null)
         {
-            await _revealJs.InvokeVoidAsync("masterSeek", "split-source-video", "split-meme-video", 0);
-            await _revealJs.InvokeVoidAsync("masterPlay", "split-source-video", "split-meme-video");
+            await _revealJs.InvokeVoidAsync("masterSeek", v1, v2, 0);
+            await _revealJs.InvokeVoidAsync("masterPlay", v1, v2);
         }
     }
 
@@ -362,6 +477,8 @@
         var current = GetTiming(idx, _script.Entries[idx - 1].TimestampMs);
         var next = Math.Max(0, current + deltaMs);
         SetTiming(idx, next);
+        _ = Audio.PlaySliderTickAsync((double)next / Math.Max(1, (_session?.VideoDurationSeconds ?? 10) * 1000));
+        _ = JS.InvokeVoidAsync("cueScrubber.updateCues", _script.Entries);
         StateHasChanged();
     }
 
@@ -436,6 +553,11 @@
                         VisualEffect = oldEntry.VisualEffect,
                         EffectIntensity = oldEntry.EffectIntensity,
                         OverlayAssetId = oldEntry.OverlayAssetId,
+                        OverlayX = oldEntry.OverlayX,
+                        OverlayY = oldEntry.OverlayY,
+                        OverlayScale = oldEntry.OverlayScale,
+                        HotspotX = oldEntry.HotspotX,
+                        HotspotY = oldEntry.HotspotY,
                         PlacementType = oldEntry.PlacementType,
                         CaptionText = oldEntry.CaptionText,
                         CaptionPosition = oldEntry.CaptionPosition,
@@ -550,6 +672,14 @@
                     if (_script is not null)
                     {
                         _scriptJson = System.Text.Json.JsonSerializer.Serialize(_script, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                        _ = Task.Delay(250).ContinueWith(async _ =>
+                        {
+                            try
+                            {
+                                await JS.InvokeVoidAsync("cueScrubber.init", "cue-scrubber-canvas", "reveal-output-video", _session.VideoDurationSeconds, _script.Entries, DotNetObjectReference.Create(this));
+                            }
+                            catch { }
+                        });
                     }
                 }
                 else
@@ -582,6 +712,11 @@
                 }));
             }
         }
+    }
+
+    [JSInvokable]
+    public void OnTimelineScrubbed(long timestampMs)
+    {
     }
 
     private async Task DownloadVideo()

@@ -108,6 +108,14 @@ public sealed class BrowserLLMDirectorService : IDirectorService
                 IsIronic = e.IsIronic,
                 VisualEffect = e.VisualEffect,
                 EffectIntensity = e.EffectIntensity,
+                OverlayAssetId = e.OverlayAssetId,
+                OverlayX = e.OverlayX,
+                OverlayY = e.OverlayY,
+                OverlayScale = e.OverlayScale,
+                HotspotX = e.HotspotX,
+                HotspotY = e.HotspotY,
+                CaptionText = e.CaptionText,
+                CaptionPosition = e.CaptionPosition,
                 PlacementType = PlacementType.Triggered,
             }).ToArray();
 
@@ -154,4 +162,12 @@ public sealed record BrowserScriptEntryDto(
     bool IsIronic,
     [property: JsonConverter(typeof(JsonStringEnumConverter))]
     VisualEffectType? VisualEffect,
-    double? EffectIntensity);
+    double? EffectIntensity,
+    string? OverlayAssetId = null,
+    double? OverlayX = null,
+    double? OverlayY = null,
+    double? OverlayScale = null,
+    double? HotspotX = null,
+    double? HotspotY = null,
+    string? CaptionText = null,
+    string? CaptionPosition = null);

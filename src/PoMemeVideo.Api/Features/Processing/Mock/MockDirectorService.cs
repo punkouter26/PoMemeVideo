@@ -35,22 +35,29 @@ public sealed class MockDirectorService : IDirectorService
             var sound = topCandidates.Count > i ? topCandidates[i] : topCandidates[0];
             var sceneDesc = SceneDescriptions[descIndex++ % SceneDescriptions.Length];
 
-            results.Add(new ScriptEntry
-            {
-                EntryId = EntryId.New(),
-                SessionId = sessionId,
-                TimestampMs = (long)(ts * 1000),
-                SoundId = sound.SoundId,
-                SoundName = sound.DisplayName,
-                ActionVectorTags = [label],
-                SceneDescription = sceneDesc,
-                SelectionRationale = $"[MOCK] '{label}' matched '{sound.DisplayName}' — the {(i % 2 == 1 ? "ironic contrast" : "tonal resonance")} amplifies the comedic impact of the scene.",
-                IsIronic = i % 2 == 1,
-                VisualEffect = Effects[effectIndex++ % Effects.Length],
-                EffectIntensity = 0.7 + (i % 3) * 0.1,
-                PlacementType = PlacementType.Triggered,
-            });
-        }
+                var effect = Effects[effectIndex++ % Effects.Length];
+                results.Add(new ScriptEntry
+                {
+                    EntryId = EntryId.New(),
+                    SessionId = sessionId,
+                    TimestampMs = (long)(ts * 1000),
+                    SoundId = sound.SoundId,
+                    SoundName = sound.DisplayName,
+                    ActionVectorTags = [label],
+                    SceneDescription = sceneDesc,
+                    SelectionRationale = $"[MOCK] '{label}' matched '{sound.DisplayName}' — the {(i % 2 == 1 ? "ironic contrast" : "tonal resonance")} amplifies the comedic impact of the scene.",
+                    IsIronic = i % 2 == 1,
+                    VisualEffect = effect,
+                    EffectIntensity = 0.7 + (i % 3) * 0.1,
+                    OverlayAssetId = effect == VisualEffectType.Overlay ? "deal-with-it" : null,
+                    OverlayX = effect == VisualEffectType.Overlay ? 0.5 : null,
+                    OverlayY = effect == VisualEffectType.Overlay ? 0.3 : null,
+                    OverlayScale = effect == VisualEffectType.Overlay ? 1.0 : null,
+                    HotspotX = effect == VisualEffectType.SnapZoom ? 0.5 : null,
+                    HotspotY = effect == VisualEffectType.SnapZoom ? 0.4 : null,
+                    PlacementType = PlacementType.Triggered,
+                });
+            }
 
         return Task.FromResult(results.ToArray());
     }

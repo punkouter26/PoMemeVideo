@@ -31,4 +31,9 @@ public record RenderSoundEntry(
     double? EffectIntensity,
     string? OverlayAssetId,
     string? CaptionText = null,
-    string? CaptionPosition = null);
+    string? CaptionPosition = null,
+    double? HotspotX = null,
+    double? HotspotY = null,
+    double? OverlayX = null,
+    double? OverlayY = null,
+    double? OverlayScale = null);
