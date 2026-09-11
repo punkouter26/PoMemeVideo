@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -25,6 +26,11 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
 
     private SessionId _sessionId = SessionId.New();
     private SessionStatus _currentStatus = SessionStatus.Ingesting;
+
+    // Every status written, in order. `_currentStatus` alone cannot be asserted on after a
+    // request that queues an engine run: the run is a background task that writes Processing,
+    // so the final value is a race against the assertion. The recorded sequence is not.
+    private readonly ConcurrentQueue<SessionStatus> _statusWrites = new();
 
     public Task InitializeAsync()
     {
@@ -59,7 +65,9 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
                 Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<double?>(), Arg.Any<CancellationToken>())
             .Returns(x =>
             {
-                _currentStatus = x.ArgAt<SessionStatus>(2);
+                var status = x.ArgAt<SessionStatus>(2);
+                _currentStatus = status;
+                _statusWrites.Enqueue(status);
                 return Task.CompletedTask;
             });
 
@@ -153,12 +161,18 @@ public sealed class ProcessingEndpointsTests : IAsyncLifetime
         // Safe Fallback Mode" button has somewhere to go when the previous run is mid-flight.
         // The session row is reset to Ingesting and the dispatcher queues a fresh run.
         _currentStatus = SessionStatus.Processing;
+        _statusWrites.Clear();
 
         var response = await _client!.PostAsync(
             $"/api/processing/sessions/{_sessionId}/initiate", null);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        Assert.Equal(SessionStatus.Ingesting, _currentStatus);
+
+        // Assert the reset was *written*, not that it is still the current value. The dispatcher
+        // queues a background engine run that immediately writes Processing over it, so
+        // asserting _currentStatus here is a race the CI runner loses: it saw Processing.
+        // The reset happens synchronously before the 202, so this is deterministic.
+        Assert.Contains(SessionStatus.Ingesting, _statusWrites);
     }
 
     [Fact]
