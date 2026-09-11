@@ -78,6 +78,15 @@
             return;
         }
 
+        // The drop zone (and this <input>) is removed from the DOM once the upload completes, but
+        // canvas-dither.js still needs the File afterwards for keyframe and AI-vision capture.
+        // Stash it while the input is still live.
+        try
+        {
+            await JS.InvokeVoidAsync("canvasDither.stashFile", "ascii-file-input");
+        }
+        catch { }
+
         try
         {
             await JS.InvokeVoidAsync("dropzonePhysics.triggerDropImpact");

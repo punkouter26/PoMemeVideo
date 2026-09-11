@@ -83,14 +83,12 @@ internal static class DirectorPrompt
                "- timestampMs: timestamp in milliseconds\n" +
                "- actionVectorTags: array of action tags\n" +
                "- isIronic: true if the sound choice is ironic/subversive\n" +
-               "- visualEffect: one of None, DeepFry, SnapZoom, MotionBlur, Overlay\n" +
+               "- visualEffect: one of None, DeepFry, MotionBlur, Overlay\n" +
                "- effectIntensity: 0.0 to 1.0\n" +
                "- overlayAssetId: optional sticker overlay (e.g. 'deal-with-it', 'laser-eyes', 'thug-life', 'red-circle', 'clown-wig', 'explosion')\n" +
                "- overlayX: optional horizontal position 0.0 (left) to 1.0 (right)\n" +
                "- overlayY: optional vertical position 0.0 (top) to 1.0 (bottom)\n" +
                "- overlayScale: optional scale 0.5 to 2.0\n" +
-               "- hotspotX: optional focal center coordinate 0.0 to 1.0 for SnapZoom\n" +
-               "- hotspotY: optional focal center coordinate 0.0 to 1.0 for SnapZoom\n" +
                "- captionText: short punchy meme text caption (e.g. 'BRO THOUGHT', 'WAIT FOR IT', 'EMOTIONAL DAMAGE', 'POV: MONDAY')\n" +
                "- captionPosition: one of 'Top', 'Bottom', 'Center'\n\n" +
                "Example format:\n" +
@@ -102,10 +100,8 @@ internal static class DirectorPrompt
                "    \"sceneDescription\": \"sudden movement\",\n" +
                "    \"selectionRationale\": \"Vine boom hits the sudden motion perfectly\",\n" +
                "    \"isIronic\": false,\n" +
-               "    \"visualEffect\": \"SnapZoom\",\n" +
+               "    \"visualEffect\": \"MotionBlur\",\n" +
                "    \"effectIntensity\": 0.8,\n" +
-               "    \"hotspotX\": 0.5,\n" +
-               "    \"hotspotY\": 0.4,\n" +
                "    \"captionText\": \"BRO THOUGHT\",\n" +
                "    \"captionPosition\": \"Top\"\n" +
                "  }\n" +

@@ -18,6 +18,25 @@
     const GREEN_G = 0xFF;
     const GREEN_B = 0x41;
 
+    // The <input type="file"> that owns the selected video lives inside the drop zone, and
+    // Source.razor removes the drop zone from the DOM as soon as the upload completes. Frame
+    // capture runs after that point, so hold on to the File itself from selection time rather
+    // than looking up an element that is guaranteed to be gone.
+    let stashedFile = null;
+
+    function stashFile(fileInputId) {
+        const input = fileInputId ? document.getElementById(fileInputId) : null;
+        const file = input && input.files && input.files[0];
+        stashedFile = file || null;
+        return Boolean(stashedFile);
+    }
+
+    function resolveFile(fileInputId) {
+        const input = fileInputId ? document.getElementById(fileInputId) : null;
+        const live = input && input.files && input.files[0];
+        return live || stashedFile;
+    }
+
     /**
      * Applies Floyd-Steinberg error-diffusion dithering to a single frame.
      * Converts to luminance, then quantises to 1-bit (on/off) and maps to
@@ -119,11 +138,11 @@
     async function generateDitheredFrames(video, intervalSeconds, fileInputId) {
         intervalSeconds = intervalSeconds || 3;
 
-        // If a file input ID was given, create a fresh objectURL and load it
+        // If a file input ID was given, create a fresh objectURL and load it. Fall back to the
+        // stashed File when the input has already been torn down by the upload transition.
         let objectUrl = null;
         if (fileInputId) {
-            const input = document.getElementById(fileInputId);
-            const file = input && input.files && input.files[0];
+            const file = resolveFile(fileInputId);
             if (file) {
                 objectUrl = URL.createObjectURL(file);
                 await new Promise((resolve, reject) => {
@@ -237,7 +256,7 @@
     }
 
     // Export to global scope for JSRuntime.InvokeAsync calls from Blazor
-    global.canvasDither = { generateDitheredFrames, captureRawFrames, getVideoDuration, getFileDuration, releaseVideo };
+    global.canvasDither = { generateDitheredFrames, captureRawFrames, getVideoDuration, getFileDuration, releaseVideo, stashFile };
 
     /**
      * Captures raw (undithered) PNG frames from a video at regular intervals.
@@ -263,8 +282,7 @@
         let ownObjectUrl = null;
         try {
             if (!alreadyLoaded) {
-                const input = document.getElementById(fileInputId);
-                const file = input && input.files && input.files[0];
+                const file = resolveFile(fileInputId);
                 if (!file) throw new Error("No file selected");
 
                 ownObjectUrl = URL.createObjectURL(file);

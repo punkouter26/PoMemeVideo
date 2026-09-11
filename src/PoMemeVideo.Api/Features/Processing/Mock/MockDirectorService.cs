@@ -5,8 +5,12 @@ namespace PoMemeVideo.Api.Features.Processing;
 
 public sealed class MockDirectorService : IDirectorService
 {
+    // SnapZoom is retired — its crop+scale was applied to the base chain (the whole video) instead
+    // of the cue's window, so it is excluded here rather than merely left unused.
     private static readonly VisualEffectType[] Effects =
-        Enum.GetValues<VisualEffectType>().Where(e => e != VisualEffectType.None).ToArray();
+        Enum.GetValues<VisualEffectType>()
+            .Where(e => e != VisualEffectType.None && e != VisualEffectType.SnapZoom)
+            .ToArray();
 
     private static readonly string[] SceneDescriptions =
     [
@@ -53,8 +57,6 @@ public sealed class MockDirectorService : IDirectorService
                     OverlayX = effect == VisualEffectType.Overlay ? 0.5 : null,
                     OverlayY = effect == VisualEffectType.Overlay ? 0.3 : null,
                     OverlayScale = effect == VisualEffectType.Overlay ? 1.0 : null,
-                    HotspotX = effect == VisualEffectType.SnapZoom ? 0.5 : null,
-                    HotspotY = effect == VisualEffectType.SnapZoom ? 0.4 : null,
                     PlacementType = PlacementType.Triggered,
                 });
             }

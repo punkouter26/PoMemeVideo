@@ -292,26 +292,9 @@
                                                     <option value="">None</option>
                                                     <option value="@VisualEffectType.DeepFry">DeepFry</option>
                                                     <option value="@VisualEffectType.MotionBlur">MotionBlur</option>
-                                                    <option value="@VisualEffectType.SnapZoom">SnapZoom</option>
                                                     <option value="@VisualEffectType.Overlay">Overlay</option>
                                                 </select>
                                             </div>
-
-                                            @if (entry.VisualEffect == VisualEffectType.SnapZoom)
-                                            {
-                                                <div class="cut-row cut-row-spaced">
-                                                    <span class="cut-k">HOTSPOT:</span>
-                                                    <span class="cue-param-label">X:</span>
-                                                    <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
-                                                           value="@(entry.HotspotX ?? 0.5)"
-                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotX = v; })" />
-                                                    <span class="cue-param-label">Y:</span>
-                                                    <input type="number" class="ascii-input cue-coord-input" step="0.05" min="0" max="1"
-                                                           value="@(entry.HotspotY ?? 0.5)"
-                                                           @onchange="@(e => { if (double.TryParse(e.Value?.ToString(), System.Globalization.CultureInfo.InvariantCulture, out var v)) entry.HotspotY = v; })" />
-                                                    <span class="cue-hint">[ 🎯 @(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))% ]</span>
-                                                </div>
-                                            }
 
                                             <div class="cut-row cut-row-spaced">
                                                 <span class="cut-k">STICKER:</span>
@@ -358,10 +341,6 @@
                                             @if (!string.IsNullOrEmpty(entry.OverlayAssetId))
                                             {
                                                 <div class="cut-row"><span class="cut-k">STICKER:</span> <span class="cut-v cut-v-caption">@entry.OverlayAssetId (@(((entry.OverlayX ?? 0.5)*100).ToString("F0"))%, @(((entry.OverlayY ?? 0.3)*100).ToString("F0"))%, @((entry.OverlayScale ?? 1.0).ToString("F1"))x)</span></div>
-                                            }
-                                            @if (entry.VisualEffect == VisualEffectType.SnapZoom && (entry.HotspotX.HasValue || entry.HotspotY.HasValue))
-                                            {
-                                                <div class="cut-row"><span class="cut-k">HOTSPOT:</span> <span class="cut-v">Focus: (@(((entry.HotspotX ?? 0.5)*100).ToString("F0"))%, @(((entry.HotspotY ?? 0.5)*100).ToString("F0"))%)</span></div>
                                             }
                                             <div class="cut-row"><span class="cut-k">SCENE:</span> <span class="cut-v">@(string.IsNullOrWhiteSpace(entry.SceneDescription) ? "—" : entry.SceneDescription)</span></div>
                                             <div class="cut-row"><span class="cut-k">EFFECT:</span> <span class="cut-v">@(entry.VisualEffect?.ToString() ?? "None") · IRONIC: @(entry.IsIronic ? "YES" : "NO") · @entry.PlacementType</span></div>
@@ -590,7 +569,7 @@
             SoundName = "vine-boom",
             CaptionText = "NEW CUE",
             CaptionPosition = "Top",
-            VisualEffect = VisualEffectType.SnapZoom,
+            VisualEffect = VisualEffectType.None,
         });
         StateHasChanged();
     }
@@ -749,6 +728,12 @@
                     _script = await scriptResponse.Content.ReadFromJsonAsync<DirectorScriptDto>();
                     if (_script is not null)
                     {
+                        // SnapZoom is retired but still present in scripts stored before that, and the
+                        // renderer now ignores it. Normalise on load so the cue list doesn't advertise an
+                        // effect that does nothing, and so a re-render persists the corrected value.
+                        foreach (var entry in _script.Entries.Where(e => e.VisualEffect == VisualEffectType.SnapZoom))
+                            entry.VisualEffect = VisualEffectType.None;
+
                         _scriptJson = System.Text.Json.JsonSerializer.Serialize(_script, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                         _ = Task.Delay(250).ContinueWith(async _ =>
                         {

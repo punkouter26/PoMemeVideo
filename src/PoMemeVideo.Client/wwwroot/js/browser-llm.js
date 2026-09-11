@@ -100,12 +100,12 @@ async function resolveModelTarget(modelId) {
         const localCheck = await fetch(`${LOCAL_MODELS_ROOT}${modelId}/config.json`, { method: 'HEAD' });
         if (localCheck.ok) {
             trace('model-target-local', { modelId, path: `${LOCAL_MODELS_ROOT}${modelId}` });
-            return `${LOCAL_MODELS_ROOT}${modelId}`;
+            return { target: `${LOCAL_MODELS_ROOT}${modelId}`, isLocal: true };
         }
     } catch {
         // Fall back to remote Hugging Face repo
     }
-    return entry.repo || modelId;
+    return { target: entry.repo || modelId, isLocal: false };
 }
 
 async function isModelCached(modelId) {
@@ -137,6 +137,20 @@ async function isModelCached(modelId) {
     return false;
 }
 
+// ONNX Runtime's WebGPU kernels do not support every quantisation on every GPU/driver combination.
+// q4f16 (4-bit weights with fp16 compute) in particular aborts on some adapters, while plain q4
+// works. Rather than hard-failing the model, try the preferred dtype first, then fall back.
+const DTYPE_FALLBACK_CHAIN = ['q4f16', 'q4', 'q8'];
+const dtypeStorageKey = (modelId) => `pmv_model_dtype_${modelId}`;
+
+function buildDtypeCandidates(modelId, preferred) {
+    // A dtype that already worked for this model on this machine wins over the registry default,
+    // so a runtime that rejects q4f16 does not have to re-download and re-fail on every load.
+    const remembered = localStorage.getItem(dtypeStorageKey(modelId));
+    const wanted = preferred ? [preferred] : [];
+    return Array.from(new Set([...wanted, ...(remembered ? [remembered] : []), ...DTYPE_FALLBACK_CHAIN]));
+}
+
 async function createPipelineWithProgress(modelId, progressCallback = null) {
     if (!navigator.gpu) {
         throw new Error('WebGPU is not supported in this browser. Please use Chrome 113+, Edge 113+, or a WebGPU-enabled browser.');
@@ -147,36 +161,59 @@ async function createPipelineWithProgress(modelId, progressCallback = null) {
         throw new Error(entry.unsupportedReason);
     }
 
-    const target = await resolveModelTarget(modelId);
-    const dtype = entry.dtype || 'q4f16';
+    const { target, isLocal } = await resolveModelTarget(modelId);
+
+    // transformers.js resolves a repo id against env.localModelPath whenever allowLocalModels is on.
+    // For a remote repo that makes it request /models/<repo>/... from our own origin, 404, and never
+    // fall back to the Hugging Face host. Only allow local resolution when weights actually exist
+    // under LOCAL_MODELS_ROOT for this model.
+    env.allowLocalModels = isLocal;
+
     const startedAt = performance.now();
+    const dtypes = buildDtypeCandidates(modelId, entry.dtype || 'q4f16');
 
-    trace('model-load-start', { modelId, target, dtype });
+    trace('model-load-start', { modelId, target, isLocal, dtypes });
 
-    try {
-        const generator = await pipeline('text-generation', target, {
-            dtype,
-            device: 'webgpu',
-            progress_callback: progressCallback,
-        });
+    let lastError = null;
 
-        localStorage.setItem(`pmv_model_cached_${modelId}`, 'true');
+    for (const dtype of dtypes) {
+        try {
+            const generator = await pipeline('text-generation', target, {
+                dtype,
+                device: 'webgpu',
+                progress_callback: progressCallback,
+            });
 
-        trace('model-load-success', {
-            modelId,
-            target,
-            elapsedMs: Math.round(performance.now() - startedAt),
-        });
+            localStorage.setItem(`pmv_model_cached_${modelId}`, 'true');
+            localStorage.setItem(dtypeStorageKey(modelId), dtype);
 
-        return generator;
-    } catch (error) {
-        trace('model-load-failure', {
-            modelId,
-            target,
-            error: error instanceof Error ? error.message : String(error),
-        });
-        throw normalizeError(error, `Failed to load model '${modelId}' (${target}) on WebGPU`);
+            trace('model-load-success', {
+                modelId,
+                target,
+                dtype,
+                elapsedMs: Math.round(performance.now() - startedAt),
+            });
+
+            return generator;
+        } catch (error) {
+            lastError = error;
+            trace('model-load-dtype-failure', {
+                modelId,
+                target,
+                dtype,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
+
+    trace('model-load-failure', {
+        modelId,
+        target,
+        dtypesTried: dtypes,
+        error: lastError instanceof Error ? lastError.message : String(lastError),
+    });
+
+    throw normalizeError(lastError, `Failed to load model '${modelId}' (${target}) on WebGPU`);
 }
 
 async function ensureLoaded(modelId, progressCallback = null) {

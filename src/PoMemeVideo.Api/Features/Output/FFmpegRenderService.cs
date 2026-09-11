@@ -298,7 +298,8 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     /// GoF: Template Method — builds the -filter_complex string based on effect types.
     /// Audio: keeps the original video audio and layers each meme sound on top (adelay + amix),
     /// with a limiter to prevent clipping.
-    /// Video: chains optional deep-fry / snap-zoom / motion-blur / sticker overlay filters.
+    /// Video: chains the base look and captions, then applies each cue's windowed visual effect and
+    /// sticker overlay as a separate pass so they only affect their own time range.
     /// </summary>
     internal static string BuildFFmpegArgs(
         string sourcePath,
@@ -338,8 +339,10 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         var videoChain = BuildVideoFilterChain(legacySounds, aggressiveVisuals, aspectRatio);
         var hasBaseVideoFilters = !string.IsNullOrWhiteSpace(videoChain);
 
-        var snapZoomCues = entries.Where(e => string.Equals(e.VisualEffect, "SnapZoom", StringComparison.OrdinalIgnoreCase)).ToList();
-        var hasAdvancedVideo = snapZoomCues.Count > 0 || overlayEntries.Count > 0;
+        // Cue-scoped visual effects. Each is applied on a full-size branch that is overlaid back
+        // only inside its cue's window — see the note on BuildVideoFilterChain.
+        var effectCues = entries.Where(e => ResolveWindowedEffectFilter(e.VisualEffect) is not null).ToList();
+        var hasAdvancedVideo = effectCues.Count > 0 || overlayEntries.Count > 0;
         var hasVideoFilters = hasBaseVideoFilters || hasAdvancedVideo;
 
         var buildAudioMix = entries.Count > 0;
@@ -359,15 +362,16 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
                         fc.Append($"[0:v]null[{currentLabel}]");
 
                     var step = 0;
-                    foreach (var snap in snapZoomCues)
+                    foreach (var cue in effectCues)
                     {
                         var nextLabel = $"v{step + 1}";
-                        var hx = (snap.HotspotX ?? 0.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-                        var hy = (snap.HotspotY ?? 0.5).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-                        var startSec = (snap.TimestampMs / 1000.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-                        var endSec = (snap.TimestampMs / 1000.0 + 1.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var effectFilter = ResolveWindowedEffectFilter(cue.VisualEffect)!;
+                        var startSec = (cue.TimestampMs / 1000.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+                        var endSec = (cue.TimestampMs / 1000.0 + EffectWindowSeconds).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
 
-                        fc.Append($";[{currentLabel}]split[vb{step}][vz{step}];[vz{step}]crop=w=iw/2:h=ih/2:x='min(max(0,iw*{hx}-iw/4),iw-iw/2)':y='min(max(0,ih*{hy}-ih/4),ih-ih/2)',scale=iw:ih[vzs{step}];[vb{step}][vzs{step}]overlay=enable='between(t\\,{startSec}\\,{endSec})'[{nextLabel}]");
+                        // Both branches stay full-size, so the effect frame lays straight over the
+                        // base at 0,0 and only while the window is open.
+                        fc.Append($";[{currentLabel}]split[vb{step}][vz{step}];[vz{step}]{effectFilter}[vzs{step}];[vb{step}][vzs{step}]overlay=enable='between(t\\,{startSec}\\,{endSec})'[{nextLabel}]");
                         currentLabel = nextLabel;
                         step++;
                     }
@@ -461,10 +465,15 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
     }
 
     /// <summary>
-    /// Builds the video filter chain. Always downscales to ≤720p so heavy 1080p/4K phone clips
-    /// encode in reasonable time on constrained hosts. Aggressive visuals enable deep-fry EQ +
-    /// unsharp. Aspect ratio 9:16 adds vertical framing. Captions are overlaid using drawtext.
+    /// Builds the base video filter chain. Always downscales to ≤720p so heavy 1080p/4K phone clips
+    /// encode in reasonable time on constrained hosts. Aggressive visuals (a session-wide opt-in)
+    /// enable deep-fry EQ + unsharp. Aspect ratio 9:16 adds vertical framing. Captions are overlaid
+    /// using drawtext.
     /// </summary>
+    // Cue-level visual effects deliberately do NOT belong here. This chain is comma-joined with no
+    // per-filter time bounds, so an effect attached to one cue would apply to the whole video, and
+    // scale has no timeline support so it could not be time-gated even if it did. Cue effects go
+    // through ResolveWindowedEffectFilter + the split/overlay pass in BuildFFmpegArgs instead.
     // internal (not private) so the filter-chain construction can be unit-tested directly;
     // it is pure and is the highest-risk string building in the render path.
     internal static string BuildVideoFilterChain(
@@ -472,12 +481,6 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         bool aggressiveVisuals,
         string? aspectRatio = null)
     {
-        // Tally which visual effects are requested
-        var effectCounts = sounds
-            .Where(s => s.VisualEffect is not null)
-            .GroupBy(s => s.VisualEffect!)
-            .ToDictionary(g => g.Key, g => g.Count());
-
         var filters = new List<string>();
 
         if (string.Equals(aspectRatio, "9:16", StringComparison.OrdinalIgnoreCase))
@@ -497,22 +500,11 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
             filters.Add("scale=-2:min(720\\,ih)");
         }
 
-        if (aggressiveVisuals || effectCounts.ContainsKey("DeepFry"))
+        if (aggressiveVisuals)
         {
             // Deep-fry: saturate + sharpen
             filters.Add("eq=saturation=3:contrast=1.5:brightness=0.05");
             filters.Add("unsharp=5:5:1.5:5:5:0.0");
-        }
-
-        if (effectCounts.ContainsKey("MotionBlur"))
-        {
-            // Motion blur via tblend fallback
-            filters.Add("tblend=all_mode=average");
-        }
-
-        if (effectCounts.ContainsKey("SnapZoom"))
-        {
-            filters.Add(BuildSnapZoomFilter(0.5, 0.5));
         }
 
         // Add text captions / meme punchline overlays
@@ -535,12 +527,25 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         return string.Join(',', filters);
     }
 
-    internal static string BuildSnapZoomFilter(double hotspotX, double hotspotY)
-    {
-        var hx = hotspotX.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-        var hy = hotspotY.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-        return $"crop=w=iw/2:h=ih/2:x='min(max(0,iw*{hx}-iw/4),iw-iw/2)':y='min(max(0,ih*{hy}-ih/4),ih-ih/2)',scale=iw:ih";
-    }
+    /// <summary>
+    /// How long a cue's visual effect covers, starting at the cue timestamp. Matches the caption
+    /// window so the punch and its text appear together.
+    /// </summary>
+    internal const double EffectWindowSeconds = 2.5;
+
+    /// <summary>
+    /// Maps a cue's visual effect to the filter applied on its windowed branch, or null when the
+    /// effect is not a windowed video effect — None, and Overlay, which the sticker path handles.
+    /// Each returned filter must keep the frame size unchanged, because the windowed pass overlays
+    /// it back onto the base frame at 0,0.
+    /// </summary>
+    internal static string? ResolveWindowedEffectFilter(string? visualEffect)
+        => visualEffect?.ToLowerInvariant() switch
+        {
+            "deepfry" => "eq=saturation=3:contrast=1.5:brightness=0.05,unsharp=5:5:1.5:5:5:0.0",
+            "motionblur" => "tblend=all_mode=average",
+            _ => null
+        };
 
     internal static string BuildOverlayFilter(double overlayX, double overlayY, double startSec, double endSec)
     {
