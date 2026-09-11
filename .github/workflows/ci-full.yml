@@ -40,11 +40,17 @@ jobs:
           - 10000:10000
           - 10001:10001
           - 10002:10002
+        # The health probe must be `node`, not `nc`. The Azurite image ships no netcat, so the
+        # long-standing `nc -z localhost 10000` probe could never succeed: the container stayed
+        # `unhealthy` until the runner gave up with "One or more containers failed to start",
+        # and every job here failed in setup without running a single test. It went unnoticed
+        # because these jobs are dispatch-only. This is the same probe docker-compose.yml uses.
         options: >-
-          --health-cmd "nc -z localhost 10000"
+          --health-cmd "node -e \"require('net').connect(10000, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))\""
           --health-interval 5s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 20
+          --health-start-period 10s
 
     steps:
       - uses: actions/checkout@v4
