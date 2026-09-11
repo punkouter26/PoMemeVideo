@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Director and the Eye</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<style>
+/* ============================================================================
+   PoMemeVideo · NET_DOCS
+   Identity: an engineering shooting-script. Monospace slate labels, paper
+   ground, one phosphor accent borrowed from the app's own retro-terminal
+   tokens and stepped for a light surface.
+   ========================================================================= */
+
+/* --- tokens: light is the bare :root, complete ---------------------------- */
+:root {
+  color-scheme: light;
+
+  --paper:        #f4f5f2;
+  --surface:      #fffffd;
+  --surface-2:    #eceee9;
+  --surface-3:    #e3e6e0;
+
+  --ink:          #101613;
+  --ink-2:        #414a45;
+  --ink-3:        #6d7671;
+
+  --rule:         #d9dcd6;
+  --rule-strong:  #bcc1b9;
+
+  --accent:       #0f6b40;
+  --accent-ink:   #0b5231;
+  --accent-soft:  rgba(15, 107, 64, 0.10);
+  --accent-line:  rgba(15, 107, 64, 0.35);
+
+  --code-bg:      #eceee9;
+  --code-ink:     #1d2a23;
+
+  /* status — fixed in both modes, always paired with an icon or word */
+  --good:    #0ca30c;
+  --warn:    #fab219;
+  --serious: #ec835a;
+  --crit:    #d03b3b;
+
+  /* chart series — validated (light surface #fcfcfb) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+
+  --chart-surface: #fcfcfb;
+  --grid:          #e1e0d9;
+  --axis:          #c3c2b7;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(16, 22, 19, 0.06), 0 8px 24px -16px rgba(16, 22, 19, 0.22);
+
+  --font-display: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  --font-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+
+  --measure: 74ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper:        #0b0e0d;
+    --surface:      #121715;
+    --surface-2:    #1a211e;
+    --surface-3:    #222b27;
+
+    --ink:          #eef3f0;
+    --ink-2:        #b9c3bd;
+    --ink-3:        #8a948e;
+
+    --rule:         #232b27;
+    --rule-strong:  #37433d;
+
+    --accent:       #3ddc97;
+    --accent-ink:   #6ff0b7;
+    --accent-soft:  rgba(61, 220, 151, 0.13);
+    --accent-line:  rgba(61, 220, 151, 0.38);
+
+    --code-bg:      #1a211e;
+    --code-ink:     #cfe6da;
+
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+
+    --chart-surface: #1a1a19;
+    --grid:          #2c2c2a;
+    --axis:          #383835;
+    --muted-ink:     #898781;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper:        #0b0e0d;
+  --surface:      #121715;
+  --surface-2:    #1a211e;
+  --surface-3:    #222b27;
+
+  --ink:          #eef3f0;
+  --ink-2:        #b9c3bd;
+  --ink-3:        #8a948e;
+
+  --rule:         #232b27;
+  --rule-strong:  #37433d;
+
+  --accent:       #3ddc97;
+  --accent-ink:   #6ff0b7;
+  --accent-soft:  rgba(61, 220, 151, 0.13);
+  --accent-line:  rgba(61, 220, 151, 0.38);
+
+  --code-bg:      #1a211e;
+  --code-ink:     #cfe6da;
+
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+
+  --chart-surface: #1a1a19;
+  --grid:          #2c2c2a;
+  --axis:          #383835;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* --- reset / base -------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  overflow-wrap: break-word;
+}
+
+img { max-width: 100%; }
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* --- sticky header ------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-in {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand-mark { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.brand-doc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.docnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-right: auto;
+}
+.docnav a {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-2);
+  padding: 5px 9px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.docnav a:hover { background: var(--surface-2); color: var(--ink); }
+.docnav a[aria-current="page"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.levels { display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.levels button {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 6px 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.levels button:last-child { border-right: 0; }
+.levels button:hover { background: var(--surface-2); color: var(--ink); }
+.levels button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .levels button[aria-pressed="true"],
+.levels button[aria-pressed="true"] { color: #06140d; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .levels button[aria-pressed="true"] { color: #06140d; }
+}
+
+/* --- page frame ---------------------------------------------------------- */
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 0; }
+
+.masthead { padding-block: 40px 26px; border-bottom: 2px solid var(--ink); }
+.masthead .kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 12px;
+}
+.masthead h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.masthead .standfirst {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.slate {
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+  margin-top: 20px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+}
+.slate b { color: var(--ink-2); font-weight: 600; }
+
+main { padding-block: 0 60px; }
+
+section[data-tier] {
+  padding-block: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+section[data-tier]:last-child { border-bottom: 0; }
+
+.tier-flag {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.tier-flag::before {
+  content: "";
+  width: 18px; height: 2px; background: var(--accent); display: inline-block;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16.5px;
+  letter-spacing: 0.005em;
+  margin: 30px 0 8px;
+  text-wrap: balance;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 24px 0 8px;
+}
+p, li { max-width: var(--measure); }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+
+.lede { font-size: 17px; color: var(--ink-2); max-width: var(--measure); }
+
+/* --- evidence citations -------------------------------------------------- */
+code, kbd, samp, pre { font-family: var(--font-mono); }
+code {
+  font-size: 0.875em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.cite {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  border-left: 2px solid var(--accent-line);
+  border-radius: 0;
+  padding: 0 0 0 6px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.cites { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; }
+
+pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  tab-size: 2;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: inherit; }
+figure { margin: 0 0 22px; }
+figcaption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 7px;
+}
+figcaption b { color: var(--ink-2); font-weight: 600; }
+
+/* --- tables -------------------------------------------------------------- */
+.tablewrap { overflow-x: auto; margin: 0 0 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+caption {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 14px 0;
+}
+th, td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+td code { white-space: nowrap; }
+
+/* --- pills / status ------------------------------------------------------ */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.pill.ok    { color: var(--good); }
+.pill.warn  { color: var(--serious); }
+.pill.risk  { color: var(--crit); }
+.pill.info  { color: var(--ink-3); }
+.pill.gone  { color: var(--ink-3); text-decoration: line-through; }
+
+/* --- card grids ---------------------------------------------------------- */
+.grid { display: grid; gap: 14px; margin: 0 0 18px; }
+.grid.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid.g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.g4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 0;
+}
+.card h3 { margin: 0; font-size: 15px; }
+.card p  { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
+.card .k {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.card .v {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.card .v small { font-size: 13px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+
+.navcard {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.navcard:hover { background: var(--surface-2); color: inherit; }
+.navcard .t { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; }
+.navcard .d { font-size: 13.5px; color: var(--ink-2); }
+
+/* --- callouts ------------------------------------------------------------ */
+.note {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 13px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+.note p:last-child { margin-bottom: 0; }
+.note.undeclared { border-left-color: var(--serious); }
+.note.risk { border-left-color: var(--crit); }
+.note.ok { border-left-color: var(--good); }
+.note .nlabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  display: block; margin-bottom: 5px;
+}
+
+/* --- gaps register ------------------------------------------------------- */
+.gap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.gap:last-child { border-bottom: 0; }
+.gap .ghead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; }
+.gap .gt { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.gap p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+/* --- mermaid ------------------------------------------------------------- */
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 18px 14px;
+  overflow-x: auto;
+}
+.mermaid { min-height: 40px; }
+.mermaid svg { max-width: 100%; height: auto; font-size: 16px !important; }
+.mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid .messageText,
+.mermaid .labelText, .mermaid .loopText, .mermaid .noteText,
+.mermaid .actor > tspan, .mermaid .titleText, .mermaid .er .entityLabel {
+  font-size: 15px !important;
+  font-family: var(--font-body) !important;
+}
+.mermaid .cluster-label .nodeLabel { font-size: 15px !important; font-weight: 600; }
+/* Autonumber badges sit inside a fixed-radius circle: keep the size, add weight. */
+.mermaid .sequenceNumber { font-size: 12px !important; font-weight: 600 !important; }
+
+/* --- charts -------------------------------------------------------------- */
+.chart {
+  background: var(--chart-surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px 12px;
+  overflow-x: auto;
+}
+.chart svg { display: block; width: 100%; height: auto; min-width: 300px; }
+.chart .ct {
+  font-family: var(--font-display); font-weight: 600; font-size: 15px;
+  margin: 0 0 2px; color: var(--ink);
+}
+.chart .cs { font-size: 13px; color: var(--ink-2); margin: 0 0 14px; max-width: var(--measure); }
+.bar { transition: opacity .12s ease; }
+.chart:hover .bar { opacity: .62; }
+.chart .bar:hover { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+details.tableview { margin-top: 12px; }
+details.tableview > summary {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding: 4px 0;
+}
+details.tableview > summary:hover { color: var(--ink); }
+
+/* --- footer -------------------------------------------------------------- */
+footer.docfoot {
+  border-top: 2px solid var(--ink);
+  padding-block: 22px 44px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+footer.docfoot .frow { display: flex; flex-wrap: wrap; gap: 6px 26px; }
+footer.docfoot b { color: var(--ink-2); font-weight: 600; }
+
+/* --- phone --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar-in { padding: 9px 16px; gap: 8px 12px; }
+  .docnav { order: 3; width: 100%; margin-right: 0; }
+  .levels { order: 2; }
+  .page { padding-inline: 16px; }
+  .masthead { padding-block: 28px 20px; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="brand-mark">&#9656;</span>
+      <span class="brand-name">PoMemeVideo</span>
+      <span class="brand-doc">AI Services</span>
+    </div>
+    <nav class="docnav" aria-label="Reports"><a href="index.html">Overview</a><a href="AI_SERVICES_REPORT.html" aria-current="page">AI Services</a><a href="AUTH_SECURITY_REPORT.html">Auth &amp; Security</a><a href="USER_WORKFLOW.html">User Workflow</a><a href="VISUAL_ARCHITECTURE_DASHBOARD.html">Architecture</a></nav>
+    <div class="levels" role="group" aria-label="Detail level">
+      <button type="button" data-level="1" aria-pressed="false">1 &middot; Simple</button>
+      <button type="button" data-level="2" aria-pressed="false">2 &middot; Standard</button>
+      <button type="button" data-level="3" aria-pressed="true">3 &middot; All details</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="masthead">
+    <p class="kicker">NET_DOCS &middot; 2026-09-11 &middot; Report 2 of 5</p>
+    <h1>The director and the eye</h1>
+    <p class="standfirst">One Azure AI Foundry resource, two services, and a resilience pipeline that is registered but never resolved.</p>
+    <div class="slate"><span>Repo <b>PoMemeVideo</b></span><span>Branch <b>master</b></span><span>Commit <b>a495207</b></span><span>Build <b>0 warnings, 0 errors</b></span><span>Provider <b>Azure AI Foundry</b></span></div>
+  </div>
+
+  <main>
+<section data-tier="1" id="thirty-seconds">
+  <p class="tier-flag">Tier 1 &middot; The thirty-second read</p>
+  <h2>One provider, two call sites</h2>
+  <p class="lede">There <em>is</em> an AI provider: <b>Azure AI Foundry</b>, reached over the OpenAI chat-completions API at a <code>*.cognitiveservices.azure.com</code> endpoint. Exactly one vendor, one resource and two services &mdash; a director that writes the cue script and a vision service that labels keyframes. The three-provider matrix this codebase used to carry (<code>AzureOpenAI</code> &vert; <code>AiFoundry</code> &vert; <code>BrowserLLM</code>, behind a <code>SwitchingDirectorService</code>) has been removed; what stays runtime-mutable is <em>which deployment</em> the director targets.</p>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Scope, targets, security and cost of the AI subsystem</caption>
+      <thead><tr><th>Dimension</th><th>What the repository says</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Scope</b></td>
+          <td>Two production services &mdash; <code>AiFoundryDirectorService</code> (<code>IDirectorService</code>) and <code>AiFoundryVisionService</code> (<code>IAiVisionService</code>), both singletons. Two mock implementations exist in <code>Features/Processing/Mock/</code> but are <b>not registered by the host</b>; only the integration suite substitutes them.</td>
+          <td><span class="cite">ServiceRegistrationExtensions.cs:96,104</span><span class="cite">ProcessingEndpointsTests.cs:108,111</span></td>
+        </tr>
+        <tr>
+          <td><b>Models</b></td>
+          <td>Director: whichever name <code>RuntimeAiSettings.AiFoundryDeployment</code> currently holds, default <code>gpt-5.4-nano</code>, changeable at runtime. Vision: <code>AiFoundry:VisionDeployment</code>, falling back to the literal <code>gpt-5.4-mini</code>.</td>
+          <td><span class="cite">RuntimeAiSettings.cs:17</span><span class="cite">AiFoundryVisionService.cs:64-66</span></td>
+        </tr>
+        <tr>
+          <td><b>Model allow-list</b></td>
+          <td>A runtime change is validated against <code>AiFoundry:KnownDeployments</code>. Free text is rejected, deliberately: &ldquo;without this the field is a free-text value that reaches the Foundry endpoint as a deployment id&rdquo;.</td>
+          <td><span class="cite">ConfigEndpoints.cs:62-66</span></td>
+        </tr>
+        <tr>
+          <td><b>Credential</b></td>
+          <td><code>AiFoundry:Key</code> when present, otherwise <code>DefaultAzureCredential</code> &mdash; decided per service at construction and logged as <code>AuthMode=ApiKey</code> or <code>AuthMode=DefaultAzureCredential</code>.</td>
+          <td><span class="cite">AiFoundryDirectorService.cs:48-56</span><span class="cite">AiFoundryVisionService.cs:47-60</span></td>
+        </tr>
+        <tr>
+          <td><b>Security</b></td>
+          <td>Keys come from Key Vault under the <code>PoMemeVideo--</code> prefix; never from user input. The endpoint that changes the deployment name is <code>AllowAnonymous</code> &mdash; see the risk note below.</td>
+          <td><span class="cite">Program.cs:78-103</span><span class="cite">ConfigEndpoints.cs:77</span></td>
+        </tr>
+        <tr>
+          <td><b>Cost &amp; budget</b></td>
+          <td><b>Not declared in the repository.</b> No price, per-token budget, monthly cap, spend alert or cost-tracking code exists. No usage figure is read off a response &mdash; <code>ChatCompletion.Usage</code> is never touched.</td>
+          <td><span class="cite">grep -rn 'Usage' src/PoMemeVideo.Api</span></td>
+        </tr>
+        <tr>
+          <td><b>Latency / SLA</b></td>
+          <td><b>Not declared in the repository.</b> Elapsed time is measured and logged per director call, but no threshold, objective or alert is defined against it.</td>
+          <td><span class="cite">AiFoundryDirectorService.cs:97,116-118</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note undeclared">
+    <span class="nlabel">Figures not declared in the repository</span>
+    <p>Cost per call, token budget, spend ceiling, vendor pricing and any latency objective are all absent. The nearest <em>enforced</em> constants, which are what actually bound spend and wall clock today:</p>
+    <ul>
+      <li><b>Director menu cap &mdash; 48 sounds</b> per prompt, the dominant term in prompt size <span class="cite">RunEngineCommand.cs:272</span></li>
+      <li><b>Compact sound serialisation</b>, described in code as a &ldquo;65-75% token reduction&rdquo; against the JSON form <span class="cite">DirectorPrompt.cs:30-32</span></li>
+      <li><b>Vision batch size &mdash; 8 frames</b> per request, at <b>3.0&nbsp;s</b> frame intervals <span class="cite">AiFoundryVisionService.cs:79-80</span></li>
+      <li><b>Vision concurrency &mdash; 3</b> simultaneous batches, via a <code>SemaphoreSlim(3)</code> <span class="cite">AiFoundryVisionService.cs:91</span></li>
+      <li><b>Vision retry &mdash; 2 attempts</b>, 429 only, backoff capped at <b>4&nbsp;s</b> total <span class="cite">AiFoundryVisionService.cs:182-183</span></li>
+      <li><b>Director timeout &mdash; 60&nbsp;s in Development, unbounded elsewhere</b> (<code>AiFoundry:TimeoutSeconds</code> overrides) <span class="cite">AiFoundryDirectorService.cs:45-46,89-95</span></li>
+      <li><b>Temperature 0.6</b>, response format <code>json_object</code> <span class="cite">AiFoundryDirectorService.cs:103-104</span></li>
+      <li><b>Zero tokens in Test</b> &mdash; <code>AiInterception</code> answers chat completions in-process, hard-disabled in Production <span class="cite">AiInterceptionHandler.cs:63-70</span></li>
+    </ul>
+  </div>
+
+  <h3>Provider matrix</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Implementation</th><th>Contract</th><th>Registered</th><th>When it runs</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>AiFoundryDirectorService</code></td><td><code>IDirectorService</code></td><td>Singleton, unconditional</td><td>every environment</td><td><span class="cite">ServiceRegistrationExtensions.cs:104</span></td></tr>
+        <tr><td><code>AiFoundryVisionService</code></td><td><code>IAiVisionService</code></td><td>Singleton, unconditional</td><td>every environment</td><td><span class="cite">ServiceRegistrationExtensions.cs:96</span></td></tr>
+        <tr><td><code>MockDirectorService</code></td><td><code>IDirectorService</code></td><td><span class="pill info">not by the host</span></td><td>integration suite substitutes it over the registration</td><td><span class="cite">MockDirectorService.cs:6</span><span class="cite">ProcessingEndpointsTests.cs:111</span></td></tr>
+        <tr><td><code>MockAiVisionService</code></td><td><code>IAiVisionService</code></td><td><span class="pill info">not by the host</span></td><td>same</td><td><span class="cite">ProcessingEndpointsTests.cs:108</span></td></tr>
+        <tr><td><code>AiInterceptionHandler</code></td><td><code>DelegatingHandler</code></td><td>transport-level, conditional</td><td>Test env or <code>UseMockAI</code>; never Production</td><td><span class="cite">AiInterceptionHandler.cs:63-87</span></td></tr>
+        <tr><td><code>SwitchingDirectorService</code></td><td>&mdash;</td><td><span class="pill gone">removed</span></td><td>dispatched across three providers at call time</td><td><span class="cite">ServiceRegistrationExtensions.cs:98-103</span></td></tr>
+        <tr><td>BrowserLLM (WebGPU / ONNX)</td><td>&mdash;</td><td><span class="pill gone">removed</span></td><td>in-browser inference over a SignalR round-trip</td><td><span class="cite">RuntimeAiSettings.cs:7-9</span><span class="cite">AGENT.md:100-110</span></td></tr>
+        <tr><td>Ollama</td><td>&mdash;</td><td><span class="pill gone">removed</span></td><td>needed a daemon on <code>localhost:11434</code></td><td><span class="cite">AGENT.md:110-111</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note risk">
+    <span class="nlabel">Risk &mdash; the model selector is anonymous</span>
+    <p><code>PUT /api/config/ai-model</code> carries <code>.AllowAnonymous()</code> <span class="cite">ConfigEndpoints.cs:77</span> and mutates a process-wide singleton that every subsequent director call reads <span class="cite">AiFoundryDirectorService.cs:60,69</span>. The allow-list bounds the blast radius to names an operator configured, and the change is not persisted unless <code>PoMemeVideo__PersistAiSettings=true</code> &mdash; but any unauthenticated caller can switch the deployment every session runs on, for every user, until the next restart. Confirmed against the built app under <code>ASPNETCORE_ENVIRONMENT=Staging</code>: an unauthenticated <code>PUT</code> with <code>{"aiFoundryDeployment":"gpt-4o-mini"}</code> returned <code>200 {"aiFoundryDeployment":"gpt-4o-mini"}</code>.</p>
+  </div>
+</section>
+
+<section data-tier="2" id="topology">
+  <p class="tier-flag">Tier 2 &middot; Components and call flow</p>
+  <h2>What actually calls what</h2>
+
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart TB
+  subgraph api["PoMemeVideo.Api"]
+    ING["Ingestion slice&lt;br/&gt;POST .../frames"]
+    ENG["RunEngineCommand&lt;br/&gt;Processing slice"]
+    VIS["AiFoundryVisionService&lt;br/&gt;singleton &middot; IAiVisionService"]
+    DIR["AiFoundryDirectorService&lt;br/&gt;singleton &middot; IDirectorService"]
+    SET["RuntimeAiSettings&lt;br/&gt;singleton &middot; deployment name"]
+    CFGE["ConfigEndpoints&lt;br/&gt;PUT /api/config/ai-model&lt;br/&gt;AllowAnonymous"]
+    INT["AiInterception&lt;br/&gt;DelegatingHandler"]
+    NAMED["AddHttpClient &middot; AiFoundry&lt;br/&gt;resilience + correlation"]
+  end
+
+  FOUND["Azure AI Foundry&lt;br/&gt;chat completions"]
+
+  ING --> VIS
+  ENG --> VIS
+  ENG --> DIR
+  DIR -- "reads per call" --> SET
+  CFGE -- "writes, validated&lt;br/&gt;against KnownDeployments" --> SET
+  VIS -- "AzureOpenAIClient(options)" --> FOUND
+  DIR -- "AzureOpenAIClient(no options)" --> FOUND
+  INT -. "installed on vision only,&lt;br/&gt;Test / UseMockAI" .-> VIS
+  NAMED -. "registered, never resolved" .-x FOUND
+
+  style NAMED stroke-dasharray: 5 5</pre>
+    </div>
+    <figcaption><b>C4 level 3</b> &mdash; the AI subsystem. Two edges are the story: the interception handler reaches only the vision service, and the named client that carries the resilience pipeline is never resolved by anything.</figcaption>
+  </figure>
+
+  <h3>What resilience actually applies</h3>
+  <p>The registration reads as a full Polly pipeline on AI traffic:</p>
+  <pre><code>// Typed/named HttpClients backed by a standard resilience pipeline
+// (retry + timeout + circuit breaker) per the .NET 10 resilience mandate.
+builder.Services.AddHttpClient("AiFoundry")
+    .AddHttpMessageHandler&lt;CorrelationPropagationHandler&gt;()
+    .AddStandardResilienceHandler();</code></pre>
+  <p class="cites"><span class="cite">ServiceRegistrationExtensions.cs:88-95</span></p>
+  <p><code>CreateClient("AiFoundry")</code> appears nowhere in the solution. Both services build their own client:</p>
+  <pre><code>_client = string.IsNullOrWhiteSpace(key)
+    ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential())
+    : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));</code></pre>
+  <p class="cites"><span class="cite">AiFoundryDirectorService.cs:49-51</span></p>
+  <p>So the circuit breaker never opens, the standard retry never runs, and <code>X-Session-ID</code>/<code>X-Correlation-ID</code> are not attached to AI requests &mdash; despite <code>CorrelationPropagationHandler</code>&rsquo;s own summary naming &ldquo;AI Foundry, Azure OpenAI&rdquo; as its downstreams <span class="cite">CorrelationPropagationHandler.cs:6-7</span>. The <b>only</b> outbound HTTP call in the app that goes through <code>IHttpClientFactory</code> is the meme-sound proxy fallback, and it uses the <em>default</em> client, so it gets neither handler <span class="cite">MemeLibraryEndpoints.cs:193</span>.</p>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Failure handling that is genuinely in force</caption>
+      <thead><tr><th>Layer</th><th>Behaviour</th><th>Scope</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Azure SDK transport retry</td><td>The SDK&rsquo;s own built-in policy. <b>Its parameters are not declared in the repository</b> &mdash; no <code>RetryPolicy</code>, <code>NetworkTimeout</code> or <code>ClientRetryPolicy</code> is configured anywhere, so whatever <code>Azure.AI.OpenAI</code> 2.1.0 defaults to is what runs.</td><td>both services</td><td><span class="cite">Directory.Packages.props:27</span></td></tr>
+        <tr><td>Vision 429 retry</td><td>2 extra attempts on HTTP 429 only. Backoff <code>2^attempt</code> seconds (1&nbsp;s, 2&nbsp;s), overridden <em>downward</em> by <code>Retry-After</code> when shorter, hard-capped at 4&nbsp;s.</td><td>vision only</td><td><span class="cite">AiFoundryVisionService.cs:196-238</span></td></tr>
+        <tr><td>Director timeout</td><td>Linked CTS; on expiry throws <code>TimeoutException</code>. 60&nbsp;s in Development, <b>no timeout at all elsewhere</b> unless <code>AiFoundry:TimeoutSeconds</code> is set.</td><td>director only</td><td><span class="cite">AiFoundryDirectorService.cs:45-46,89-113</span></td></tr>
+        <tr><td>Parse failure</td><td>Logged with the raw text, returns an empty array &mdash; never throws.</td><td>director</td><td><span class="cite">AiFoundryDirectorService.cs:125-129</span></td></tr>
+        <tr><td>Engine degradation</td><td>Any director exception &rarr; deterministic fallback entries built from the approved timing decisions; any vision exception &rarr; time-based placement every 2&nbsp;s up to 10&nbsp;s.</td><td>engine</td><td><span class="cite">RunEngineCommand.cs:299-345,201-228</span></td></tr>
+        <tr><td>Circuit breaker</td><td><span class="pill risk">none in force</span></td><td>&mdash;</td><td><span class="cite">ServiceRegistrationExtensions.cs:95</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>A throttled vision batch, step by step</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant E as Ingestion / Engine
+  participant V as AiFoundryVisionService
+  participant S as SemaphoreSlim(3)
+  participant F as AI Foundry deployment
+
+  E->>V: AnalyseAsync(frames[]) — split into batches of 8
+  V->>S: WaitAsync — at most 3 batches in flight
+  V->>F: CompleteChatAsync(text prompt + 8 image parts)
+  F-->>V: 429 Too Many Requests (Retry-After)
+  V->>V: delay = min(2^attempt, Retry-After, 4s cap) — attempt < 2
+  V->>F: retry CompleteChatAsync
+  F-->>V: 200 — JSON array of {timestamp_seconds, label}
+  V-->>E: labels sorted by timestamp — or [] on a parse failure</pre>
+    </div>
+    <figcaption>Step 5 is the deliberate part: the cap is <em>below</em> the server&rsquo;s advertised wait because &ldquo;vision runs on the synchronous ingestion path&hellip; when the deployment is <em>sustained</em>-throttled the retries can&rsquo;t succeed anyway, so we fail fast to the fallback&rdquo; <span class="cite">AiFoundryVisionService.cs:185-195</span>.</figcaption>
+  </figure>
+
+  <h3>The director call</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant R as RunEngineCommand
+  participant M as SemanticMatchingService
+  participant D as AiFoundryDirectorService
+  participant T as RuntimeAiSettings
+  participant F as AI Foundry deployment
+
+  R->>M: GetTopCandidatesAsync(label, topN 3) per vision label
+  R->>R: TokenBucket — 2s minimum gap, highest cosine wins the window
+  R->>D: DirectAsync(approvedLabels, menu ≤ 48 sounds, sessionId, hasRealVision)
+  D->>T: read AiFoundryDeployment — resolved per call, not cached
+  D->>F: CompleteChatAsync(system + user, temperature 0.6, json_object)
+  F-->>D: JSON — array, or {"entries":[...]}, possibly fenced
+  D-->>R: ScriptEntry[] — or [] on timeout/parse failure, never an exception to the caller</pre>
+    </div>
+    <figcaption>Step 4 is why a runtime deployment change takes effect without a restart: <code>GetChatClient()</code> is called per request, not cached in the constructor <span class="cite">AiFoundryDirectorService.cs:59-60</span>.</figcaption>
+  </figure>
+</section>
+
+<section data-tier="3" id="detail">
+  <p class="tier-flag">Tier 3 &middot; Schema and typed bindings</p>
+  <h2>Configuration schema and client bindings</h2>
+
+  <h3>Configuration schema</h3>
+  <pre><code>{
+  "AiFoundry": {
+    "Endpoint":          "",             // required by the director; throws if unset
+    "Key":               "",             // blank ⇒ DefaultAzureCredential
+    "DefaultDeployment": "gpt-5.4-nano", // present in config, read by nothing
+    "VisionDeployment":  "gpt-5.4-mini", // falls back to AzureOpenAI:VisionDeployment
+    "TimeoutSeconds":    null,           // int? — 60 in Development, 0 (none) elsewhere
+    "KnownDeployments":  [ "deepseek-v3", "gpt-4o-mini",
+                           "gemini-2.0-flash", "gpt-5.4-nano" ]
+  },
+  "AzureOpenAI": { "Endpoint": "", "Key": "" },   // LEGACY — vision-only fallback
+  "AzureAiVision": { "Endpoint": "" },            // legacy Computer Vision — no client built
+  "UseMockAI": false
+}</code></pre>
+  <p class="cites"><span class="cite">appsettings.json:18-36,46</span><span class="cite">appsettings.Development.json:14-27</span></p>
+
+  <div class="note">
+    <span class="nlabel">The two <code>KnownDeployments</code> lists disagree</span>
+    <p><code>appsettings.json</code> ships <code>["deepseek-v3","gpt-4o-mini","gemini-2.0-flash","gpt-5.4-nano"]</code> <span class="cite">appsettings.json:30-35</span>; <code>appsettings.Development.json</code> ships an eight-name list with no <code>deepseek-v3</code> or <code>gemini-2.0-flash</code> <span class="cite">appsettings.Development.json:17-26</span>. The selector always injects the currently-active name if the configured list omits it, so the dropdown never loses the running deployment <span class="cite">ConfigEndpoints.cs:95-97</span>.</p>
+  </div>
+
+  <h4>The legacy alias, and exactly what it covers</h4>
+  <p>Only the <b>vision</b> service coalesces to <code>AzureOpenAI:*</code>. The director reads <code>AiFoundry:Endpoint</code> alone and throws without it.</p>
+  <pre><code>// AiFoundryVisionService
+var endpoint = Coalesce(config["AiFoundry:Endpoint"], config["AzureOpenAI:Endpoint"])
+    ?? throw new InvalidOperationException(
+        "AiFoundry:Endpoint not configured (legacy AzureOpenAI:Endpoint is also unset).");
+
+// AiFoundryDirectorService
+var endpoint = config["AiFoundry:Endpoint"]
+    ?? throw new InvalidOperationException("AiFoundry:Endpoint not configured.");</code></pre>
+  <p class="cites"><span class="cite">AiFoundryVisionService.cs:43-45</span><span class="cite">AiFoundryDirectorService.cs:41-42</span></p>
+  <p><code>Coalesce</code> exists rather than <code>??</code> for a documented reason: &ldquo;an unset key read through <code>IConfiguration</code> often arrives as an empty string rather than null (appsettings.json ships every secret as <code>""</code>), which would win over the fallback&rdquo; <span class="cite">AiFoundryVisionService.cs:69-73</span>. The <code>/health</code> endpoint reports which section answered, appending &ldquo;via legacy AzureOpenAI:Endpoint &mdash; migrate to AiFoundry:Endpoint&rdquo; when the canonical key is blank <span class="cite">HealthEndpoint.cs:103-105</span>. <b>The director&rsquo;s asymmetry means a vault carrying only the legacy keys yields a healthy-looking vision service and a director that throws at construction.</b></p>
+
+  <h3>Typed signatures</h3>
+  <pre><code>public interface IDirectorService
+{
+    Task&lt;ScriptEntry[]&gt; DirectAsync(
+        (double TimestampSeconds, string Label)[] visionLabels,
+        IReadOnlyList&lt;SoundAsset&gt; topCandidates,
+        SessionId sessionId,
+        bool hasRealVisionData = false,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IAiVisionService
+{
+    Task&lt;(double TimestampSeconds, string Label)[]&gt; AnalyseAsync(
+        string[] keyframeBase64Images,           // base64 PNG, 3-second intervals
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record SoundCandidate(SoundAsset Sound, float Score);
+
+public interface ISemanticMatchingService
+{
+    Task&lt;IReadOnlyList&lt;SoundCandidate&gt;&gt; GetTopCandidatesAsync(
+        string actionLabel, int topN = 3, CancellationToken cancellationToken = default);
+}</code></pre>
+  <p class="cites"><span class="cite">IServices.cs:18-55</span></p>
+
+  <h3>Client bindings</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Binding</th><th>Director</th><th>Vision</th></tr></thead>
+      <tbody>
+        <tr><td>SDK type</td><td colspan="2"><code>Azure.AI.OpenAI.AzureOpenAIClient</code> &rarr; <code>OpenAI.Chat.ChatClient</code> <span class="cite">Directory.Packages.props:27</span></td></tr>
+        <tr><td>Client lifetime</td><td>built once in the constructor; <code>GetChatClient()</code> per call <span class="cite">AiFoundryDirectorService.cs:60</span></td><td><code>ChatClient</code> built once in the constructor <span class="cite">AiFoundryVisionService.cs:66</span></td></tr>
+        <tr><td><code>AzureOpenAIClientOptions</code></td><td><span class="pill risk">none passed</span></td><td><code>AiInterception.BuildClientOptions(env, config)</code> <span class="cite">AiFoundryVisionService.cs:56</span></td></tr>
+        <tr><td>Request options</td><td><code>Temperature = 0.6f</code>, <code>ResponseFormat = CreateJsonObjectFormat()</code> <span class="cite">AiFoundryDirectorService.cs:101-105</span></td><td>defaults &mdash; no <code>ChatCompletionOptions</code> supplied <span class="cite">AiFoundryVisionService.cs:205</span></td></tr>
+        <tr><td>Message shape</td><td><code>SystemChatMessage</code> (catalogue) + <code>UserChatMessage</code> (prompt) <span class="cite">AiFoundryDirectorService.cs:80-87</span></td><td><code>SystemChatMessage</code> + <code>UserChatMessage</code> with 1 text part + <i>n</i> <code>CreateImagePart(&hellip;, "image/png")</code> <span class="cite">AiFoundryVisionService.cs:131-155</span></td></tr>
+        <tr><td>JSON options</td><td colspan="2"><code>PropertyNameCaseInsensitive</code>, <code>JsonStringEnumConverter</code>, <code>AllowDuplicateProperties</code>, <code>UnmappedMemberHandling.Skip</code>, <code>AllowTrailingCommas</code>, <code>ReadCommentHandling.Skip</code> &mdash; a deliberately forgiving reader <span class="cite">AiFoundryDirectorService.cs:16-24</span><span class="cite">AiFoundryVisionService.cs:16-23</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Response contract and the coercion ladder</h3>
+  <p>The director prompt asks for a JSON array but the request pins <code>json_object</code>, so both shapes arrive in practice. <code>ParseResponse</code> unwraps fences, then an <code>entries</code> wrapper, then deserialises:</p>
+  <pre><code>var json = rawText.Trim();
+if (json.StartsWith("```")) json = json[(json.IndexOf('\n') + 1)..];
+if (json.EndsWith("```"))   json = json[..json.LastIndexOf("```")];
+if (json.StartsWith("{") &amp;&amp; doc.RootElement.TryGetProperty("entries", out var entriesEl))
+    json = entriesEl.GetRawText();
+var dtos = JsonSerializer.Deserialize&lt;DirectorEntry[]&gt;(json, jsonOpts) ?? [];</code></pre>
+  <p class="cites"><span class="cite">DirectorPrompt.cs:117-135</span></p>
+  <p>Sound resolution then tries five strategies in order &mdash; <code>soundIndex</code> into the menu, an integer parsed out of <code>soundId</code>, an exact id match, a display-name match, a raw GUID &mdash; and falls back to the first menu entry rather than failing <span class="cite">DirectorPrompt.cs:148-167</span>. Every parsed entry is stamped <code>PlacementType.Triggered</code> <span class="cite">DirectorPrompt.cs:187</span>; the engine then overwrites both timestamp and placement type from its own timing decisions <span class="cite">RunEngineCommand.cs:356-360</span>.</p>
+
+  <h4><code>DirectorEntry</code> &mdash; the wire shape the model is asked for</h4>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>JSON property</th><th>CLR type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>timestampMs</code></td><td><code>long</code></td><td>overwritten by the token bucket</td></tr>
+        <tr><td><code>soundId</code></td><td><code>string</code></td><td>id, index, or display name &mdash; all accepted</td></tr>
+        <tr><td><code>soundIndex</code></td><td><code>int?</code></td><td>index into the compact menu, checked first</td></tr>
+        <tr><td><code>actionVectorTags</code></td><td><code>string[]</code></td><td>defaults to <code>[]</code></td></tr>
+        <tr><td><code>sceneDescription</code></td><td><code>string</code></td><td>forced to <code>[Time-based placement at {t}]</code> when no real vision data</td></tr>
+        <tr><td><code>selectionRationale</code></td><td><code>string</code></td><td>rendered in the Cue Studio</td></tr>
+        <tr><td><code>isIronic</code></td><td><code>bool</code></td><td></td></tr>
+        <tr><td><code>visualEffect</code></td><td><code>VisualEffectType?</code></td><td>prompt offers <code>None, DeepFry, MotionBlur, Overlay</code> &mdash; <code>SnapZoom</code> is deliberately withheld</td></tr>
+        <tr><td><code>effectIntensity</code></td><td><code>double?</code></td><td>0.0&ndash;1.0</td></tr>
+        <tr><td><code>overlayAssetId</code>, <code>overlayX/Y</code>, <code>overlayScale</code></td><td><code>string?</code>, <code>double?</code></td><td>normalised 0&ndash;1 position, 0.5&ndash;2.0 scale</td></tr>
+        <tr><td><code>hotspotX</code>, <code>hotspotY</code></td><td><code>double?</code></td><td>requested by the parser but <b>not described in the prompt</b> <span class="cite">DirectorPrompt.cs:79-93,208-209</span></td></tr>
+        <tr><td><code>captionText</code>, <code>captionPosition</code></td><td><code>string?</code></td><td><code>Top</code> &vert; <code>Bottom</code> &vert; <code>Center</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="cites"><span class="cite">DirectorPrompt.cs:193-212</span></p>
+
+  <p><code>VisualEffectType.SnapZoom</code> is retired but must remain declared: &ldquo;entries are persisted as JSON via <code>JsonStringEnumConverter</code>, so every already-stored script contains <code>"SnapZoom"</code> and removing the member would throw <code>JsonException</code> when loading those sessions&rdquo; <span class="cite">VisualEffectType.cs:10-15</span>.</p>
+
+  <h3>Test interception</h3>
+  <pre><code>public static bool IsEnabled(IHostEnvironment environment, IConfiguration configuration)
+{
+    if (environment.IsProduction()) return false;
+    return environment.IsEnvironment("Test") || configuration.GetValue&lt;bool&gt;("UseMockAI");
+}</code></pre>
+  <p class="cites"><span class="cite">AiInterceptionHandler.cs:63-70</span></p>
+  <p>When enabled, the handler answers every request with a fixed chat-completion document whose assistant content is the string <code>"[]"</code>, and stamps <code>X-PoMemeVideo-Intercepted: true</code> &ldquo;so a test can assert the call never left the process&rdquo; <span class="cite">AiInterceptionHandler.cs:18-48</span>. Because the director never passes the options object, interception covers the vision path only.</p>
+
+  <h3>The semantic matcher that feeds the prompt</h3>
+  <p>Candidate ranking is local &mdash; no embedding service, no vector store. <code>SemanticMatchingService</code> builds a TF-IDF index over each sound&rsquo;s curated tags <em>union</em> the tokens of its display name, and scores with <code>TensorPrimitives.CosineSimilarity</code> <span class="cite">SemanticMatchingService.cs:58-76</span>. The design note records the measurement that forced it: &ldquo;all 7 captions from a real run scored 0.000 against all 202 sounds&hellip; Indexing tags &cup; name tokens took the library from 41 distinct vectors to 191, and the worst tie group from 97 sounds to 11&rdquo; <span class="cite">SemanticMatchingService.cs:12-19</span>. Curated <code>Priority</code> sounds get a &times;1.5 boost <span class="cite">SemanticMatchingService.cs:33</span>; ties break on <code>SoundId</code> so the same few sounds cannot monopolise the library <span class="cite">SemanticMatchingService.cs:72-74</span>.</p>
+</section>
+
+  </main>
+
+  <footer class="docfoot">
+    <div class="frow">
+      <span>Generated <b>2026-09-11</b></span>
+      <span>Commit <b>a4952075aa0d053d16792f0bcd1a9048477e7d65</b></span>
+      <span><b>PoMemeVideo</b> &middot; NET_DOCS</span>
+      <span>Evidence order: code &rarr; config &rarr; code comments &rarr; README</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.9.0/mermaid.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---- detail level (1 simple · 2 standard · 3 all details) -------------- */
+  var KEY = "pmv-netdocs-level";
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".levels button"));
+
+  function applyLevel(level, persist) {
+    document.documentElement.setAttribute("data-level", String(level));
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tier]"), function (el) {
+      el.hidden = Number(el.getAttribute("data-tier")) > level;   /* cumulative */
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-level") === String(level) ? "true" : "false");
+    });
+    if (persist !== false) {
+      try { localStorage.setItem(KEY, String(level)); } catch (e) { /* private mode */ }
+    }
+  }
+
+  function storedLevel() {
+    try {
+      var v = Number(localStorage.getItem(KEY));
+      return (v === 1 || v === 2 || v === 3) ? v : 3;
+    } catch (e) { return 3; }
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { applyLevel(Number(b.getAttribute("data-level"))); });
+  });
+
+  /* ---- mermaid ----------------------------------------------------------- */
+  function isDark() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp === "dark") return true;
+    if (stamp === "light") return false;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  var blocks = Array.prototype.slice.call(document.querySelectorAll(".mermaid"));
+  blocks.forEach(function (b) { b.setAttribute("data-src", b.textContent); });
+
+  function paletteFor(dark) {
+    return dark
+      ? { bg: "#121715", node: "#1a211e", nodeBorder: "#3ddc97", text: "#eef3f0",
+          line: "#8a948e", alt: "#222b27", cluster: "#0f1512", clusterBorder: "#37433d" }
+      : { bg: "#fffffd", node: "#eef2ee", nodeBorder: "#0f6b40", text: "#101613",
+          line: "#6d7671", alt: "#f4f5f2", cluster: "#f4f5f2", clusterBorder: "#bcc1b9" };
+  }
+
+  function renderMermaid() {
+    if (typeof window.mermaid === "undefined" || blocks.length === 0) return Promise.resolve();
+    var p = paletteFor(isDark());
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+      fontSize: 16,
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: "basis", padding: 14, nodeSpacing: 45, rankSpacing: 55 },
+      sequence: { useMaxWidth: true, actorFontSize: 15, noteFontSize: 14, messageFontSize: 14, width: 190, boxMargin: 12 },
+      er: { useMaxWidth: true, fontSize: 15, entityPadding: 14 },
+      theme: "base",
+      themeVariables: {
+        background: p.bg,
+        primaryColor: p.node,
+        primaryTextColor: p.text,
+        primaryBorderColor: p.nodeBorder,
+        secondaryColor: p.alt,
+        secondaryTextColor: p.text,
+        secondaryBorderColor: p.line,
+        tertiaryColor: p.alt,
+        tertiaryTextColor: p.text,
+        tertiaryBorderColor: p.line,
+        lineColor: p.line,
+        textColor: p.text,
+        mainBkg: p.node,
+        nodeBorder: p.nodeBorder,
+        clusterBkg: p.cluster,
+        clusterBorder: p.clusterBorder,
+        edgeLabelBackground: p.bg,
+        actorBkg: p.node,
+        actorBorder: p.nodeBorder,
+        actorTextColor: p.text,
+        actorLineColor: p.line,
+        signalColor: p.text,
+        signalTextColor: p.text,
+        labelBoxBkgColor: p.node,
+        labelBoxBorderColor: p.nodeBorder,
+        labelTextColor: p.text,
+        loopTextColor: p.text,
+        noteBkgColor: p.alt,
+        noteBorderColor: p.line,
+        noteTextColor: p.text,
+        sequenceNumberColor: p.bg,
+        attributeBackgroundColorOdd: p.node,
+        attributeBackgroundColorEven: p.alt,
+        fontSize: "16px"
+      }
+    });
+
+    blocks.forEach(function (b) {
+      b.removeAttribute("data-processed");
+      b.textContent = b.getAttribute("data-src");
+    });
+
+    return window.mermaid.run({ nodes: blocks, suppressErrors: false })["catch"](function (err) {
+      /* Surface a parse failure instead of leaving a blank frame. */
+      // eslint-disable-next-line no-console
+      console.error("[netdocs] mermaid render failed", err);
+    });
+  }
+
+  function boot() {
+    /* Render every diagram while the document is fully expanded — a mermaid
+       block inside a display:none container measures zero and renders blank —
+       then collapse to the reader's stored level. */
+    var want = storedLevel();          /* read BEFORE the temporary expansion */
+    applyLevel(3, false);
+    var done = renderMermaid();
+    (done && done.then ? done : Promise.resolve()).then(function () {
+      applyLevel(want);
+      document.documentElement.setAttribute("data-diagrams", "ready");
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      var lvl = storedLevel();
+      applyLevel(3, false);
+      var d = renderMermaid();
+      (d && d.then ? d : Promise.resolve()).then(function () { applyLevel(lvl); });
+    };
+    if (mq.addEventListener) { mq.addEventListener("change", onChange); }
+    else if (mq.addListener) { mq.addListener(onChange); }
+  }
+})();
+</script>
+
+</body>
+</html>

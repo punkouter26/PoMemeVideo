@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slices, Keys and Wiring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<style>
+/* ============================================================================
+   PoMemeVideo · NET_DOCS
+   Identity: an engineering shooting-script. Monospace slate labels, paper
+   ground, one phosphor accent borrowed from the app's own retro-terminal
+   tokens and stepped for a light surface.
+   ========================================================================= */
+
+/* --- tokens: light is the bare :root, complete ---------------------------- */
+:root {
+  color-scheme: light;
+
+  --paper:        #f4f5f2;
+  --surface:      #fffffd;
+  --surface-2:    #eceee9;
+  --surface-3:    #e3e6e0;
+
+  --ink:          #101613;
+  --ink-2:        #414a45;
+  --ink-3:        #6d7671;
+
+  --rule:         #d9dcd6;
+  --rule-strong:  #bcc1b9;
+
+  --accent:       #0f6b40;
+  --accent-ink:   #0b5231;
+  --accent-soft:  rgba(15, 107, 64, 0.10);
+  --accent-line:  rgba(15, 107, 64, 0.35);
+
+  --code-bg:      #eceee9;
+  --code-ink:     #1d2a23;
+
+  /* status — fixed in both modes, always paired with an icon or word */
+  --good:    #0ca30c;
+  --warn:    #fab219;
+  --serious: #ec835a;
+  --crit:    #d03b3b;
+
+  /* chart series — validated (light surface #fcfcfb) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+
+  --chart-surface: #fcfcfb;
+  --grid:          #e1e0d9;
+  --axis:          #c3c2b7;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(16, 22, 19, 0.06), 0 8px 24px -16px rgba(16, 22, 19, 0.22);
+
+  --font-display: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  --font-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+
+  --measure: 74ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper:        #0b0e0d;
+    --surface:      #121715;
+    --surface-2:    #1a211e;
+    --surface-3:    #222b27;
+
+    --ink:          #eef3f0;
+    --ink-2:        #b9c3bd;
+    --ink-3:        #8a948e;
+
+    --rule:         #232b27;
+    --rule-strong:  #37433d;
+
+    --accent:       #3ddc97;
+    --accent-ink:   #6ff0b7;
+    --accent-soft:  rgba(61, 220, 151, 0.13);
+    --accent-line:  rgba(61, 220, 151, 0.38);
+
+    --code-bg:      #1a211e;
+    --code-ink:     #cfe6da;
+
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+
+    --chart-surface: #1a1a19;
+    --grid:          #2c2c2a;
+    --axis:          #383835;
+    --muted-ink:     #898781;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper:        #0b0e0d;
+  --surface:      #121715;
+  --surface-2:    #1a211e;
+  --surface-3:    #222b27;
+
+  --ink:          #eef3f0;
+  --ink-2:        #b9c3bd;
+  --ink-3:        #8a948e;
+
+  --rule:         #232b27;
+  --rule-strong:  #37433d;
+
+  --accent:       #3ddc97;
+  --accent-ink:   #6ff0b7;
+  --accent-soft:  rgba(61, 220, 151, 0.13);
+  --accent-line:  rgba(61, 220, 151, 0.38);
+
+  --code-bg:      #1a211e;
+  --code-ink:     #cfe6da;
+
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+
+  --chart-surface: #1a1a19;
+  --grid:          #2c2c2a;
+  --axis:          #383835;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* --- reset / base -------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  overflow-wrap: break-word;
+}
+
+img { max-width: 100%; }
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* --- sticky header ------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-in {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand-mark { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.brand-doc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.docnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-right: auto;
+}
+.docnav a {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-2);
+  padding: 5px 9px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.docnav a:hover { background: var(--surface-2); color: var(--ink); }
+.docnav a[aria-current="page"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.levels { display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.levels button {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 6px 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.levels button:last-child { border-right: 0; }
+.levels button:hover { background: var(--surface-2); color: var(--ink); }
+.levels button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .levels button[aria-pressed="true"],
+.levels button[aria-pressed="true"] { color: #06140d; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .levels button[aria-pressed="true"] { color: #06140d; }
+}
+
+/* --- page frame ---------------------------------------------------------- */
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 0; }
+
+.masthead { padding-block: 40px 26px; border-bottom: 2px solid var(--ink); }
+.masthead .kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 12px;
+}
+.masthead h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.masthead .standfirst {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.slate {
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+  margin-top: 20px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+}
+.slate b { color: var(--ink-2); font-weight: 600; }
+
+main { padding-block: 0 60px; }
+
+section[data-tier] {
+  padding-block: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+section[data-tier]:last-child { border-bottom: 0; }
+
+.tier-flag {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.tier-flag::before {
+  content: "";
+  width: 18px; height: 2px; background: var(--accent); display: inline-block;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16.5px;
+  letter-spacing: 0.005em;
+  margin: 30px 0 8px;
+  text-wrap: balance;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 24px 0 8px;
+}
+p, li { max-width: var(--measure); }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+
+.lede { font-size: 17px; color: var(--ink-2); max-width: var(--measure); }
+
+/* --- evidence citations -------------------------------------------------- */
+code, kbd, samp, pre { font-family: var(--font-mono); }
+code {
+  font-size: 0.875em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.cite {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  border-left: 2px solid var(--accent-line);
+  border-radius: 0;
+  padding: 0 0 0 6px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.cites { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; }
+
+pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  tab-size: 2;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: inherit; }
+figure { margin: 0 0 22px; }
+figcaption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 7px;
+}
+figcaption b { color: var(--ink-2); font-weight: 600; }
+
+/* --- tables -------------------------------------------------------------- */
+.tablewrap { overflow-x: auto; margin: 0 0 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+caption {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 14px 0;
+}
+th, td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+td code { white-space: nowrap; }
+
+/* --- pills / status ------------------------------------------------------ */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.pill.ok    { color: var(--good); }
+.pill.warn  { color: var(--serious); }
+.pill.risk  { color: var(--crit); }
+.pill.info  { color: var(--ink-3); }
+.pill.gone  { color: var(--ink-3); text-decoration: line-through; }
+
+/* --- card grids ---------------------------------------------------------- */
+.grid { display: grid; gap: 14px; margin: 0 0 18px; }
+.grid.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid.g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.g4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 0;
+}
+.card h3 { margin: 0; font-size: 15px; }
+.card p  { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
+.card .k {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.card .v {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.card .v small { font-size: 13px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+
+.navcard {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.navcard:hover { background: var(--surface-2); color: inherit; }
+.navcard .t { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; }
+.navcard .d { font-size: 13.5px; color: var(--ink-2); }
+
+/* --- callouts ------------------------------------------------------------ */
+.note {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 13px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+.note p:last-child { margin-bottom: 0; }
+.note.undeclared { border-left-color: var(--serious); }
+.note.risk { border-left-color: var(--crit); }
+.note.ok { border-left-color: var(--good); }
+.note .nlabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  display: block; margin-bottom: 5px;
+}
+
+/* --- gaps register ------------------------------------------------------- */
+.gap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.gap:last-child { border-bottom: 0; }
+.gap .ghead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; }
+.gap .gt { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.gap p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+/* --- mermaid ------------------------------------------------------------- */
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 18px 14px;
+  overflow-x: auto;
+}
+.mermaid { min-height: 40px; }
+.mermaid svg { max-width: 100%; height: auto; font-size: 16px !important; }
+.mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid .messageText,
+.mermaid .labelText, .mermaid .loopText, .mermaid .noteText,
+.mermaid .actor > tspan, .mermaid .titleText, .mermaid .er .entityLabel {
+  font-size: 15px !important;
+  font-family: var(--font-body) !important;
+}
+.mermaid .cluster-label .nodeLabel { font-size: 15px !important; font-weight: 600; }
+/* Autonumber badges sit inside a fixed-radius circle: keep the size, add weight. */
+.mermaid .sequenceNumber { font-size: 12px !important; font-weight: 600 !important; }
+
+/* --- charts -------------------------------------------------------------- */
+.chart {
+  background: var(--chart-surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px 12px;
+  overflow-x: auto;
+}
+.chart svg { display: block; width: 100%; height: auto; min-width: 300px; }
+.chart .ct {
+  font-family: var(--font-display); font-weight: 600; font-size: 15px;
+  margin: 0 0 2px; color: var(--ink);
+}
+.chart .cs { font-size: 13px; color: var(--ink-2); margin: 0 0 14px; max-width: var(--measure); }
+.bar { transition: opacity .12s ease; }
+.chart:hover .bar { opacity: .62; }
+.chart .bar:hover { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+details.tableview { margin-top: 12px; }
+details.tableview > summary {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding: 4px 0;
+}
+details.tableview > summary:hover { color: var(--ink); }
+
+/* --- footer -------------------------------------------------------------- */
+footer.docfoot {
+  border-top: 2px solid var(--ink);
+  padding-block: 22px 44px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+footer.docfoot .frow { display: flex; flex-wrap: wrap; gap: 6px 26px; }
+footer.docfoot b { color: var(--ink-2); font-weight: 600; }
+
+/* --- phone --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar-in { padding: 9px 16px; gap: 8px 12px; }
+  .docnav { order: 3; width: 100%; margin-right: 0; }
+  .levels { order: 2; }
+  .page { padding-inline: 16px; }
+  .masthead { padding-block: 28px 20px; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="brand-mark">&#9656;</span>
+      <span class="brand-name">PoMemeVideo</span>
+      <span class="brand-doc">Architecture</span>
+    </div>
+    <nav class="docnav" aria-label="Reports"><a href="index.html">Overview</a><a href="AI_SERVICES_REPORT.html">AI Services</a><a href="AUTH_SECURITY_REPORT.html">Auth &amp; Security</a><a href="USER_WORKFLOW.html">User Workflow</a><a href="VISUAL_ARCHITECTURE_DASHBOARD.html" aria-current="page">Architecture</a></nav>
+    <div class="levels" role="group" aria-label="Detail level">
+      <button type="button" data-level="1" aria-pressed="false">1 &middot; Simple</button>
+      <button type="button" data-level="2" aria-pressed="false">2 &middot; Standard</button>
+      <button type="button" data-level="3" aria-pressed="true">3 &middot; All details</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="masthead">
+    <p class="kicker">NET_DOCS &middot; 2026-09-11 &middot; Report 5 of 5</p>
+    <h1>Slices, keys and wiring</h1>
+    <p class="standfirst">The topology, the dependency rule and the two files that enforce it, the full DI table, the routing order that makes a deleted route answer 200, and the key schema.</p>
+    <div class="slate"><span>Repo <b>PoMemeVideo</b></span><span>Branch <b>master</b></span><span>Commit <b>a495207</b></span><span>Build <b>0 warnings, 0 errors</b></span><span>Slices <b>7</b></span></div>
+  </div>
+
+  <main>
+<section data-tier="1" id="thirty-seconds">
+  <p class="tier-flag">Tier 1 &middot; The thirty-second read</p>
+  <h2>One host, seven slices, five tables</h2>
+  <p class="lede">A single deployable ASP.NET Core process serves the API, the SignalR hub and the Blazor WebAssembly client. Inside it, code is grouped by feature slice rather than technical layer, and the rule that keeps that arrangement honest is enforced by discipline in exactly two files.</p>
+
+  <div class="grid g4">
+    <div class="card"><p class="k">Projects</p><p class="v">3</p><p>Api &middot; Client &middot; Shared <span class="cite">PoMemeVideo.slnx</span></p></div>
+    <div class="card"><p class="k">Feature slices</p><p class="v">7</p><p>Auth, Config, Ingestion, MemeLibrary, Output, Processing, plus <code>Common</code></p></div>
+    <div class="card"><p class="k">Mapped endpoints</p><p class="v">27</p><p>+ 1 SignalR hub, + the SPA fallback</p></div>
+    <div class="card"><p class="k">Storage tables</p><p class="v">5 <small>/ 3 containers</small></p><p>4 data + 1 probe <span class="cite">StorageNames.cs</span></p></div>
+    <div class="card"><p class="k">DI registrations</p><p class="v">31</p><p>in one composition root</p></div>
+    <div class="card"><p class="k">Client pages</p><p class="v">7</p><p>6 authorized, 1 anonymous</p></div>
+    <div class="card"><p class="k">Migrations</p><p class="v">0</p><p>Table Storage is schemaless; tables are created on first use</p></div>
+    <div class="card"><p class="k">Tests</p><p class="v">96</p><p>across four suites, all within budget</p></div>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Scope, targets, security and cost of the architecture</caption>
+      <thead><tr><th>Dimension</th><th>What the repository says</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><b>Scope</b></td><td>Vertical-slice architecture inside one project. The layer projects (Domain/Application/Infrastructure) were collapsed into <code>PoMemeVideo.Api</code>.</td><td><span class="cite">AGENT.md:56-58</span></td></tr>
+        <tr><td><b>Dependency rule</b></td><td><b>A slice must not reference a sibling slice.</b> It depends only on <code>PoMemeVideo.Shared.Contracts</code> and resolves the implementation from DI.</td><td><span class="cite">GlobalUsings.cs:1-3</span></td></tr>
+        <tr><td><b>Directory depth</b></td><td>Maximum two levels inside <code>src/</code>. The deepest paths are <code>Api/Common/Storage/</code> and <code>Api/Features/Processing/AiFoundry/</code>.</td><td><span class="cite">CLAUDE.md</span></td></tr>
+        <tr><td><b>Package management</b></td><td>Centralized, with <code>CentralPackageTransitivePinningEnabled</code> on, so a <code>PackageVersion</code> entry also pins transitives &mdash; which is how two advisory-carrying transitive packages are remediated.</td><td><span class="cite">Directory.Packages.props:3-5,32-40</span></td></tr>
+        <tr><td><b>Security</b></td><td>Deny-by-default authorization; the composition root is the only place allowed to see every concrete slice type.</td><td><span class="cite">ServiceRegistrationExtensions.cs:10-17,193-198</span></td></tr>
+        <tr><td><b>Cost &amp; SLA</b></td><td><b>Not declared in the repository.</b> No capacity plan, no scaling rule, no autoscale configuration, no infrastructure-as-code at all &mdash; there is no <code>infra/</code> directory, no Bicep and no <code>azure.yaml</code>.</td><td><span class="cite">AGENT.md:318-320</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note undeclared">
+    <span class="nlabel">Figures not declared in the repository</span>
+    <p>Instance count, scale rules, storage quotas, RPO/RTO, backup policy and cost allocation are all absent; infrastructure is created out-of-band and only referenced by name in the deploy workflow. The nearest <em>enforced</em> architectural constants are: render queue depth = <code>Environment.ProcessorCount</code> with <code>BoundedChannelFullMode.Wait</code> <span class="cite">FFmpegRenderService.cs:47-51</span>, engine queue = unbounded with a <code>ConcurrentDictionary</code> dedupe <span class="cite">EngineRunDispatcher.cs:13-14</span>, sound-cache TTL <b>5 min</b> <span class="cite">SoundAssetTableRepository.cs:13</span>, Blob CORS <code>MaxAgeInSeconds</code> <b>3600</b> <span class="cite">BlobServiceClientFactory.cs:112</span>, and the per-suite test budgets <b>100 / 50 / 25 / 25</b> <span class="cite">check-test-budgets.ps1:6-11</span>.</p>
+  </div>
+
+  <figure>
+    <div class="chart">
+      <p class="ct">Tests written against the budget each suite is allowed</p>
+      <p class="cs">Counted as <code>[Fact]</code> + <code>[Theory]</code> occurrences &mdash; the same rule <code>check-test-budgets.ps1</code> applies to fail the build. The notch on each row is that suite&rsquo;s cap.</p>
+      <svg viewBox="0 0 720 240" role="img" aria-label="Horizontal bar chart of tests per suite against budget: Unit 62 of 100, E2E API 16 of 25, Integration 14 of 50, E2E UI 4 of 25.">
+        <g stroke="var(--grid)" stroke-width="1">
+          <line x1="290" y1="8" x2="290" y2="186"></line>
+          <line x1="420" y1="8" x2="420" y2="186"></line>
+          <line x1="550" y1="8" x2="550" y2="186"></line>
+          <line x1="680" y1="8" x2="680" y2="186"></line>
+        </g>
+        <line x1="160" y1="8" x2="160" y2="186" stroke="var(--axis)" stroke-width="1"></line>
+
+        <g font-family="var(--font-body)" font-size="13" fill="var(--ink-2)" text-anchor="end">
+          <text x="152" y="36">Unit</text>
+          <text x="152" y="82">API E2E</text>
+          <text x="152" y="128">Integration</text>
+          <text x="152" y="174">UI E2E (Playwright)</text>
+        </g>
+
+        <g fill="var(--s1)">
+          <rect class="bar" x="160" y="20" width="322" height="24" rx="4"><title>Unit — 62 tests, budget 100</title></rect>
+          <rect class="bar" x="160" y="66" width="83" height="24" rx="4"><title>API E2E — 16 tests, budget 25</title></rect>
+          <rect class="bar" x="160" y="112" width="73" height="24" rx="4"><title>Integration — 14 tests, budget 50</title></rect>
+          <rect class="bar" x="160" y="158" width="21" height="24" rx="4"><title>UI E2E — 4 tests, budget 25</title></rect>
+        </g>
+
+        <g stroke="var(--serious)" stroke-width="2.5" stroke-linecap="round">
+          <line x1="680" y1="16" x2="680" y2="48"></line>
+          <line x1="290" y1="62" x2="290" y2="94"></line>
+          <line x1="420" y1="108" x2="420" y2="140"></line>
+          <line x1="290" y1="154" x2="290" y2="186"></line>
+        </g>
+
+        <g font-family="var(--font-mono)" font-size="13" font-weight="600" fill="var(--ink)">
+          <text x="490" y="37">62</text>
+          <text x="251" y="83">16</text>
+          <text x="241" y="129">14</text>
+          <text x="189" y="175">4</text>
+        </g>
+        <g font-family="var(--font-mono)" font-size="11" fill="var(--muted-ink)" text-anchor="end">
+          <text x="676" y="12">cap 100</text>
+          <text x="286" y="58">cap 25</text>
+          <text x="416" y="104">cap 50</text>
+          <text x="286" y="150">cap 25</text>
+        </g>
+
+        <g font-family="var(--font-mono)" font-size="12" fill="var(--muted-ink)" text-anchor="middle">
+          <text x="160" y="206">0</text>
+          <text x="290" y="206">25</text>
+          <text x="420" y="206">50</text>
+          <text x="550" y="206">75</text>
+          <text x="680" y="206">100</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>Tests written</span>
+        <span><i style="background:var(--serious);width:3px;height:14px;border-radius:1px"></i>Budget cap &mdash; the build fails above it</span>
+      </div>
+      <details class="tableview">
+        <summary>Table view</summary>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Suite</th><th class="num">Tests</th><th class="num">Budget</th><th>Runs on</th></tr></thead>
+            <tbody>
+              <tr><td>PoMemeVideo.UnitTests</td><td class="num">62</td><td class="num">100</td><td>every push and PR to <code>master</code></td></tr>
+              <tr><td>PoMemeVideo.E2EAPI</td><td class="num">16</td><td class="num">25</td><td><code>workflow_dispatch</code> only</td></tr>
+              <tr><td>PoMemeVideo.IntegrationTests</td><td class="num">14</td><td class="num">50</td><td><code>workflow_dispatch</code> only</td></tr>
+              <tr><td>PoMemeVideo.E2EUI</td><td class="num">4</td><td class="num">25</td><td>never in CI &mdash; local only, self-skips without <code>E2E_BASE_URL</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+    <figcaption><b>Only the unit suite gates a push.</b> The heavier suites each need an Azurite service container and are dispatch-only <span class="cite">ci.yml:8-13,43-44</span><span class="cite">ci-full.yml:14-15</span>. The Playwright suite is excluded from CI entirely because &ldquo;it is the one suite that reports a pass when it has done nothing&rdquo; <span class="cite">ci-full.yml:10-13</span>.</figcaption>
+  </figure>
+</section>
+
+<section data-tier="2" id="topology">
+  <p class="tier-flag">Tier 2 &middot; Topology and dependency rules</p>
+  <h2>Deployment topology</h2>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart LR
+  subgraph gh["GitHub Actions"]
+    CI["ci.yml&lt;br/&gt;build + budgets + unit&lt;br/&gt;push &amp; PR to master"]
+    CIF["ci-full.yml&lt;br/&gt;integration + API E2E&lt;br/&gt;workflow_dispatch only"]
+    DEP["deploy-pomemevideo.yml&lt;br/&gt;publish + bundle ffmpeg + zip"]
+  end
+
+  subgraph rgapp["RG: PoMemeVideo"]
+    APP["app-pomemevideo&lt;br/&gt;DOTNETCORE|10.0 &middot; AlwaysOn off"]
+    ST[("stpomemevideo&lt;br/&gt;Table + Blob")]
+  end
+
+  subgraph rgshared["RG: PoShared"]
+    PLAN["asp-PoShared-f1&lt;br/&gt;F1 Linux &middot; westus2"]
+    KV["kv-poshared&lt;br/&gt;access-policy, not RBAC"]
+  end
+
+  AIF["Azure AI Foundry&lt;br/&gt;shared AI Services resource"]
+
+  CI -. "gates" .-> DEP
+  DEP -- "OIDC federated credential&lt;br/&gt;subject refs/heads/master" --> APP
+  DEP -- "health gate: /health/live&lt;br/&gt;60 attempts × 15 s" --> APP
+  APP --> PLAN
+  APP -- "system-assigned MI&lt;br/&gt;get + list" --> KV
+  APP --> ST
+  APP --> AIF
+  CIF -. "Azurite service container" .-> CIF</pre>
+    </div>
+    <figcaption>The deploy workflow runs no tests, by rule; <code>ci.yml</code> is the only gate on the push path. <code>WEBSITE_RUN_FROM_PACKAGE</code> is deliberately not set &mdash; its read-only mount would block the startup <code>chmod</code> that makes the bundled ffmpeg executable <span class="cite">deploy-pomemevideo.yml:126-127</span><span class="cite">FFmpegRenderService.cs:704-720</span>.</figcaption>
+  </figure>
+
+  <h3>The dependency rule, and the two places it lives</h3>
+  <p>Slice autonomy is not enforced by the compiler &mdash; every slice type is <code>public</code> in the same assembly. It is enforced by two conventions:</p>
+  <pre><code>// Api/GlobalUsings.cs — the entire file
+// Infrastructure and the shared kernel are globally visible. Feature slices are NOT:
+// a slice reaches a sibling only through PoMemeVideo.Shared.Contracts, resolved via DI.
+// The composition root (Configuration/) imports concrete slice types explicitly.
+global using PoMemeVideo.Api.Common;
+global using PoMemeVideo.Shared;
+global using PoMemeVideo.Shared.Contracts;
+global using PoMemeVideo.Shared.Domain;</code></pre>
+  <p class="cites"><span class="cite">GlobalUsings.cs:1-7</span></p>
+  <p>Adding a single <code>global using PoMemeVideo.Api.Features.*</code> line here re-opens cross-slice coupling everywhere at once, silently. The second convention is that <code>Configuration/</code> is the composition root and imports each concrete slice namespace explicitly, per file <span class="cite">ServiceRegistrationExtensions.cs:10-17</span><span class="cite">EndpointMappingExtensions.cs:4-11</span>.</p>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Where a cross-slice need actually goes</caption>
+      <thead><tr><th>Need</th><th>Lands in</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Slice A must call something slice B owns</td><td><code>Shared/Contracts</code>, implementation registered in the composition root</td><td>Processing renders through <code>IRenderVideoCommand</code>, implemented by Output <span class="cite">IServices.cs:61-69</span><span class="cite">ServiceRegistrationExtensions.cs:110</span></td></tr>
+        <tr><td>Every slice needs it</td><td><code>Api/Common</code></td><td><code>UserIdentityResolution</code> &mdash; &ldquo;every slice needs &lsquo;who is calling?&rsquo; and a slice must not take a dependency on a sibling to answer it&rdquo; <span class="cite">UserIdentityResolution.cs:7-8</span></td></tr>
+        <tr><td>A slice must trigger another slice&rsquo;s work asynchronously</td><td>an interface + a hosted service in the owning slice</td><td><code>IEngineRunDispatcher</code> <span class="cite">EngineRunDispatcher.cs:6-9</span></td></tr>
+        <tr><td>A slice must push to the browser</td><td><code>IEngineNotifier</code>, never <code>IHubContext&lt;T&gt;</code> directly</td><td>&ldquo;application code depends on IEngineNotifier, never on IHubContext&lt;EngineHub&gt;&rdquo; <span class="cite">IServices.cs:71-73</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="nlabel">One place the rule bends</span>
+    <p><code>MemeLibraryEndpoints</code> calls <code>SeedSoundsCommand</code>, which lives in its own slice, and its comment says &ldquo;Sibling slice Admin hosts the seeding logic&hellip;&rdquo; <span class="cite">MemeLibraryEndpoints.cs:107-110</span>. There is no Admin slice in the tree &mdash; <code>SeedSoundsCommand.cs</code> sits in <code>Features/MemeLibrary/</code>, so the call is intra-slice and legal; only the comment is stale. Separately, <code>OutputEndpoints</code> injects the <b>concrete</b> <code>BlobStorageService</code> rather than <code>IBlobStorageService</code> on four routes <span class="cite">OutputEndpoints.cs:83,120,156,192</span>, which works because both are registered, but bypasses the contract the rule is built on.</p>
+  </div>
+
+  <h3>Front-end routes mapped to API groups</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart LR
+  subgraph fe["Blazor WASM routes"]
+    RL["/login&lt;br/&gt;AllowAnonymous"]
+    RS["/ and /source"]
+    RE["/engine/{sessionId:guid}"]
+    RV["/reveal/{sessionId:guid}"]
+    RR["/results"]
+    RM["/memelibrary"]
+    RN["/not-found"]
+  end
+
+  subgraph be["API groups"]
+    GA["/api/auth + /auth/*"]
+    GC["/api/config"]
+    GI["/api/ingestion"]
+    GP["/api/processing"]
+    GO["/api/output"]
+    GM["/api/memelibrary"]
+    GH["/hubs/engine"]
+  end
+
+  RL --> GA
+  RL --> GC
+  RS --> GI
+  RS --> GC
+  RS --> GM
+  RE --> GP
+  RE --> GO
+  RE --> GH
+  RV --> GO
+  RV --> GM
+  RR --> GI
+  RR --> GO
+  RM --> GM</pre>
+    </div>
+    <figcaption><b>C4 level 3</b> &mdash; page-to-group mapping. Every page except <code>/login</code> inherits <code>[Authorize]</code> from <code>_Imports.razor</code>; <code>/not-found</code> calls nothing. <span class="cite">_Imports.razor:7</span></figcaption>
+  </figure>
+
+  <h3>Root routing order</h3>
+  <p>Order is behaviour here, not style. <code>UseAndMapPoMemeVideo</code> composes the pipeline in exactly this sequence:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th class="num">#</th><th>Step</th><th>Why it sits here</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><code>UseForwardedHeaders</code></td><td>&ldquo;Must run first: rewrites scheme/host from proxy headers <b>before</b> auth builds redirect URIs&rdquo;</td><td><span class="cite">EndpointMappingExtensions.cs:22-23</span></td></tr>
+        <tr><td class="num">2</td><td><code>UseDeveloperExceptionPage</code></td><td>Development only</td><td><span class="cite">:25-26</span></td></tr>
+        <tr><td class="num">3</td><td><code>UseStaticFiles</code></td><td>with a Development-only <code>no-store</code> header on <code>/_framework</code></td><td><span class="cite">:30-41</span></td></tr>
+        <tr><td class="num">4</td><td><code>MapOpenApi</code> + <code>MapScalarApiReference("/scalar")</code></td><td>mapped before the gate that protects them</td><td><span class="cite">:43-44</span></td></tr>
+        <tr><td class="num">5</td><td><code>UseHttpsRedirection</code></td><td>non-Development only</td><td><span class="cite">:46-47</span></td></tr>
+        <tr><td class="num">6</td><td><code>UseAuthentication</code></td><td>&mdash;</td><td><span class="cite">:49</span></td></tr>
+        <tr><td class="num">7</td><td>API-docs gate</td><td>reads <code>context.User</code>, so it must follow authentication and can precede authorization</td><td><span class="cite">:52-66</span></td></tr>
+        <tr><td class="num">8</td><td><code>Fake</code>-scheme promotion</td><td>non-Production; &ldquo;takes precedence over the dev ANON fallback, so a suite can pin an exact user/roles pair&rdquo;</td><td><span class="cite">:68-83</span></td></tr>
+        <tr><td class="num">9</td><td>Development ANON identity</td><td>after the Fake promotion, with seven path exclusions</td><td><span class="cite">:85-109</span></td></tr>
+        <tr><td class="num">10</td><td><code>UseAuthorization</code></td><td>&mdash;</td><td><span class="cite">:111</span></td></tr>
+        <tr><td class="num">11</td><td>Correlation cookie + response echo</td><td>after authorization so unauthorized responses still carry <code>X-Correlation-ID</code></td><td><span class="cite">:113-140</span></td></tr>
+        <tr><td class="num">12</td><td><code>UseSerilogRequestLogging</code></td><td>enrichment reads the identity established above</td><td><span class="cite">:142-167</span></td></tr>
+        <tr><td class="num">13</td><td><code>MapHub&lt;EngineHub&gt;</code></td><td><code>AllowAnonymous</code></td><td><span class="cite">:174</span></td></tr>
+        <tr><td class="num">14</td><td>Slice endpoint maps</td><td>Diag, Health, Config, Ingestion, Processing, MemeLibrary, Output, Auth, Guest</td><td><span class="cite">:176-186</span></td></tr>
+        <tr><td class="num">15</td><td>Host auth routes</td><td><code>/auth/login/microsoft</code>, <code>/auth/callback</code>, <code>/auth/logout</code></td><td><span class="cite">:188-220</span></td></tr>
+        <tr><td class="num">16</td><td><code>MapStaticAssets</code> + <code>MapFallbackToFile("index.html")</code></td><td><b>Last.</b> Any unmatched path becomes the WASM shell &mdash; which is why a deleted API route answers 200 with HTML rather than 404</td><td><span class="cite">:224-225</span><span class="cite">RoutingContractApiTests.cs:14-20</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>One ordering consequence is worth stating plainly: because step 16 is a catch-all, <b>route removal is invisible to a naive 404 check</b>. That is the exact bug the routing-contract suite was written for &mdash; a download URL that had never existed answered 200 with <code>index.html</code>, and the browser saved the HTML page as <code>pomemevideo_&lt;id&gt;.mp4</code> <span class="cite">RoutingContractApiTests.cs:8-20</span>.</p>
+</section>
+
+<section data-tier="3" id="detail">
+  <p class="tier-flag">Tier 3 &middot; Registrations and schema</p>
+  <h2>DI registration table</h2>
+  <div class="tablewrap">
+    <table>
+      <caption>Every registration in the composition root, in declaration order</caption>
+      <thead><tr><th>Service</th><th>Implementation</th><th>Lifetime</th><th>Line</th></tr></thead>
+      <tbody>
+        <tr><td><code>IExceptionHandler</code></td><td><code>GlobalExceptionHandler</code></td><td>Singleton (<code>AddExceptionHandler</code>)</td><td><span class="cite">:27</span></td></tr>
+        <tr><td>ProblemDetails service</td><td>framework</td><td>&mdash;</td><td><span class="cite">:28</span></td></tr>
+        <tr><td><code>ForwardedHeadersOptions</code></td><td>options</td><td>&mdash;</td><td><span class="cite">:32-37</span></td></tr>
+        <tr><td>OpenTelemetry tracing</td><td>OTLP/gRPC exporter</td><td><span class="pill info">conditional</span> &mdash; only with a resolved endpoint</td><td><span class="cite">:49-73</span></td></tr>
+        <tr><td><code>AzureTableClientFactory</code></td><td>self</td><td>Singleton</td><td><span class="cite">:75</span></td></tr>
+        <tr><td><code>BlobServiceClientFactory</code></td><td>self</td><td>Singleton</td><td><span class="cite">:76</span></td></tr>
+        <tr><td><code>BlobStorageService</code> + <code>IBlobStorageService</code></td><td><code>BlobStorageService</code></td><td>Singleton (forwarded)</td><td><span class="cite">:77</span></td></tr>
+        <tr><td><code>IUserIdentityRepository</code></td><td><code>UserIdentityTableRepository</code></td><td>Scoped</td><td><span class="cite">:78</span></td></tr>
+        <tr><td><code>IVideoSessionRepository</code></td><td><code>VideoSessionTableRepository</code></td><td>Scoped</td><td><span class="cite">:80</span></td></tr>
+        <tr><td><code>IngestVideoCommand</code></td><td>self</td><td>Scoped</td><td><span class="cite">:81</span></td></tr>
+        <tr><td><code>ISoundAssetRepository</code></td><td><code>SoundAssetTableRepository</code></td><td><b>Singleton</b> &mdash; it owns the <code>HybridCache</code> entry</td><td><span class="cite">:83</span></td></tr>
+        <tr><td><code>IDirectorScriptRepository</code></td><td><code>DirectorScriptTableRepository</code></td><td>Scoped</td><td><span class="cite">:84</span></td></tr>
+        <tr><td><code>RuntimeAiSettings</code></td><td>instance</td><td>Singleton &mdash; mutable, shared by every request</td><td><span class="cite">:86</span></td></tr>
+        <tr><td><code>IHttpContextAccessor</code></td><td>framework</td><td>Singleton</td><td><span class="cite">:90</span></td></tr>
+        <tr><td><code>CorrelationPropagationHandler</code></td><td>self</td><td>Transient</td><td><span class="cite">:91</span></td></tr>
+        <tr><td><code>HttpClient("AiFoundry")</code></td><td>named, + correlation + standard resilience</td><td><span class="pill risk">registered, never resolved</span></td><td><span class="cite">:93-95</span></td></tr>
+        <tr><td><code>IAiVisionService</code></td><td><code>AiFoundryVisionService</code></td><td>Singleton</td><td><span class="cite">:96</span></td></tr>
+        <tr><td><code>IDirectorService</code></td><td><code>AiFoundryDirectorService</code></td><td>Singleton</td><td><span class="cite">:104</span></td></tr>
+        <tr><td><code>SemanticMatchingService</code> + <code>ISemanticMatchingService</code></td><td><code>SemanticMatchingService</code></td><td>Scoped (forwarded) &mdash; the TF-IDF index is memoised for the scope</td><td><span class="cite">:106-107</span></td></tr>
+        <tr><td><code>RunEngineCommand</code></td><td>self</td><td>Scoped</td><td><span class="cite">:108</span></td></tr>
+        <tr><td><code>RenderVideoCommand</code> + <code>IRenderVideoCommand</code></td><td><code>RenderVideoCommand</code></td><td>Scoped (forwarded)</td><td><span class="cite">:109-110</span></td></tr>
+        <tr><td><code>EngineRunDispatcher</code> + <code>IEngineRunDispatcher</code> + <code>IHostedService</code></td><td><code>EngineRunDispatcher</code></td><td>Singleton, three-way forwarded</td><td><span class="cite">:111-113</span></td></tr>
+        <tr><td><code>FFmpegRenderService</code> + <code>IVideoRenderService</code></td><td><code>FFmpegRenderService</code></td><td>Singleton (forwarded) &mdash; its worker is started manually in <code>Program</code>, not as a hosted service</td><td><span class="cite">:114-115</span><span class="cite">Program.cs:44</span></td></tr>
+        <tr><td>Authentication</td><td>Cookie default; <code>AddMicrosoftIdentityWebApp</code> when <code>AzureAd:ClientId</code> is set, else <code>AddCookie</code>; <code>FakeAuthHandler</code> outside Production</td><td>&mdash;</td><td><span class="cite">:135-191</span></td></tr>
+        <tr><td>Authorization</td><td><code>FallbackPolicy = RequireAuthenticatedUser()</code></td><td>&mdash;</td><td><span class="cite">:193-198</span></td></tr>
+        <tr><td>SignalR</td><td>framework</td><td>&mdash;</td><td><span class="cite">:200</span></td></tr>
+        <tr><td><code>IEngineNotifier</code></td><td><code>EngineHubNotifier</code></td><td>Singleton</td><td><span class="cite">:201</span></td></tr>
+        <tr><td>OpenAPI</td><td><code>AddOpenApi</code></td><td>&mdash;</td><td><span class="cite">:203</span></td></tr>
+        <tr><td>Data Protection</td><td>keys to <code>dataprotection/keys.xml</code>, app name <code>PoMemeVideo</code></td><td><span class="pill info">conditional</span> &mdash; non-Development <b>and</b> a blob connection string</td><td><span class="cite">:209-227</span></td></tr>
+        <tr><td><code>IMemoryCache</code></td><td>framework</td><td>Singleton</td><td><span class="cite">:231</span></td></tr>
+        <tr><td><code>HybridCache</code></td><td>over MemoryCache &mdash; &ldquo;adds stampede protection on the sound-library read, and leaves a seam for a distributed L2&rdquo;</td><td>Singleton</td><td><span class="cite">:229-232</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><b>No CORS registration.</b> The one comment where it would be is a statement of intent: &ldquo;Single-origin: the WASM client is served same-origin by this API, so no CORS&rdquo; <span class="cite">ServiceRegistrationExtensions.cs:205</span>. The Blob-service CORS rules configured at startup are a different thing entirely &mdash; they live on the storage account, for the browser&rsquo;s direct upload.</p>
+
+  <h3>Entity&ndash;relationship model</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">erDiagram
+  USER_IDENTITY {
+    string PartitionKey "IdentityType: GUEST|Microsoft|ANON"
+    string RowKey "IdentityId (Guid)"
+    string DisplayName
+    datetime CreatedAt
+  }
+  VIDEO_SESSION {
+    string PartitionKey "constant 'sessions'"
+    string RowKey "SessionId (Guid)"
+    string OwnerUserId "UNENFORCED ref to a user"
+    string SourceBlobPath
+    double VideoDurationSeconds
+    bool AggressiveVisuals
+    string Status "Ingesting|Processing|Complete|Error"
+    string ErrorMessage "nullable"
+    datetime CreatedAt
+    datetime CompletedAt "nullable"
+    string OutputBlobPath "nullable"
+    double TrimStartSeconds "nullable"
+    double TrimDurationSeconds "nullable"
+    string MemePersona "nullable — never reaches the director"
+    string AspectRatio "nullable"
+  }
+  DIRECTOR_SCRIPT {
+    string PartitionKey "SessionId (Guid)"
+    string RowKey "constant 'script'"
+    datetime GeneratedAt
+    int TotalSoundCount
+    double AverageDensitySeconds
+    string EntriesJson "serialised ScriptEntry[]"
+  }
+  SCRIPT_ENTRY {
+    string EntryId "inside EntriesJson — not a row"
+    string SessionId
+    long TimestampMs
+    string SoundId "UNENFORCED ref to a sound"
+    string SoundName "denormalised copy"
+    string CaptionText "nullable"
+    string VisualEffect "nullable"
+  }
+  SOUND_ASSET {
+    string PartitionKey "constant 'library'"
+    string RowKey "SoundId (Guid)"
+    string DisplayName
+    int DurationMs
+    string Tags "comma-joined"
+    string BlobUrl
+    bool Priority
+    string UseCase
+  }
+
+  USER_IDENTITY ||..o{ VIDEO_SESSION : "OwnerUserId — app-checked, no constraint"
+  VIDEO_SESSION ||..|| DIRECTOR_SCRIPT : "SessionId is the script's PartitionKey"
+  DIRECTOR_SCRIPT ||--o{ SCRIPT_ENTRY : "embedded in EntriesJson, not rows"
+  SOUND_ASSET }o..o{ SCRIPT_ENTRY : "SoundId — resolved at render, falls back silently"</pre>
+    </div>
+    <figcaption><b>Solid lines are enforced by the storage key itself; dotted lines are conventions the application upholds.</b> Azure Table Storage has no foreign keys, so the only structurally guaranteed relationship is <code>VIDEO_SESSION &harr; DIRECTOR_SCRIPT</code>, where the session id <em>is</em> the script&rsquo;s partition key.</figcaption>
+  </figure>
+
+  <h3>Compact key schema</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Table</th><th>PK</th><th>RK</th><th>Logical FK</th><th>Enforced?</th><th>What breaks if it dangles</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>UserIdentities</code></td><td><code>IdentityType</code></td><td><code>IdentityId</code></td><td>&mdash;</td><td>n/a</td>
+          <td>&mdash; The table is write-mostly: <code>GetByIdAsync</code> exists on the interface <span class="cite">IUserIdentityRepository.cs:7</span> and has <b>no caller in <code>src/</code></b>.</td>
+        </tr>
+        <tr>
+          <td><code>VideoSessions</code></td><td>const <code>"sessions"</code></td><td><code>SessionId</code></td><td><code>OwnerUserId</code> &rarr; a user</td>
+          <td><span class="pill warn">application only</span></td>
+          <td>The session becomes unreachable &mdash; every lookup compares <code>OwnerUserId</code> to the caller and returns null on a mismatch <span class="cite">VideoSessionTableRepository.cs:171-172</span>.</td>
+        </tr>
+        <tr>
+          <td><code>DirectorScripts</code></td><td><code>SessionId</code></td><td>const <code>"script"</code></td><td>PK &rarr; <code>VideoSessions.RowKey</code></td>
+          <td><span class="pill ok">structural</span></td>
+          <td>Nothing &mdash; but note the row carries <b>no owner column</b>, so <code>GetBySessionIdAsync</code> is unauthenticated at the repository layer <span class="cite">IRepositories.cs:35</span>. Deleting a session deletes its blobs and row but <b>not</b> its script: <code>DeleteBySessionIdAsync</code> exists <span class="cite">IRepositories.cs:36</span> and the wipe handler never calls it <span class="cite">OutputEndpoints.cs:202-210</span>, so script rows are orphaned on every wipe.</td>
+        </tr>
+        <tr>
+          <td><code>SoundAssets</code></td><td>const <code>"library"</code></td><td><code>SoundId</code></td><td>&mdash;</td><td>n/a</td>
+          <td>Referenced <em>by</em> script entries. A missing sound is not an error: the render resolves it to a constructed path that will not exist, and ffmpeg proceeds without that cue <span class="cite">RenderVideoCommand.cs:84-88</span>.</td>
+        </tr>
+        <tr>
+          <td><code>HealthCheck</code></td><td colspan="2">never written &mdash; created by the probe&rsquo;s own <code>CreateIfNotExists</code></td><td>&mdash;</td><td>n/a</td>
+          <td>&mdash;</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Blob containers</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Container</th><th>Holds</th><th>Written by</th><th>Deleted by</th></tr></thead>
+      <tbody>
+        <tr><td><code>sessions</code></td><td><code>source.*</code>, <code>frames/frame_NNNN.png</code>, <code>vision-labels.json</code>, <code>output.mp4</code></td><td>browser SAS <code>PUT</code>, the frames endpoint, the render worker</td><td><code>DELETE /api/output/sessions/{id}</code>, by prefix <span class="cite">OutputEndpoints.cs:205</span></td></tr>
+        <tr><td><code>sounds</code></td><td>meme audio clips</td><td>seed command and the upload endpoint</td><td>nothing &mdash; no delete path exists</td></tr>
+        <tr><td><code>dataprotection</code></td><td><code>keys.xml</code></td><td>ASP.NET Core Data Protection, non-Development only</td><td>nothing</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Package pins that exist for security</h3>
+  <p>Two entries in <code>Directory.Packages.props</code> are there purely to displace advisory-carrying transitive versions, which works only because transitive pinning is enabled:</p>
+  <pre><code>&lt;!-- Microsoft.Identity.Web / Mvc.Testing pull 10.0.7 (GHSA-23rf-6693-g89p, …) --&gt;
+&lt;PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" /&gt;
+&lt;!-- Testcontainers 4.5.0 pulls SSH.NET 2024.2.0 (GHSA-q939-rpr3-3284, high). The advisory
+     covers everything &lt;= 2025.1.0, so 2026.0.0 is the first fixed version — not 2025.x. --&gt;
+&lt;PackageVersion Include="SSH.NET" Version="2026.0.0" /&gt;
+&lt;!-- Microsoft.AspNetCore.OpenApi 10.0.7 pulls 2.0.0 (GHSA-v5pm-xwqc-g5wc) --&gt;
+&lt;PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" /&gt;</code></pre>
+  <p class="cites"><span class="cite">Directory.Packages.props:19-20,32-40</span></p>
+  <p>NuGet audit warnings become build errors under <code>TreatWarningsAsErrors</code>, so an unpinned advisory fails the build rather than appearing in a report nobody reads <span class="cite">Directory.Build.props:6</span>.</p>
+</section>
+
+  </main>
+
+  <footer class="docfoot">
+    <div class="frow">
+      <span>Generated <b>2026-09-11</b></span>
+      <span>Commit <b>a4952075aa0d053d16792f0bcd1a9048477e7d65</b></span>
+      <span><b>PoMemeVideo</b> &middot; NET_DOCS</span>
+      <span>Evidence order: code &rarr; config &rarr; code comments &rarr; README</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.9.0/mermaid.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---- detail level (1 simple · 2 standard · 3 all details) -------------- */
+  var KEY = "pmv-netdocs-level";
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".levels button"));
+
+  function applyLevel(level, persist) {
+    document.documentElement.setAttribute("data-level", String(level));
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tier]"), function (el) {
+      el.hidden = Number(el.getAttribute("data-tier")) > level;   /* cumulative */
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-level") === String(level) ? "true" : "false");
+    });
+    if (persist !== false) {
+      try { localStorage.setItem(KEY, String(level)); } catch (e) { /* private mode */ }
+    }
+  }
+
+  function storedLevel() {
+    try {
+      var v = Number(localStorage.getItem(KEY));
+      return (v === 1 || v === 2 || v === 3) ? v : 3;
+    } catch (e) { return 3; }
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { applyLevel(Number(b.getAttribute("data-level"))); });
+  });
+
+  /* ---- mermaid ----------------------------------------------------------- */
+  function isDark() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp === "dark") return true;
+    if (stamp === "light") return false;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  var blocks = Array.prototype.slice.call(document.querySelectorAll(".mermaid"));
+  blocks.forEach(function (b) { b.setAttribute("data-src", b.textContent); });
+
+  function paletteFor(dark) {
+    return dark
+      ? { bg: "#121715", node: "#1a211e", nodeBorder: "#3ddc97", text: "#eef3f0",
+          line: "#8a948e", alt: "#222b27", cluster: "#0f1512", clusterBorder: "#37433d" }
+      : { bg: "#fffffd", node: "#eef2ee", nodeBorder: "#0f6b40", text: "#101613",
+          line: "#6d7671", alt: "#f4f5f2", cluster: "#f4f5f2", clusterBorder: "#bcc1b9" };
+  }
+
+  function renderMermaid() {
+    if (typeof window.mermaid === "undefined" || blocks.length === 0) return Promise.resolve();
+    var p = paletteFor(isDark());
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+      fontSize: 16,
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: "basis", padding: 14, nodeSpacing: 45, rankSpacing: 55 },
+      sequence: { useMaxWidth: true, actorFontSize: 15, noteFontSize: 14, messageFontSize: 14, width: 190, boxMargin: 12 },
+      er: { useMaxWidth: true, fontSize: 15, entityPadding: 14 },
+      theme: "base",
+      themeVariables: {
+        background: p.bg,
+        primaryColor: p.node,
+        primaryTextColor: p.text,
+        primaryBorderColor: p.nodeBorder,
+        secondaryColor: p.alt,
+        secondaryTextColor: p.text,
+        secondaryBorderColor: p.line,
+        tertiaryColor: p.alt,
+        tertiaryTextColor: p.text,
+        tertiaryBorderColor: p.line,
+        lineColor: p.line,
+        textColor: p.text,
+        mainBkg: p.node,
+        nodeBorder: p.nodeBorder,
+        clusterBkg: p.cluster,
+        clusterBorder: p.clusterBorder,
+        edgeLabelBackground: p.bg,
+        actorBkg: p.node,
+        actorBorder: p.nodeBorder,
+        actorTextColor: p.text,
+        actorLineColor: p.line,
+        signalColor: p.text,
+        signalTextColor: p.text,
+        labelBoxBkgColor: p.node,
+        labelBoxBorderColor: p.nodeBorder,
+        labelTextColor: p.text,
+        loopTextColor: p.text,
+        noteBkgColor: p.alt,
+        noteBorderColor: p.line,
+        noteTextColor: p.text,
+        sequenceNumberColor: p.bg,
+        attributeBackgroundColorOdd: p.node,
+        attributeBackgroundColorEven: p.alt,
+        fontSize: "16px"
+      }
+    });
+
+    blocks.forEach(function (b) {
+      b.removeAttribute("data-processed");
+      b.textContent = b.getAttribute("data-src");
+    });
+
+    return window.mermaid.run({ nodes: blocks, suppressErrors: false })["catch"](function (err) {
+      /* Surface a parse failure instead of leaving a blank frame. */
+      // eslint-disable-next-line no-console
+      console.error("[netdocs] mermaid render failed", err);
+    });
+  }
+
+  function boot() {
+    /* Render every diagram while the document is fully expanded — a mermaid
+       block inside a display:none container measures zero and renders blank —
+       then collapse to the reader's stored level. */
+    var want = storedLevel();          /* read BEFORE the temporary expansion */
+    applyLevel(3, false);
+    var done = renderMermaid();
+    (done && done.then ? done : Promise.resolve()).then(function () {
+      applyLevel(want);
+      document.documentElement.setAttribute("data-diagrams", "ready");
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      var lvl = storedLevel();
+      applyLevel(3, false);
+      var d = renderMermaid();
+      (d && d.then ? d : Promise.resolve()).then(function () { applyLevel(lvl); });
+    };
+    if (mq.addEventListener) { mq.addEventListener("change", onChange); }
+    else if (mq.addListener) { mq.addListener(onChange); }
+  }
+})();
+</script>
+
+</body>
+</html>

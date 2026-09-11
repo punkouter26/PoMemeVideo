@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Click to Cue Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<style>
+/* ============================================================================
+   PoMemeVideo · NET_DOCS
+   Identity: an engineering shooting-script. Monospace slate labels, paper
+   ground, one phosphor accent borrowed from the app's own retro-terminal
+   tokens and stepped for a light surface.
+   ========================================================================= */
+
+/* --- tokens: light is the bare :root, complete ---------------------------- */
+:root {
+  color-scheme: light;
+
+  --paper:        #f4f5f2;
+  --surface:      #fffffd;
+  --surface-2:    #eceee9;
+  --surface-3:    #e3e6e0;
+
+  --ink:          #101613;
+  --ink-2:        #414a45;
+  --ink-3:        #6d7671;
+
+  --rule:         #d9dcd6;
+  --rule-strong:  #bcc1b9;
+
+  --accent:       #0f6b40;
+  --accent-ink:   #0b5231;
+  --accent-soft:  rgba(15, 107, 64, 0.10);
+  --accent-line:  rgba(15, 107, 64, 0.35);
+
+  --code-bg:      #eceee9;
+  --code-ink:     #1d2a23;
+
+  /* status — fixed in both modes, always paired with an icon or word */
+  --good:    #0ca30c;
+  --warn:    #fab219;
+  --serious: #ec835a;
+  --crit:    #d03b3b;
+
+  /* chart series — validated (light surface #fcfcfb) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+
+  --chart-surface: #fcfcfb;
+  --grid:          #e1e0d9;
+  --axis:          #c3c2b7;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(16, 22, 19, 0.06), 0 8px 24px -16px rgba(16, 22, 19, 0.22);
+
+  --font-display: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  --font-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+
+  --measure: 74ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper:        #0b0e0d;
+    --surface:      #121715;
+    --surface-2:    #1a211e;
+    --surface-3:    #222b27;
+
+    --ink:          #eef3f0;
+    --ink-2:        #b9c3bd;
+    --ink-3:        #8a948e;
+
+    --rule:         #232b27;
+    --rule-strong:  #37433d;
+
+    --accent:       #3ddc97;
+    --accent-ink:   #6ff0b7;
+    --accent-soft:  rgba(61, 220, 151, 0.13);
+    --accent-line:  rgba(61, 220, 151, 0.38);
+
+    --code-bg:      #1a211e;
+    --code-ink:     #cfe6da;
+
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+
+    --chart-surface: #1a1a19;
+    --grid:          #2c2c2a;
+    --axis:          #383835;
+    --muted-ink:     #898781;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper:        #0b0e0d;
+  --surface:      #121715;
+  --surface-2:    #1a211e;
+  --surface-3:    #222b27;
+
+  --ink:          #eef3f0;
+  --ink-2:        #b9c3bd;
+  --ink-3:        #8a948e;
+
+  --rule:         #232b27;
+  --rule-strong:  #37433d;
+
+  --accent:       #3ddc97;
+  --accent-ink:   #6ff0b7;
+  --accent-soft:  rgba(61, 220, 151, 0.13);
+  --accent-line:  rgba(61, 220, 151, 0.38);
+
+  --code-bg:      #1a211e;
+  --code-ink:     #cfe6da;
+
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+
+  --chart-surface: #1a1a19;
+  --grid:          #2c2c2a;
+  --axis:          #383835;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* --- reset / base -------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  overflow-wrap: break-word;
+}
+
+img { max-width: 100%; }
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* --- sticky header ------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-in {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand-mark { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.brand-doc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.docnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-right: auto;
+}
+.docnav a {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-2);
+  padding: 5px 9px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.docnav a:hover { background: var(--surface-2); color: var(--ink); }
+.docnav a[aria-current="page"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.levels { display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.levels button {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 6px 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.levels button:last-child { border-right: 0; }
+.levels button:hover { background: var(--surface-2); color: var(--ink); }
+.levels button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .levels button[aria-pressed="true"],
+.levels button[aria-pressed="true"] { color: #06140d; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .levels button[aria-pressed="true"] { color: #06140d; }
+}
+
+/* --- page frame ---------------------------------------------------------- */
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 0; }
+
+.masthead { padding-block: 40px 26px; border-bottom: 2px solid var(--ink); }
+.masthead .kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 12px;
+}
+.masthead h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.masthead .standfirst {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.slate {
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+  margin-top: 20px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+}
+.slate b { color: var(--ink-2); font-weight: 600; }
+
+main { padding-block: 0 60px; }
+
+section[data-tier] {
+  padding-block: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+section[data-tier]:last-child { border-bottom: 0; }
+
+.tier-flag {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.tier-flag::before {
+  content: "";
+  width: 18px; height: 2px; background: var(--accent); display: inline-block;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16.5px;
+  letter-spacing: 0.005em;
+  margin: 30px 0 8px;
+  text-wrap: balance;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 24px 0 8px;
+}
+p, li { max-width: var(--measure); }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+
+.lede { font-size: 17px; color: var(--ink-2); max-width: var(--measure); }
+
+/* --- evidence citations -------------------------------------------------- */
+code, kbd, samp, pre { font-family: var(--font-mono); }
+code {
+  font-size: 0.875em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.cite {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  border-left: 2px solid var(--accent-line);
+  border-radius: 0;
+  padding: 0 0 0 6px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.cites { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; }
+
+pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  tab-size: 2;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: inherit; }
+figure { margin: 0 0 22px; }
+figcaption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 7px;
+}
+figcaption b { color: var(--ink-2); font-weight: 600; }
+
+/* --- tables -------------------------------------------------------------- */
+.tablewrap { overflow-x: auto; margin: 0 0 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+caption {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 14px 0;
+}
+th, td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+td code { white-space: nowrap; }
+
+/* --- pills / status ------------------------------------------------------ */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.pill.ok    { color: var(--good); }
+.pill.warn  { color: var(--serious); }
+.pill.risk  { color: var(--crit); }
+.pill.info  { color: var(--ink-3); }
+.pill.gone  { color: var(--ink-3); text-decoration: line-through; }
+
+/* --- card grids ---------------------------------------------------------- */
+.grid { display: grid; gap: 14px; margin: 0 0 18px; }
+.grid.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid.g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.g4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 0;
+}
+.card h3 { margin: 0; font-size: 15px; }
+.card p  { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
+.card .k {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.card .v {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.card .v small { font-size: 13px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+
+.navcard {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.navcard:hover { background: var(--surface-2); color: inherit; }
+.navcard .t { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; }
+.navcard .d { font-size: 13.5px; color: var(--ink-2); }
+
+/* --- callouts ------------------------------------------------------------ */
+.note {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 13px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+.note p:last-child { margin-bottom: 0; }
+.note.undeclared { border-left-color: var(--serious); }
+.note.risk { border-left-color: var(--crit); }
+.note.ok { border-left-color: var(--good); }
+.note .nlabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  display: block; margin-bottom: 5px;
+}
+
+/* --- gaps register ------------------------------------------------------- */
+.gap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.gap:last-child { border-bottom: 0; }
+.gap .ghead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; }
+.gap .gt { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.gap p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+/* --- mermaid ------------------------------------------------------------- */
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 18px 14px;
+  overflow-x: auto;
+}
+.mermaid { min-height: 40px; }
+.mermaid svg { max-width: 100%; height: auto; font-size: 16px !important; }
+.mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid .messageText,
+.mermaid .labelText, .mermaid .loopText, .mermaid .noteText,
+.mermaid .actor > tspan, .mermaid .titleText, .mermaid .er .entityLabel {
+  font-size: 15px !important;
+  font-family: var(--font-body) !important;
+}
+.mermaid .cluster-label .nodeLabel { font-size: 15px !important; font-weight: 600; }
+/* Autonumber badges sit inside a fixed-radius circle: keep the size, add weight. */
+.mermaid .sequenceNumber { font-size: 12px !important; font-weight: 600 !important; }
+
+/* --- charts -------------------------------------------------------------- */
+.chart {
+  background: var(--chart-surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px 12px;
+  overflow-x: auto;
+}
+.chart svg { display: block; width: 100%; height: auto; min-width: 300px; }
+.chart .ct {
+  font-family: var(--font-display); font-weight: 600; font-size: 15px;
+  margin: 0 0 2px; color: var(--ink);
+}
+.chart .cs { font-size: 13px; color: var(--ink-2); margin: 0 0 14px; max-width: var(--measure); }
+.bar { transition: opacity .12s ease; }
+.chart:hover .bar { opacity: .62; }
+.chart .bar:hover { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+details.tableview { margin-top: 12px; }
+details.tableview > summary {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding: 4px 0;
+}
+details.tableview > summary:hover { color: var(--ink); }
+
+/* --- footer -------------------------------------------------------------- */
+footer.docfoot {
+  border-top: 2px solid var(--ink);
+  padding-block: 22px 44px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+footer.docfoot .frow { display: flex; flex-wrap: wrap; gap: 6px 26px; }
+footer.docfoot b { color: var(--ink-2); font-weight: 600; }
+
+/* --- phone --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar-in { padding: 9px 16px; gap: 8px 12px; }
+  .docnav { order: 3; width: 100%; margin-right: 0; }
+  .levels { order: 2; }
+  .page { padding-inline: 16px; }
+  .masthead { padding-block: 28px 20px; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="brand-mark">&#9656;</span>
+      <span class="brand-name">PoMemeVideo</span>
+      <span class="brand-doc">User Workflow</span>
+    </div>
+    <nav class="docnav" aria-label="Reports"><a href="index.html">Overview</a><a href="AI_SERVICES_REPORT.html">AI Services</a><a href="AUTH_SECURITY_REPORT.html">Auth &amp; Security</a><a href="USER_WORKFLOW.html" aria-current="page">User Workflow</a><a href="VISUAL_ARCHITECTURE_DASHBOARD.html">Architecture</a></nav>
+    <div class="levels" role="group" aria-label="Detail level">
+      <button type="button" data-level="1" aria-pressed="false">1 &middot; Simple</button>
+      <button type="button" data-level="2" aria-pressed="false">2 &middot; Standard</button>
+      <button type="button" data-level="3" aria-pressed="true">3 &middot; All details</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="masthead">
+    <p class="kicker">NET_DOCS &middot; 2026-09-11 &middot; Report 4 of 5</p>
+    <h1>Click to cue sheet</h1>
+    <p class="standfirst">Seven journeys traced from the Razor call site through the route and handler into storage &mdash; with the request and response schemas, and the four places validation actually happens.</p>
+    <div class="slate"><span>Repo <b>PoMemeVideo</b></span><span>Branch <b>master</b></span><span>Commit <b>a495207</b></span><span>Build <b>0 warnings, 0 errors</b></span><span>Journeys <b>7</b></span></div>
+  </div>
+
+  <main>
+<section data-tier="1" id="thirty-seconds">
+  <p class="tier-flag">Tier 1 &middot; The thirty-second read</p>
+  <h2>Seven journeys, five pages</h2>
+  <p class="lede">The client has six routable pages and one login. Every journey below is traced from the Razor call site through the HTTP client, the route, the handler, and into storage or an external service. &ldquo;Enforced&rdquo; means a check that actually rejects &mdash; not a UI hint.</p>
+
+  <div class="tablewrap">
+    <table>
+      <caption>One row per journey</caption>
+      <thead>
+        <tr><th>Journey</th><th>User intent</th><th>Server validation</th><th>Mutations</th><th>Enforced targets</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>1 &middot; Sign in</b><br><code>/login</code></td>
+          <td>Establish an identity so sessions can be owned</td>
+          <td>Guest route exists only in Development/Test <span class="cite">AuthEndpoints.cs:41</span>; OIDC challenge only when a scheme is registered <span class="cite">EndpointMappingExtensions.cs:190-203</span></td>
+          <td>Insert into <code>UserIdentities</code> (guest); issue the auth cookie</td>
+          <td>Cookie persistent, +30 days <span class="cite">AuthEndpoints.cs:77-81</span></td>
+        </tr>
+        <tr>
+          <td><b>2 &middot; Upload a video</b><br><code>/</code> &middot; <code>/source</code></td>
+          <td>Get a video into storage and open a session</td>
+          <td>Extension in <code>.mp4 .mov .avi .webm</code>; <code>fileSizeBytes</code> ceiling &mdash; both server-side, in the command, not the endpoint <span class="cite">IngestVideoCommand.cs:28-44</span></td>
+          <td><code>VideoSessions</code> row created (<code>Ingesting</code>); blob written by the browser via SAS; metadata merged on confirm</td>
+          <td><b>500&nbsp;MB</b>; SAS <b>15&nbsp;min</b>, <code>Write|Create</code> on one blob path</td>
+        </tr>
+        <tr>
+          <td><b>3 &middot; Analyse keyframes</b><br><code>/source</code></td>
+          <td>Give the director something to react to</td>
+          <td>Session must exist and be owned by the caller <span class="cite">IngestionEndpoints.cs:118-120</span>. <b>No frame-count, size or MIME validation</b> &mdash; the base64 array is decoded as received</td>
+          <td>Previous frames deleted by prefix; <i>n</i> PNGs written; <code>vision-labels.json</code> written</td>
+          <td>Batches of <b>8</b> frames, <b>3</b> concurrent, 429-retry capped at <b>4&nbsp;s</b></td>
+        </tr>
+        <tr>
+          <td><b>4 &middot; Run the engine</b><br><code>/engine/{id}</code></td>
+          <td>Turn a session into a rendered MP4</td>
+          <td>Owned session; status must be <code>Ingesting</code>, <code>Error</code> or <code>Processing</code>; the dispatcher refuses a duplicate <span class="cite">ProcessingEndpoints.cs:24-49</span></td>
+          <td>Status &rarr; <code>Processing</code>; <code>DirectorScripts</code> upserted; <code>output.mp4</code> written; status &rarr; <code>Complete</code> or <code>Error</code></td>
+          <td>Min cue gap <b>2&nbsp;s</b>, max <b>10&nbsp;s</b>; render wall clock <b>5&nbsp;min</b>; queue depth = <code>ProcessorCount</code></td>
+        </tr>
+        <tr>
+          <td><b>5 &middot; Edit cues and re-render</b><br><code>/reveal/{id}</code></td>
+          <td>Move, retime or replace cues, then render again</td>
+          <td>Owned session only. <b>The posted script body is otherwise unvalidated</b> &mdash; no bounds on <code>timestampMs</code>, entry count, or whether <code>soundId</code> exists <span class="cite">OutputEndpoints.cs:237-263</span></td>
+          <td><code>DirectorScripts</code> row replaced; status &rarr; <code>Processing</code>; <code>output.mp4</code> overwritten</td>
+          <td>Same 5-minute render ceiling; an unknown <code>soundId</code> degrades to a constructed path <span class="cite">RenderVideoCommand.cs:84-88</span></td>
+        </tr>
+        <tr>
+          <td><b>6 &middot; Browse and add sounds</b><br><code>/memelibrary</code></td>
+          <td>Audition the catalogue, add a clip, re-seed</td>
+          <td>Upload: non-empty file, extension in <code>.mp3 .wav .ogg</code> <span class="cite">MemeLibraryEndpoints.cs:61-66</span>. Seed: manifest must exist on disk. <b>Both antiforgery-disabled; seed is anonymous</b></td>
+          <td>Blob under <code>sounds/</code>; upsert into <code>SoundAssets</code>; cache evicted</td>
+          <td>Page size clamped to <b>100</b>; <code>DurationMs</code> hard-coded to <b>2500</b> on upload</td>
+        </tr>
+        <tr>
+          <td><b>7 &middot; History, download, wipe</b><br><code>/results</code></td>
+          <td>Find a past render, watch it, save it, delete it</td>
+          <td>Every route resolves the session by <code>(SessionId, UserId)</code> first; a non-owner gets <code>SESSION_NOT_FOUND</code></td>
+          <td>Wipe deletes every blob under <code>sessions/{id}/</code> then the table row</td>
+          <td>Range requests enabled on all three media routes; wipe is <b>irreversible and unconfirmed server-side</b></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note undeclared">
+    <span class="nlabel">Figures not declared in the repository</span>
+    <p>No journey carries a declared completion-time target, throughput figure, concurrency SLA or per-user quota. The numbers in the &ldquo;enforced targets&rdquo; column are the only limits that exist, and every one of them is a literal in source. Two further limits are notably <em>absent</em>: there is no cap on the number of keyframes a client may post <span class="cite">IngestionEndpoints.cs:126-137</span>, and no cap on the number of entries a re-render script may contain <span class="cite">OutputEndpoints.cs:241-263</span>.</p>
+  </div>
+</section>
+
+<section data-tier="2" id="swimlanes">
+  <p class="tier-flag">Tier 2 &middot; Swimlanes and sequences</p>
+  <h2>Upload &rarr; render, as a swimlane</h2>
+
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart TB
+  subgraph U["User &middot; browser"]
+    S1([Start: pick a file])
+    S2[/"read file name + size"/]
+    S3[/"PUT bytes to the SAS URI"/]
+    S4[/"capture keyframes via canvas"/]
+    S5{{"press INITIATE"}}
+    SEND([Watch the Director's Log])
+  end
+
+  subgraph A["PoMemeVideo.Api"]
+    V1{"extension allowed?"}
+    V2{"size &le; 500 MB?"}
+    C1[["create VideoSessions row&lt;br/&gt;status = Ingesting"]]
+    C2[["mint 15-minute write SAS"]]
+    C3[["merge duration, trim,&lt;br/&gt;persona, aspect ratio"]]
+    C4[["store frames + vision-labels.json"]]
+    Q{"status retryable?"}
+    Q2{"dispatcher free?"}
+    C5[["queue the run"]]
+    E400([400 INVALID_EXTENSION])
+    E413([400 FILE_TOO_LARGE])
+    E409([409 Conflict])
+  end
+
+  subgraph W["Background worker"]
+    W1[["RunEngineCommand&lt;br/&gt;status = Processing"]]
+    W2[["FFmpeg render&lt;br/&gt;5-minute ceiling"]]
+    W3([status = Complete])
+    WE([status = Error])
+  end
+
+  S1 --> S2 --> V1
+  V1 -- no --> E400
+  V1 -- yes --> V2
+  V2 -- no --> E413
+  V2 -- yes --> C1 --> C2 --> S3 --> C3
+  C3 --> S4 --> C4 --> S5 --> Q
+  Q -- no --> E409
+  Q -- yes --> Q2
+  Q2 -- no --> E409
+  Q2 -- yes --> C5 --> W1 --> W2 --> W3 --> SEND
+  W2 -- exception --> WE --> SEND</pre>
+    </div>
+    <figcaption>Terminators are stadiums, processes are rectangles, decisions are diamonds, I/O is a parallelogram. Both 409s carry different prose &mdash; &ldquo;not in a retryable state&rdquo; versus &ldquo;already queued or running&rdquo; <span class="cite">ProcessingEndpoints.cs:35-49</span>.</figcaption>
+  </figure>
+
+  <h3>Journey 2 &mdash; upload, in full</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant P as Source.razor.cs
+  participant H as HttpClient + CorrelationHeaderHandler
+  participant R as POST /api/ingestion/sas
+  participant CMD as IngestVideoCommand
+  participant T as VideoSessions (Table)
+  participant BF as BlobServiceClientFactory
+  participant B as Blob Storage
+
+  P->>H: PostAsJsonAsync("/api/ingestion/sas", {fileName, fileSizeBytes})
+  H->>R: + X-Session-ID (from pmv-session-id cookie), X-Correlation-ID (new GUID)
+  R->>R: UserIdentityResolution.TryGetUserId — throws if the claim is missing
+  R->>CMD: ExecuteAsync(fileName, fileSizeBytes, userId)
+  CMD->>CMD: extension allow-list, then 500 MB ceiling
+  CMD->>T: AddEntityAsync — PK "sessions", RK new SessionId, OwnerUserId
+  R->>BF: GenerateUploadSasUriAsync(path, now + 15 min)
+  BF-->>R: shared-key SAS, or a user-delegation SAS under managed identity
+  R-->>P: 200 {sessionId, sasUrl, expiresAt}
+  P->>B: PUT sasUrl — the bytes never touch the API</pre>
+    </div>
+    <figcaption>Step 8 branches on <code>blobClient.CanGenerateSasUri</code>: a connection-string client signs locally, a managed-identity client fetches a user delegation key starting 5 minutes in the past <span class="cite">BlobServiceClientFactory.cs:69-89</span>.</figcaption>
+  </figure>
+
+  <h3>Journey 4 &mdash; initiate, in full</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant E as Engine.razor
+  participant Hub as EngineHub (/hubs/engine, anonymous)
+  participant R as POST /api/processing/.../initiate
+  participant D as EngineRunDispatcher
+  participant C as RunEngineCommand
+  participant F as FFmpegRenderService
+
+  E->>Hub: JoinSessionAsync — group "session-{id}" BEFORE initiating
+  E->>R: POST (fire and forget, on a background Task)
+  R->>R: owner check, then status ∈ {Ingesting, Error, Processing}
+  R->>D: TryQueue(sessionId, userId) — ConcurrentDictionary guards duplicates
+  R-->>E: 202 Accepted {sessionId, status:"Processing"}
+  D->>C: ExecuteAsync in a fresh DI scope
+  C-->>Hub: DirectorLogEntry ×N, then DirectorScriptEntry per cue
+  C->>F: RenderAsync — awaits the worker's TaskCompletionSource
+  F-->>Hub: ProcessingComplete(outputBlobPath) — or ProcessingError</pre>
+    </div>
+    <figcaption>Step 1 before step 2 is load-bearing: the client joins the SignalR group before the run starts, or it misses the opening log lines <span class="cite">Engine.razor:115-123</span>. A <code>409</code> is treated as &ldquo;already done&rdquo; &mdash; the page fetches the script and navigates to <code>/reveal/{id}</code> <span class="cite">Engine.razor:128-137</span>.</figcaption>
+  </figure>
+</section>
+
+<section data-tier="3" id="schemas">
+  <p class="tier-flag">Tier 3 &middot; Schemas and the validation pipeline</p>
+  <h2>Request and response schemas</h2>
+
+  <h3>The validation pipeline &mdash; what there is of one</h3>
+  <div class="note">
+    <p>There is <b>no</b> validation framework in this solution: no FluentValidation, no <code>[ApiController]</code> model-state pipeline, no <code>AddValidation()</code>, no <code>IValidatableObject</code>, and no data-annotation attribute on any request record. Validation happens in exactly four places, in this order.</p>
+  </div>
+  <ol>
+    <li><b>Route-constraint binding.</b> <code>{sessionId:guid}</code> plus <code>IParsable&lt;SessionId&gt;</code>. A malformed GUID never reaches a handler &mdash; the route simply does not match, and the request falls through to the SPA shell. <span class="cite">IngestionEndpoints.cs:108</span><span class="cite">StronglyTypedIds.cs:25-30</span></li>
+    <li><b>JSON body binding.</b> A malformed body is answered by the framework with a <code>400</code> and, as observed under Staging, <code>Content-Length: 0</code> &mdash; no body at all. <code>GlobalExceptionHandler</code> maps <code>BadHttpRequestException</code> to its own status when it does surface. <span class="cite">GlobalExceptionHandler.cs:29-31</span></li>
+    <li><b>Command-level rules.</b> Only <code>IngestVideoCommand</code> has them, thrown as a typed <code>VideoIngestionValidationException</code> carrying an <code>ErrorCode</code> and caught by two exception filters on the endpoint. <span class="cite">IngestVideoCommand.cs:63-82</span><span class="cite">IngestionEndpoints.cs:29-47</span></li>
+    <li><b>Ownership resolution.</b> Every session-scoped handler loads by <code>(SessionId, UserId)</code> and returns <code>404</code> on <code>null</code>. This is authorization implemented as a lookup, and it is the most consistently applied rule in the codebase. <span class="cite">VideoSessionTableRepository.cs:58-68</span></li>
+  </ol>
+
+  <h3>Ingestion</h3>
+  <h4><code>POST /api/ingestion/sas</code></h4>
+  <pre><code>public sealed record SasRequest(string FileName, long FileSizeBytes);
+
+// 200
+{ "sessionId": "&lt;guid&gt;", "sasUrl": "&lt;absolute uri&gt;", "expiresAt": "&lt;ISO-8601&gt;" }
+// 400 — one of two shapes, discriminated by "error"
+{ "error":"INVALID_EXTENSION", "message":"…", "allowedExtensions":[".mp4",".mov",".avi",".webm"] }
+{ "error":"FILE_TOO_LARGE",   "message":"…", "maxBytes":524288000, "receivedBytes":999999999 }</code></pre>
+  <p class="cites"><span class="cite">IngestionEndpoints.cs:15-62,274</span></p>
+  <p><b>The size check trusts the client.</b> <code>FileSizeBytes</code> is whatever the browser declares <span class="cite">Source.razor.cs:104-108</span>; the actual upload goes straight to Blob Storage under a SAS that carries no size constraint, so the 500&nbsp;MB ceiling bounds the <em>claim</em>, not the bytes.</p>
+
+  <h4><code>POST /api/ingestion/sessions</code></h4>
+  <pre><code>public sealed record SessionConfirmRequest(
+    Guid    SessionId,
+    string  BlobPath,
+    double  VideoDurationSeconds,
+    bool    AggressiveVisuals,
+    double? TrimStartSeconds    = null,
+    double? TrimDurationSeconds = null,
+    string? MemePersona         = null,
+    string? AspectRatio         = null);
+
+// 201 Created, Location: /api/ingestion/sessions/{id}
+{ "sessionId": "&lt;guid&gt;", "status": "Ingesting" }
+// 404
+{ "error": "SESSION_NOT_FOUND", "sessionId": "&lt;guid&gt;" }</code></pre>
+  <p class="cites"><span class="cite">IngestionEndpoints.cs:65-105,276-284</span></p>
+  <p>Two things this accepts without checking: <code>BlobPath</code> is stored verbatim as the session&rsquo;s <code>SourceBlobPath</code>, and is later used to build the ffmpeg input path <span class="cite">IngestionEndpoints.cs:78</span><span class="cite">FFmpegRenderService.cs:107-109</span>; and <code>AspectRatio</code> / <code>MemePersona</code> are free strings compared later with <code>string.Equals</code> against <code>"9:16"</code> and <code>"1:1"</code>, with anything else silently meaning &ldquo;original&rdquo; <span class="cite">FFmpegRenderService.cs:486-491</span>. The endpoint is idempotent by design &mdash; the Source page calls it twice, once after upload and again on <i>initiate</i> to save the trim range <span class="cite">Source.razor.cs:144,270</span>.</p>
+
+  <h4><code>POST /api/ingestion/sessions/{sessionId:guid}/frames</code></h4>
+  <pre><code>public sealed record FrameUploadRequest(
+    [property: JsonPropertyName("frames")] IReadOnlyList&lt;string&gt; Frames);  // data-URI or bare base64
+
+// 200
+{ "sessionId":"…", "framesStored": 12,
+  "visionLabels":[ { "timestampSeconds": 3.0, "label": "explosion" } ],
+  "visionDiagnostics": { "framesReceived":12, "framesStored":12,
+                         "analysisAttempted":true, "analysisError":null,
+                         "labelsDetected":7, "placementMode":"semantic-triggers" } }</code></pre>
+  <p class="cites"><span class="cite">IngestionEndpoints.cs:108-179,287-288</span></p>
+  <p>A leading <code>data:image/png;base64,</code> prefix is stripped by taking everything after the first comma <span class="cite">IngestionEndpoints.cs:130-131</span>. <code>placementMode</code> is the field the UI turns into its &ldquo;AI VISION: &hellip;&rdquo; banner <span class="cite">Source.razor.cs:241-256</span>. A vision failure is <b>not</b> an error response &mdash; it returns 200 with <code>analysisError</code> naming the exception type <span class="cite">IngestionEndpoints.cs:146-151</span>.</p>
+
+  <h4><code>GET /api/ingestion/sessions</code> and <code>/{sessionId:guid}</code></h4>
+  <pre><code>class VideoSessionDto {
+  Guid SessionId; Guid UserId; string SourceBlobPath;
+  double VideoDurationSeconds; bool AggressiveVisuals;
+  SessionStatus Status;          // "Ingesting" | "Processing" | "Complete" | "Error"
+  string? ErrorMessage; DateTimeOffset CreatedAt; DateTimeOffset? CompletedAt;
+  string? OutputBlobPath; double? TrimStartSeconds; double? TrimDurationSeconds;
+  string? MemePersona; string? AspectRatio;
+}</code></pre>
+  <p class="cites"><span class="cite">VideoSessionDto.cs:5-21</span></p>
+  <p>The list route accepts an optional <code>?status=</code>, parsed case-insensitively into <code>SessionStatus</code>; an unparseable value is ignored rather than rejected <span class="cite">IngestionEndpoints.cs:192-196</span>. The underlying query already restricts to <code>Complete</code> and <code>Error</code>, so <code>?status=Processing</code> can only ever return an empty list.</p>
+
+  <h3>Processing</h3>
+  <h4><code>POST /api/processing/sessions/{sessionId:guid}/initiate</code></h4>
+  <pre><code>// no request body
+// 202 Accepted, Location: /api/processing/sessions/{id}
+{ "sessionId":"&lt;guid&gt;", "status":"Processing" }
+// 401 Results.Unauthorized()        — user-id claim missing
+// 404 { "error":"Session {id} not found." }
+// 409 { "error":"Session {id} is not in a retryable state (current: Complete)." }
+// 409 { "error":"Session {id} is already queued or running." }</code></pre>
+  <p class="cites"><span class="cite">ProcessingEndpoints.cs:13-56</span></p>
+  <p>Allowing a retry from <code>Processing</code> is deliberate: the previous build accepted only <code>Ingesting|Error</code>, &ldquo;so a session stuck in Processing&hellip; got a 409 and the user had no way out&rdquo; <span class="cite">ProcessingEndpoints.cs:29-34</span>. The row is forced back to <code>Ingesting</code> and the dispatcher, not the endpoint, refuses if an in-memory run is still live.</p>
+
+  <h3>Output</h3>
+  <h4><code>GET /api/output/sessions/{id}/script</code></h4>
+  <pre><code>class DirectorScriptDto {
+  Guid SessionId; DateTimeOffset GeneratedAt;
+  int TotalSoundCount; double AverageDensitySeconds;
+  List&lt;ScriptEntryDto&gt; Entries;
+}
+class ScriptEntryDto {
+  Guid EntryId; Guid SessionId; long TimestampMs; Guid SoundId;
+  string[] ActionVectorTags; string SceneDescription; string SoundName;
+  string SelectionRationale; bool IsIronic;
+  VisualEffectType? VisualEffect;   // None | DeepFry | SnapZoom | MotionBlur | Overlay
+  double? EffectIntensity; string? OverlayAssetId;
+  PlacementType PlacementType;      // Triggered | Fallback | ConflictWinner
+  string? CaptionText; string? CaptionPosition;
+  double? HotspotX, HotspotY, OverlayX, OverlayY, OverlayScale;
+}</code></pre>
+  <p class="cites"><span class="cite">DirectorScriptDto.cs:3-10</span><span class="cite">ScriptEntryDto.cs:5-29</span></p>
+  <p>Entries are stored as a serialised JSON string in a single <code>EntriesJson</code> column and re-parsed on read with a <code>JsonStringEnumConverter</code> <span class="cite">OutputEndpoints.cs:33-39</span><span class="cite">DirectorScript.cs:10</span>. That is why <code>VisualEffectType.SnapZoom</code> cannot be deleted even though nothing emits it.</p>
+
+  <h4><code>POST /api/output/sessions/{id}/rerender</code></h4>
+  <pre><code>// request body: the full DirectorScriptDto above
+// 202 Accepted { "sessionId":"…", "status":"Rendering" }
+// 404 { "error":"SESSION_NOT_FOUND", "sessionId":"…" }</code></pre>
+  <p class="cites"><span class="cite">OutputEndpoints.cs:225-309</span></p>
+  <p>Note <code>status:"Rendering"</code> &mdash; a value that is not a member of <code>SessionStatus</code> <span class="cite">SessionStatus.cs:3-9</span>. The row is actually set to <code>Processing</code> <span class="cite">OutputEndpoints.cs:283</span>. The render itself runs on a bare <code>Task.Run</code> rather than through the dispatcher, so a re-render is not deduplicated and does not appear in the queue <span class="cite">OutputEndpoints.cs:286</span>.</p>
+
+  <h4>Media routes</h4>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Route</th><th>Content-Type</th><th>Disposition</th><th>Ranges</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET &hellip;/download/video</code></td><td><code>video/mp4</code></td><td>attachment, <code>pomemevideo-{id}.mp4</code></td><td>yes</td><td><span class="cite">OutputEndpoints.cs:99-103</span></td></tr>
+        <tr><td><code>GET &hellip;/stream/video</code></td><td><code>video/mp4</code></td><td>inline</td><td>yes</td><td><span class="cite">OutputEndpoints.cs:136-139</span></td></tr>
+        <tr><td><code>GET &hellip;/stream/source</code></td><td><code>video/mp4</code></td><td>inline</td><td>yes</td><td><span class="cite">OutputEndpoints.cs:172-175</span></td></tr>
+        <tr><td><code>DELETE &hellip;/sessions/{id}</code></td><td>&mdash;</td><td>204 No Content</td><td>&mdash;</td><td><span class="cite">OutputEndpoints.cs:189-221</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>All three media routes go through <code>BlobStorageService.StreamBlobAsync</code>, which uses <code>OpenReadAsync</code> rather than <code>DownloadStreamingAsync</code> for a reason worth preserving: without a known length &ldquo;Kestrel serves the response with <code>Transfer-Encoding: chunked</code> and no <code>Content-Length</code>&hellip; the browser stops fetching after ~2 seconds of video, the audio track never decodes, and the user sees video but hears silence&rdquo; <span class="cite">BlobStorageService.cs:21-28</span>.</p>
+  <p>All three also convert a storage failure into <code>Results.Problem(detail: ex.Message, statusCode: 500)</code> <span class="cite">OutputEndpoints.cs:105-108</span> &mdash; the raw exception message reaches the client, in every environment.</p>
+
+  <h3>MemeLibrary</h3>
+  <h4><code>GET /api/memelibrary/sounds</code></h4>
+  <pre><code>?tags=a,b   — OR across ActionVectorTags, case-insensitive
+?query=x    — substring of DisplayName OR of any tag
+?limit=20   — Math.Min(limit, 100); a negative limit yields an empty page
+?offset=0   — Math.Max(0, offset)
+
+// 200
+{ "totalCount": 206, "sounds": [ { "soundId":"…", "displayName":"…",
+  "durationMs":1063, "actionVectorTags":["reaction","win"], "blobUrl":"…" } ] }</code></pre>
+  <p class="cites"><span class="cite">MemeLibraryEndpoints.cs:12-50</span></p>
+  <p><code>totalCount</code> is the count <em>after</em> filtering and before paging <span class="cite">MemeLibraryEndpoints.cs:38-40</span>. Filtering happens in memory over the whole catalogue on every call, served from a 5-minute <code>HybridCache</code> entry with stampede protection <span class="cite">SoundAssetTableRepository.cs:24-34</span>.</p>
+
+  <h4><code>POST /api/memelibrary/upload</code> &mdash; multipart</h4>
+  <pre><code>file: IFormFile           (required, non-empty)
+displayName: string?      (defaults to the file name without extension)
+tags: string?             (comma-separated; "custom" is always appended)
+
+// 201 Created, Location: /api/memelibrary/sounds/{soundId}/stream  → SoundAssetDto</code></pre>
+  <p class="cites"><span class="cite">MemeLibraryEndpoints.cs:53-105</span></p>
+  <p><code>DurationMs</code> is written as the literal <code>2500</code> &mdash; the file is never probed <span class="cite">MemeLibraryEndpoints.cs:87</span>. The endpoint calls <code>.DisableAntiforgery()</code> <span class="cite">MemeLibraryEndpoints.cs:105</span>; it is still behind the fallback authorization policy.</p>
+
+  <h4><code>GET /api/memelibrary/sounds/{soundId:guid}/stream</code> &mdash; anonymous</h4>
+  <p>Two-stage: serve the local blob if it exists, otherwise, if <code>BlobUrl</code> parses as an absolute http(s) URI, proxy it with a 20-second timeout and a spoofed user agent <span class="cite">MemeLibraryEndpoints.cs:187-215</span>. The fallback exists because &ldquo;the seed metadata references myinstants.com URLs, and until they finish downloading we still want audition to work end-to-end&rdquo; <span class="cite">MemeLibraryEndpoints.cs:148-151</span>. <b>The URL proxied is a value from the <code>SoundAssets</code> table</b>, which the anonymous seed endpoint and the authenticated upload endpoint both write &mdash; so an attacker who can write a row can make the server issue an outbound GET to a URL of their choosing.</p>
+
+  <h3>Client &rarr; API call map</h3>
+  <div class="tablewrap">
+    <table>
+      <caption>Every HTTP call the WASM client makes, and where it is made</caption>
+      <thead><tr><th>Client call site</th><th>Method + route</th><th>Handler</th></tr></thead>
+      <tbody>
+        <tr><td><span class="cite">ApiAuthenticationStateProvider.cs:21</span></td><td><code>GET api/auth/me</code></td><td><span class="cite">AuthEndpoints.cs:13</span></td></tr>
+        <tr><td><span class="cite">Login.razor:76</span> &middot; <span class="cite">NavBar.razor:130</span> &middot; <span class="cite">MockDataBanner.razor:27</span></td><td><code>GET /api/config</code></td><td><span class="cite">ConfigEndpoints.cs:11</span></td></tr>
+        <tr><td><span class="cite">Login.razor:97</span></td><td><code>POST /auth/guest</code></td><td><span class="cite">AuthEndpoints.cs:91</span></td></tr>
+        <tr><td><span class="cite">NavBar.razor:55</span> (HTML form)</td><td><code>POST /auth/logout</code></td><td><span class="cite">EndpointMappingExtensions.cs:209</span></td></tr>
+        <tr><td><span class="cite">Login.razor:49</span> (anchor)</td><td><code>GET /auth/login/microsoft</code></td><td><span class="cite">EndpointMappingExtensions.cs:188</span></td></tr>
+        <tr><td><span class="cite">NavBar.razor:145</span> &middot; <span class="cite">Source.razor.cs:357</span></td><td><code>GET /api/config/ai-model</code></td><td><span class="cite">ConfigEndpoints.cs:34</span></td></tr>
+        <tr><td><span class="cite">Source.razor.cs:395</span></td><td><code>PUT /api/config/ai-model</code></td><td><span class="cite">ConfigEndpoints.cs:54</span></td></tr>
+        <tr><td><span class="cite">Source.razor.cs:104</span></td><td><code>POST /api/ingestion/sas</code></td><td><span class="cite">IngestionEndpoints.cs:15</span></td></tr>
+        <tr><td><span class="cite">Source.razor.cs:144,270</span></td><td><code>POST /api/ingestion/sessions</code></td><td><span class="cite">IngestionEndpoints.cs:65</span></td></tr>
+        <tr><td><span class="cite">Source.razor.cs:186</span></td><td><code>POST /api/ingestion/sessions/{id}/frames</code></td><td><span class="cite">IngestionEndpoints.cs:108</span></td></tr>
+        <tr><td><span class="cite">Source.razor.cs:80</span> &middot; <span class="cite">MemeLibrary.razor:366</span></td><td><code>GET /api/memelibrary/sounds</code></td><td><span class="cite">MemeLibraryEndpoints.cs:12</span></td></tr>
+        <tr><td><span class="cite">MemeLibrary.razor:263</span></td><td><code>POST /api/memelibrary/upload</code></td><td><span class="cite">MemeLibraryEndpoints.cs:53</span></td></tr>
+        <tr><td><span class="cite">MemeLibrary.razor:297</span></td><td><code>POST /api/memelibrary/seed</code></td><td><span class="cite">MemeLibraryEndpoints.cs:111</span></td></tr>
+        <tr><td><span class="cite">MemeLibrary.razor:122</span> &middot; <span class="cite">Reveal.razor:232</span> (<code>&lt;audio src&gt;</code>)</td><td><code>GET /api/memelibrary/sounds/{id}/stream</code></td><td><span class="cite">MemeLibraryEndpoints.cs:152</span></td></tr>
+        <tr><td><span class="cite">Engine.razor:121</span></td><td><code>POST /api/processing/sessions/{id}/initiate</code></td><td><span class="cite">ProcessingEndpoints.cs:13</span></td></tr>
+        <tr><td><span class="cite">Engine.razor:88</span></td><td><code>POST &hellip;/initiate?forceFallback=true</code> <span class="pill risk">parameter unbound</span></td><td><span class="cite">ProcessingEndpoints.cs:13</span></td></tr>
+        <tr><td><span class="cite">Engine.razor:130</span></td><td><code>GET /api/output/sessions/{id}/script</code></td><td><span class="cite">OutputEndpoints.cs:16</span></td></tr>
+        <tr><td><span class="cite">Results.razor:205</span></td><td><code>GET /api/ingestion/sessions?status=Complete</code> <span class="pill warn">re-hides Error rows</span></td><td><span class="cite">IngestionEndpoints.cs:183</span></td></tr>
+        <tr><td><span class="cite">Results.razor:238</span></td><td><code>GET /api/output/sessions/{id}/download/video</code></td><td><span class="cite">OutputEndpoints.cs:80</span></td></tr>
+        <tr><td><span class="cite">Results.razor:121</span> &middot; <span class="cite">Reveal.razor:125,134</span></td><td><code>GET /api/output/sessions/{id}/stream/video</code></td><td><span class="cite">OutputEndpoints.cs:117</span></td></tr>
+        <tr><td><span class="cite">Reveal.razor:119</span></td><td><code>GET /api/output/sessions/{id}/stream/source</code></td><td><span class="cite">OutputEndpoints.cs:153</span></td></tr>
+        <tr><td><span class="cite">Results.razor:276,306</span></td><td><code>DELETE /api/output/sessions/{id}</code></td><td><span class="cite">OutputEndpoints.cs:189</span></td></tr>
+        <tr><td><span class="cite">Reveal.razor:562</span></td><td><code>POST /api/output/sessions/{id}/rerender</code></td><td><span class="cite">OutputEndpoints.cs:225</span></td></tr>
+        <tr><td><span class="cite">Source.razor.cs:133</span> &rarr; <span class="cite">BlobUploadService.cs:46</span></td><td><code>PUT &lt;sasUrl&gt;</code> &mdash; direct to Blob Storage</td><td>Azure Storage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>SignalR message contract</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Direction</th><th>Name</th><th>Payload</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>client &rarr; server</td><td><code>JoinSession</code> / <code>LeaveSession</code></td><td><code>string sessionId</code> &rarr; group <code>session-{id}</code></td><td><span class="cite">EngineHub.cs:11-22</span></td></tr>
+        <tr><td>server &rarr; client</td><td><code>DirectorLogEntry</code></td><td><code>string</code> &mdash; one Director&rsquo;s Log line</td><td><span class="cite">EngineHub.cs:37-39</span></td></tr>
+        <tr><td>server &rarr; client</td><td><code>DirectorScriptEntry</code></td><td><code>ScriptEntryDto</code></td><td><span class="cite">EngineHub.cs:41-43</span></td></tr>
+        <tr><td>server &rarr; client</td><td><code>ProcessingComplete</code></td><td><code>string outputBlobPath</code></td><td><span class="cite">EngineHub.cs:45-47</span></td></tr>
+        <tr><td>server &rarr; client</td><td><code>ProcessingError</code></td><td><code>string errorMessage</code></td><td><span class="cite">EngineHub.cs:49-51</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The client reconnects automatically at 0&nbsp;s, 2&nbsp;s, 5&nbsp;s and 10&nbsp;s <span class="cite">EngineHubClient.cs:18-23</span>. Group membership is by <code>sessionId</code> and the hub never reads <code>Context.User</code>, so <b>anyone who knows a session GUID can join its group and receive its progress feed</b> &mdash; the trade-off the anonymity comment makes explicit <span class="cite">EndpointMappingExtensions.cs:169-173</span>.</p>
+</section>
+
+  </main>
+
+  <footer class="docfoot">
+    <div class="frow">
+      <span>Generated <b>2026-09-11</b></span>
+      <span>Commit <b>a4952075aa0d053d16792f0bcd1a9048477e7d65</b></span>
+      <span><b>PoMemeVideo</b> &middot; NET_DOCS</span>
+      <span>Evidence order: code &rarr; config &rarr; code comments &rarr; README</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.9.0/mermaid.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---- detail level (1 simple · 2 standard · 3 all details) -------------- */
+  var KEY = "pmv-netdocs-level";
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".levels button"));
+
+  function applyLevel(level, persist) {
+    document.documentElement.setAttribute("data-level", String(level));
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tier]"), function (el) {
+      el.hidden = Number(el.getAttribute("data-tier")) > level;   /* cumulative */
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-level") === String(level) ? "true" : "false");
+    });
+    if (persist !== false) {
+      try { localStorage.setItem(KEY, String(level)); } catch (e) { /* private mode */ }
+    }
+  }
+
+  function storedLevel() {
+    try {
+      var v = Number(localStorage.getItem(KEY));
+      return (v === 1 || v === 2 || v === 3) ? v : 3;
+    } catch (e) { return 3; }
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { applyLevel(Number(b.getAttribute("data-level"))); });
+  });
+
+  /* ---- mermaid ----------------------------------------------------------- */
+  function isDark() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp === "dark") return true;
+    if (stamp === "light") return false;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  var blocks = Array.prototype.slice.call(document.querySelectorAll(".mermaid"));
+  blocks.forEach(function (b) { b.setAttribute("data-src", b.textContent); });
+
+  function paletteFor(dark) {
+    return dark
+      ? { bg: "#121715", node: "#1a211e", nodeBorder: "#3ddc97", text: "#eef3f0",
+          line: "#8a948e", alt: "#222b27", cluster: "#0f1512", clusterBorder: "#37433d" }
+      : { bg: "#fffffd", node: "#eef2ee", nodeBorder: "#0f6b40", text: "#101613",
+          line: "#6d7671", alt: "#f4f5f2", cluster: "#f4f5f2", clusterBorder: "#bcc1b9" };
+  }
+
+  function renderMermaid() {
+    if (typeof window.mermaid === "undefined" || blocks.length === 0) return Promise.resolve();
+    var p = paletteFor(isDark());
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+      fontSize: 16,
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: "basis", padding: 14, nodeSpacing: 45, rankSpacing: 55 },
+      sequence: { useMaxWidth: true, actorFontSize: 15, noteFontSize: 14, messageFontSize: 14, width: 190, boxMargin: 12 },
+      er: { useMaxWidth: true, fontSize: 15, entityPadding: 14 },
+      theme: "base",
+      themeVariables: {
+        background: p.bg,
+        primaryColor: p.node,
+        primaryTextColor: p.text,
+        primaryBorderColor: p.nodeBorder,
+        secondaryColor: p.alt,
+        secondaryTextColor: p.text,
+        secondaryBorderColor: p.line,
+        tertiaryColor: p.alt,
+        tertiaryTextColor: p.text,
+        tertiaryBorderColor: p.line,
+        lineColor: p.line,
+        textColor: p.text,
+        mainBkg: p.node,
+        nodeBorder: p.nodeBorder,
+        clusterBkg: p.cluster,
+        clusterBorder: p.clusterBorder,
+        edgeLabelBackground: p.bg,
+        actorBkg: p.node,
+        actorBorder: p.nodeBorder,
+        actorTextColor: p.text,
+        actorLineColor: p.line,
+        signalColor: p.text,
+        signalTextColor: p.text,
+        labelBoxBkgColor: p.node,
+        labelBoxBorderColor: p.nodeBorder,
+        labelTextColor: p.text,
+        loopTextColor: p.text,
+        noteBkgColor: p.alt,
+        noteBorderColor: p.line,
+        noteTextColor: p.text,
+        sequenceNumberColor: p.bg,
+        attributeBackgroundColorOdd: p.node,
+        attributeBackgroundColorEven: p.alt,
+        fontSize: "16px"
+      }
+    });
+
+    blocks.forEach(function (b) {
+      b.removeAttribute("data-processed");
+      b.textContent = b.getAttribute("data-src");
+    });
+
+    return window.mermaid.run({ nodes: blocks, suppressErrors: false })["catch"](function (err) {
+      /* Surface a parse failure instead of leaving a blank frame. */
+      // eslint-disable-next-line no-console
+      console.error("[netdocs] mermaid render failed", err);
+    });
+  }
+
+  function boot() {
+    /* Render every diagram while the document is fully expanded — a mermaid
+       block inside a display:none container measures zero and renders blank —
+       then collapse to the reader's stored level. */
+    var want = storedLevel();          /* read BEFORE the temporary expansion */
+    applyLevel(3, false);
+    var done = renderMermaid();
+    (done && done.then ? done : Promise.resolve()).then(function () {
+      applyLevel(want);
+      document.documentElement.setAttribute("data-diagrams", "ready");
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      var lvl = storedLevel();
+      applyLevel(3, false);
+      var d = renderMermaid();
+      (d && d.then ? d : Promise.resolve()).then(function () { applyLevel(lvl); });
+    };
+    if (mq.addEventListener) { mq.addEventListener("change", onChange); }
+    else if (mq.addListener) { mq.addListener(onChange); }
+  }
+})();
+</script>
+
+</body>
+</html>

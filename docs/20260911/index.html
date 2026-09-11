@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PoMemeVideo Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<style>
+/* ============================================================================
+   PoMemeVideo · NET_DOCS
+   Identity: an engineering shooting-script. Monospace slate labels, paper
+   ground, one phosphor accent borrowed from the app's own retro-terminal
+   tokens and stepped for a light surface.
+   ========================================================================= */
+
+/* --- tokens: light is the bare :root, complete ---------------------------- */
+:root {
+  color-scheme: light;
+
+  --paper:        #f4f5f2;
+  --surface:      #fffffd;
+  --surface-2:    #eceee9;
+  --surface-3:    #e3e6e0;
+
+  --ink:          #101613;
+  --ink-2:        #414a45;
+  --ink-3:        #6d7671;
+
+  --rule:         #d9dcd6;
+  --rule-strong:  #bcc1b9;
+
+  --accent:       #0f6b40;
+  --accent-ink:   #0b5231;
+  --accent-soft:  rgba(15, 107, 64, 0.10);
+  --accent-line:  rgba(15, 107, 64, 0.35);
+
+  --code-bg:      #eceee9;
+  --code-ink:     #1d2a23;
+
+  /* status — fixed in both modes, always paired with an icon or word */
+  --good:    #0ca30c;
+  --warn:    #fab219;
+  --serious: #ec835a;
+  --crit:    #d03b3b;
+
+  /* chart series — validated (light surface #fcfcfb) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+
+  --chart-surface: #fcfcfb;
+  --grid:          #e1e0d9;
+  --axis:          #c3c2b7;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(16, 22, 19, 0.06), 0 8px 24px -16px rgba(16, 22, 19, 0.22);
+
+  --font-display: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  --font-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+
+  --measure: 74ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper:        #0b0e0d;
+    --surface:      #121715;
+    --surface-2:    #1a211e;
+    --surface-3:    #222b27;
+
+    --ink:          #eef3f0;
+    --ink-2:        #b9c3bd;
+    --ink-3:        #8a948e;
+
+    --rule:         #232b27;
+    --rule-strong:  #37433d;
+
+    --accent:       #3ddc97;
+    --accent-ink:   #6ff0b7;
+    --accent-soft:  rgba(61, 220, 151, 0.13);
+    --accent-line:  rgba(61, 220, 151, 0.38);
+
+    --code-bg:      #1a211e;
+    --code-ink:     #cfe6da;
+
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+
+    --chart-surface: #1a1a19;
+    --grid:          #2c2c2a;
+    --axis:          #383835;
+    --muted-ink:     #898781;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper:        #0b0e0d;
+  --surface:      #121715;
+  --surface-2:    #1a211e;
+  --surface-3:    #222b27;
+
+  --ink:          #eef3f0;
+  --ink-2:        #b9c3bd;
+  --ink-3:        #8a948e;
+
+  --rule:         #232b27;
+  --rule-strong:  #37433d;
+
+  --accent:       #3ddc97;
+  --accent-ink:   #6ff0b7;
+  --accent-soft:  rgba(61, 220, 151, 0.13);
+  --accent-line:  rgba(61, 220, 151, 0.38);
+
+  --code-bg:      #1a211e;
+  --code-ink:     #cfe6da;
+
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+
+  --chart-surface: #1a1a19;
+  --grid:          #2c2c2a;
+  --axis:          #383835;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* --- reset / base -------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  overflow-wrap: break-word;
+}
+
+img { max-width: 100%; }
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* --- sticky header ------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-in {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand-mark { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.brand-doc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.docnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-right: auto;
+}
+.docnav a {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-2);
+  padding: 5px 9px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.docnav a:hover { background: var(--surface-2); color: var(--ink); }
+.docnav a[aria-current="page"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.levels { display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.levels button {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 6px 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.levels button:last-child { border-right: 0; }
+.levels button:hover { background: var(--surface-2); color: var(--ink); }
+.levels button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .levels button[aria-pressed="true"],
+.levels button[aria-pressed="true"] { color: #06140d; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .levels button[aria-pressed="true"] { color: #06140d; }
+}
+
+/* --- page frame ---------------------------------------------------------- */
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 0; }
+
+.masthead { padding-block: 40px 26px; border-bottom: 2px solid var(--ink); }
+.masthead .kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 12px;
+}
+.masthead h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.masthead .standfirst {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.slate {
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+  margin-top: 20px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+}
+.slate b { color: var(--ink-2); font-weight: 600; }
+
+main { padding-block: 0 60px; }
+
+section[data-tier] {
+  padding-block: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+section[data-tier]:last-child { border-bottom: 0; }
+
+.tier-flag {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.tier-flag::before {
+  content: "";
+  width: 18px; height: 2px; background: var(--accent); display: inline-block;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16.5px;
+  letter-spacing: 0.005em;
+  margin: 30px 0 8px;
+  text-wrap: balance;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 24px 0 8px;
+}
+p, li { max-width: var(--measure); }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+
+.lede { font-size: 17px; color: var(--ink-2); max-width: var(--measure); }
+
+/* --- evidence citations -------------------------------------------------- */
+code, kbd, samp, pre { font-family: var(--font-mono); }
+code {
+  font-size: 0.875em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.cite {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  border-left: 2px solid var(--accent-line);
+  border-radius: 0;
+  padding: 0 0 0 6px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.cites { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; }
+
+pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  tab-size: 2;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: inherit; }
+figure { margin: 0 0 22px; }
+figcaption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 7px;
+}
+figcaption b { color: var(--ink-2); font-weight: 600; }
+
+/* --- tables -------------------------------------------------------------- */
+.tablewrap { overflow-x: auto; margin: 0 0 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+caption {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 14px 0;
+}
+th, td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+td code { white-space: nowrap; }
+
+/* --- pills / status ------------------------------------------------------ */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.pill.ok    { color: var(--good); }
+.pill.warn  { color: var(--serious); }
+.pill.risk  { color: var(--crit); }
+.pill.info  { color: var(--ink-3); }
+.pill.gone  { color: var(--ink-3); text-decoration: line-through; }
+
+/* --- card grids ---------------------------------------------------------- */
+.grid { display: grid; gap: 14px; margin: 0 0 18px; }
+.grid.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid.g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.g4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 0;
+}
+.card h3 { margin: 0; font-size: 15px; }
+.card p  { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
+.card .k {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.card .v {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.card .v small { font-size: 13px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+
+.navcard {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.navcard:hover { background: var(--surface-2); color: inherit; }
+.navcard .t { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; }
+.navcard .d { font-size: 13.5px; color: var(--ink-2); }
+
+/* --- callouts ------------------------------------------------------------ */
+.note {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 13px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+.note p:last-child { margin-bottom: 0; }
+.note.undeclared { border-left-color: var(--serious); }
+.note.risk { border-left-color: var(--crit); }
+.note.ok { border-left-color: var(--good); }
+.note .nlabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  display: block; margin-bottom: 5px;
+}
+
+/* --- gaps register ------------------------------------------------------- */
+.gap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.gap:last-child { border-bottom: 0; }
+.gap .ghead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; }
+.gap .gt { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.gap p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+/* --- mermaid ------------------------------------------------------------- */
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 18px 14px;
+  overflow-x: auto;
+}
+.mermaid { min-height: 40px; }
+.mermaid svg { max-width: 100%; height: auto; font-size: 16px !important; }
+.mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid .messageText,
+.mermaid .labelText, .mermaid .loopText, .mermaid .noteText,
+.mermaid .actor > tspan, .mermaid .titleText, .mermaid .er .entityLabel {
+  font-size: 15px !important;
+  font-family: var(--font-body) !important;
+}
+.mermaid .cluster-label .nodeLabel { font-size: 15px !important; font-weight: 600; }
+/* Autonumber badges sit inside a fixed-radius circle: keep the size, add weight. */
+.mermaid .sequenceNumber { font-size: 12px !important; font-weight: 600 !important; }
+
+/* --- charts -------------------------------------------------------------- */
+.chart {
+  background: var(--chart-surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px 12px;
+  overflow-x: auto;
+}
+.chart svg { display: block; width: 100%; height: auto; min-width: 300px; }
+.chart .ct {
+  font-family: var(--font-display); font-weight: 600; font-size: 15px;
+  margin: 0 0 2px; color: var(--ink);
+}
+.chart .cs { font-size: 13px; color: var(--ink-2); margin: 0 0 14px; max-width: var(--measure); }
+.bar { transition: opacity .12s ease; }
+.chart:hover .bar { opacity: .62; }
+.chart .bar:hover { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+details.tableview { margin-top: 12px; }
+details.tableview > summary {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding: 4px 0;
+}
+details.tableview > summary:hover { color: var(--ink); }
+
+/* --- footer -------------------------------------------------------------- */
+footer.docfoot {
+  border-top: 2px solid var(--ink);
+  padding-block: 22px 44px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+footer.docfoot .frow { display: flex; flex-wrap: wrap; gap: 6px 26px; }
+footer.docfoot b { color: var(--ink-2); font-weight: 600; }
+
+/* --- phone --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar-in { padding: 9px 16px; gap: 8px 12px; }
+  .docnav { order: 3; width: 100%; margin-right: 0; }
+  .levels { order: 2; }
+  .page { padding-inline: 16px; }
+  .masthead { padding-block: 28px 20px; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="brand-mark">&#9656;</span>
+      <span class="brand-name">PoMemeVideo</span>
+      <span class="brand-doc">Overview</span>
+    </div>
+    <nav class="docnav" aria-label="Reports"><a href="index.html" aria-current="page">Overview</a><a href="AI_SERVICES_REPORT.html">AI Services</a><a href="AUTH_SECURITY_REPORT.html">Auth &amp; Security</a><a href="USER_WORKFLOW.html">User Workflow</a><a href="VISUAL_ARCHITECTURE_DASHBOARD.html">Architecture</a></nav>
+    <div class="levels" role="group" aria-label="Detail level">
+      <button type="button" data-level="1" aria-pressed="false">1 &middot; Simple</button>
+      <button type="button" data-level="2" aria-pressed="false">2 &middot; Standard</button>
+      <button type="button" data-level="3" aria-pressed="true">3 &middot; All details</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="masthead">
+    <p class="kicker">NET_DOCS &middot; 2026-09-11 &middot; Report 1 of 5</p>
+    <h1>PoMemeVideo &mdash; a field guide to the codebase</h1>
+    <p class="standfirst">What the system is, how a meme video actually gets made, where every route lives, and the eleven things the code says that the code does not do.</p>
+    <div class="slate"><span>Repo <b>PoMemeVideo</b></span><span>Branch <b>master</b></span><span>Commit <b>a495207</b></span><span>Build <b>0 warnings, 0 errors</b></span><span>Scope <b>src/ tests/ .github/ root config</b></span></div>
+  </div>
+
+  <main>
+<!-- ===================== TIER 1 ===================== -->
+<section data-tier="1" id="thirty-seconds">
+  <p class="tier-flag">Tier 1 &middot; The thirty-second read</p>
+  <h2>What this is, in one table</h2>
+  <p class="lede">PoMemeVideo is one ASP.NET Core host (<code>PoMemeVideo.Api</code>) that serves a Blazor WebAssembly client from its own origin, stores everything in Azure Table &amp; Blob Storage, calls one Azure AI Foundry deployment to write a &ldquo;director&rsquo;s script&rdquo;, and shells out to a bundled static FFmpeg to render the result.</p>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Scope, targets, security and cost &mdash; as the repository declares them</caption>
+      <thead>
+        <tr><th>Dimension</th><th>What the repository says</th><th>Evidence</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Scope</b></td>
+          <td>Three projects only &mdash; Api / Client / Shared. The Api hosts the WASM client same-origin, so there is no CORS middleware for app traffic. Server code is organised in seven feature slices under <code>Features/</code>, not technical layers.</td>
+          <td><span class="cite">PoMemeVideo.slnx</span><span class="cite">EndpointMappingExtensions.cs:28</span><span class="cite">GlobalUsings.cs:1-7</span></td>
+        </tr>
+        <tr>
+          <td><b>Runtime targets</b></td>
+          <td><code>net10.0</code>, C# <code>preview</code>, nullable on, <code>TreatWarningsAsErrors</code> &mdash; the build is the lint. SDK pinned to <code>10.0.100</code>, <code>rollForward: latestMinor</code>. Local ports: HTTP 7000, HTTPS 5001.</td>
+          <td><span class="cite">Directory.Build.props:3-9</span><span class="cite">global.json</span><span class="cite">launchSettings.json:8,17</span></td>
+        </tr>
+        <tr>
+          <td><b>Deployment target</b></td>
+          <td>Azure App Service <code>app-pomemevideo</code> in resource group <code>PoMemeVideo</code>, on the shared free <b>F1 Linux</b> plan. Framework-dependent publish + a GPL static ffmpeg bundled into <code>publish/ffmpeg/</code>, ZIP-deployed with <code>az webapp deploy</code>. No Always On.</td>
+          <td><span class="cite">deploy-pomemevideo.yml:18-19,34-35,119-124</span><span class="cite">AGENT.md:307-309</span></td>
+        </tr>
+        <tr>
+          <td><b>Security posture</b></td>
+          <td><b>Deny by default.</b> <code>AddAuthorization</code> sets a <code>FallbackPolicy</code> requiring an authenticated user, so an endpoint without metadata is protected. 14 API routes opt out with <code>AllowAnonymous()</code>; 14 require a signed-in user.</td>
+          <td><span class="cite">ServiceRegistrationExtensions.cs:193-198</span><span class="cite">grep -rn AllowAnonymous src/PoMemeVideo.Api</span></td>
+        </tr>
+        <tr>
+          <td><b>Identity</b></td>
+          <td>Cookie is always the default scheme. Microsoft Entra ID (OIDC, <code>TenantId=common</code>) when <code>AzureAd:ClientId</code> is set; a <code>GUEST########</code> cookie bypass in Development and Test only; a header-driven <code>Fake</code> scheme registered in every non-Production environment.</td>
+          <td><span class="cite">ServiceRegistrationExtensions.cs:135,144,187-191</span><span class="cite">AuthEndpoints.cs:41</span></td>
+        </tr>
+        <tr>
+          <td><b>Cost &amp; SLA</b></td>
+          <td><b>Not declared in the repository.</b> No monetary figure, price, per-token budget, latency target or SLA appears anywhere in <code>src/</code>, <code>tests/</code>, the workflows or the root config. The nearest enforced numbers are the constants listed below.</td>
+          <td><span class="cite">grep -rniE 'sla|price|cost|\$[0-9]' src tests .github</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note undeclared">
+    <span class="nlabel">Figures not declared in the repository</span>
+    <p>There is no SLA, no latency objective, no cost or pricing model and no token budget anywhere in the tracked source. The nearest <em>enforced</em> constants, all of them hard-coded, are: upload ceiling <b>500&nbsp;MB</b> (<span class="cite">IngestVideoCommand.cs:13</span>), upload SAS lifetime <b>15&nbsp;minutes</b> (<span class="cite">IngestionEndpoints.cs:49</span>), single-render wall clock <b>5&nbsp;minutes</b> (<span class="cite">FFmpegRenderService.cs:27</span>), director call timeout <b>60&nbsp;s in Development / none elsewhere</b> (<span class="cite">AiFoundryDirectorService.cs:45-46</span>), vision retry <b>2 attempts, 4&nbsp;s total backoff cap</b> (<span class="cite">AiFoundryVisionService.cs:182-183</span>), sound-library cache <b>5&nbsp;minutes</b> (<span class="cite">SoundAssetTableRepository.cs:13</span>), production trace sampling <b>10&nbsp;%</b> (<span class="cite">ServiceRegistrationExtensions.cs:65</span>). Two platform quotas are described in prose only, never enforced in code: the F1 plan&rsquo;s <b>60 CPU-minutes/day</b> and <b>1&nbsp;GB</b> storage (<span class="cite">AGENT.md:307-309</span>).</p>
+  </div>
+
+  <h3>How the app works, in the words of its own code</h3>
+  <p>A run begins on the Source page. The browser asks for a write-scoped SAS URI, uploads the video <em>straight to Blob Storage</em>, then confirms the session. That direct-upload path is the reason the only CORS configuration in the system exists at all: &ldquo;Browser direct-upload (a SAS PUT straight to Blob Storage) only works if the storage account has a CORS rule listing the page&rsquo;s origin. This MUST run in EVERY environment&rdquo; <span class="cite">EndpointMappingExtensions.cs:230-234</span>. The client then extracts keyframes in-page and posts them as base64 PNGs; the server stores each frame, runs vision analysis immediately and persists the labels as a JSON blob &ldquo;so the engine can read them without re-calling the AI&rdquo; <span class="cite">IngestionEndpoints.cs:154</span>.</p>
+
+  <p>Pressing <em>initiate</em> queues the session on an in-process channel. The engine loads the pre-computed labels, ranks the sound library against each one, and applies a token bucket whose job is stated plainly: &ldquo;Within the same 2-second window, the request with the highest cosine score wins. Gaps exceeding MaxGapMs receive a fallback placement&rdquo; <span class="cite">TokenBucketTimingService.cs:23-25</span>. The approved cues and a capped 48-sound menu go to the AI director, which returns an enriched script &mdash; rationale, ironic-pairing flag, visual effects, captions. Every failure along that path degrades rather than aborts: a director timeout logs &ldquo;Director call timed out; continuing with deterministic fallback entries&rdquo; and the engine builds basic placements itself <span class="cite">RunEngineCommand.cs:303-310,325-345</span>.</p>
+
+  <p>The script is persisted to Table Storage, streamed cue-by-cue to the browser over SignalR, and handed to the render pipeline. FFmpeg downloads the source, muxes the meme audio, burns captions and overlays, uploads the MP4 and flips the session to <code>Complete</code>. The hub that carries all of this is deliberately anonymous, and the comment says why: &ldquo;The hub carries no user-scoped data &mdash; it only relays progress into groups keyed by sessionId&hellip; under the deny-by-default FallbackPolicy a negotiate without the auth cookie would 401 and the client would silently lose all live progress updates&rdquo; <span class="cite">EndpointMappingExtensions.cs:169-173</span>.</p>
+
+  <h3>The five reports</h3>
+  <div class="grid g2">
+    <a class="navcard" href="AI_SERVICES_REPORT.html">
+      <span class="t">AI Services</span>
+      <span class="d">One cloud director and one vision service, both Azure AI Foundry. Budgets, resilience, and the retry path that is actually wired.</span>
+      <span><span class="pill warn">1 provider &middot; resilience gap</span></span>
+    </a>
+    <a class="navcard" href="AUTH_SECURITY_REPORT.html">
+      <span class="t">Auth &amp; Security</span>
+      <span class="d">Every credential and its lifetime, the sign-in sequences, claims, policies, and the exact bodies a rejected request actually receives.</span>
+      <span><span class="pill risk">3 findings</span></span>
+    </a>
+    <a class="navcard" href="USER_WORKFLOW.html">
+      <span class="t">User Workflow</span>
+      <span class="d">Six journeys from click to row: server validation, mutations, enforced limits, and the full request/response schemas.</span>
+      <span><span class="pill ok">6 journeys mapped</span></span>
+    </a>
+    <a class="navcard" href="VISUAL_ARCHITECTURE_DASHBOARD.html">
+      <span class="t">Architecture</span>
+      <span class="d">Topology, the slice-autonomy rule and how it is enforced, the DI table, routing order, and the entity model.</span>
+      <span><span class="pill info">7 slices &middot; 5 tables</span></span>
+    </a>
+  </div>
+
+  <h3>Route prefixes</h3>
+  <div class="tablewrap">
+    <table>
+      <caption>Every prefix the host maps, and the authorization that applies to it</caption>
+      <thead><tr><th>Prefix</th><th>Owner</th><th class="num">Routes</th><th>Authorization</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>/api/ingestion</code></td><td>Ingestion slice</td><td class="num">5</td><td><span class="pill ok">RequireAuthorization</span></td><td><span class="cite">IngestionEndpoints.cs:12</span></td></tr>
+        <tr><td><code>/api/processing</code></td><td>Processing slice</td><td class="num">1</td><td><span class="pill ok">RequireAuthorization</span></td><td><span class="cite">ProcessingEndpoints.cs:11</span></td></tr>
+        <tr><td><code>/api/output</code></td><td>Output slice</td><td class="num">6</td><td><span class="pill ok">RequireAuthorization</span></td><td><span class="cite">OutputEndpoints.cs:13</span></td></tr>
+        <tr><td><code>/api/memelibrary</code></td><td>MemeLibrary slice</td><td class="num">4</td><td><span class="pill warn">Group has no policy &mdash; 2 protected by the fallback, 2 anonymous</span></td><td><span class="cite">MemeLibraryEndpoints.cs:10,145,223</span></td></tr>
+        <tr><td><code>/api/config</code></td><td>Config slice</td><td class="num">3</td><td><span class="pill warn">All anonymous, including the PUT</span></td><td><span class="cite">ConfigEndpoints.cs:24,52,77</span></td></tr>
+        <tr><td><code>/api/auth</code>, <code>/auth</code></td><td>Auth slice + host wiring</td><td class="num">5</td><td><span class="pill warn">All anonymous by design</span></td><td><span class="cite">AuthEndpoints.cs:29,95</span><span class="cite">EndpointMappingExtensions.cs:204,207,220</span></td></tr>
+        <tr><td><code>/health</code>, <code>/health/live</code>, <code>/diag</code></td><td>Api/Common</td><td class="num">3</td><td><span class="pill warn">Anonymous (monitoring)</span></td><td><span class="cite">HealthEndpoint.cs:124</span><span class="cite">PoPlatform.cs:114</span><span class="cite">DiagEndpoint.cs:81</span></td></tr>
+        <tr><td><code>/hubs/engine</code></td><td>Hubs/EngineHub</td><td class="num">1 hub</td><td><span class="pill warn">Anonymous (SignalR negotiate)</span></td><td><span class="cite">EndpointMappingExtensions.cs:174</span></td></tr>
+        <tr><td><code>/scalar</code>, <code>/openapi</code></td><td>Host wiring</td><td class="num">2</td><td><span class="pill ok">401 outside Development</span></td><td><span class="cite">EndpointMappingExtensions.cs:52-66</span></td></tr>
+        <tr><td><code>/</code> (fallback)</td><td>WASM shell</td><td class="num">2</td><td><span class="pill warn">Anonymous &mdash; renders the login page</span></td><td><span class="cite">EndpointMappingExtensions.cs:224-225</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <div class="chart">
+      <p class="ct">Mapped endpoints, by the slice that owns them</p>
+      <p class="cs">Minimal-API routes only. The SignalR hub, the static-asset handler and the SPA fallback are excluded &mdash; they are not request handlers with bodies.</p>
+      <svg viewBox="0 0 720 320" role="img" aria-label="Horizontal bar chart of mapped endpoints per slice: Output 6, Ingestion 5, MemeLibrary 4, Config 3, Host wiring 3, Health and Diagnostics 3, Auth 2, Processing 1.">
+        <g stroke="var(--grid)" stroke-width="1">
+          <line x1="314" y1="8" x2="314" y2="282"></line>
+          <line x1="478" y1="8" x2="478" y2="282"></line>
+          <line x1="642" y1="8" x2="642" y2="282"></line>
+        </g>
+        <line x1="150" y1="8" x2="150" y2="282" stroke="var(--axis)" stroke-width="1"></line>
+
+        <g font-family="var(--font-body)" font-size="13" fill="var(--ink-2)" text-anchor="end">
+          <text x="142" y="31">Output</text>
+          <text x="142" y="65">Ingestion</text>
+          <text x="142" y="99">MemeLibrary</text>
+          <text x="142" y="133">Config</text>
+          <text x="142" y="167">Host wiring</text>
+          <text x="142" y="201">Health &amp; Diag</text>
+          <text x="142" y="235">Auth</text>
+          <text x="142" y="269">Processing</text>
+        </g>
+
+        <g fill="var(--s1)">
+          <rect class="bar" x="150" y="16" width="492" height="22" rx="4"><title>Output &mdash; 6 endpoints (OutputEndpoints.cs)</title></rect>
+          <rect class="bar" x="150" y="50" width="410" height="22" rx="4"><title>Ingestion &mdash; 5 endpoints (IngestionEndpoints.cs)</title></rect>
+          <rect class="bar" x="150" y="84" width="328" height="22" rx="4"><title>MemeLibrary &mdash; 4 endpoints (MemeLibraryEndpoints.cs)</title></rect>
+          <rect class="bar" x="150" y="118" width="246" height="22" rx="4"><title>Config &mdash; 3 endpoints (ConfigEndpoints.cs)</title></rect>
+          <rect class="bar" x="150" y="152" width="246" height="22" rx="4"><title>Host wiring &mdash; 3 endpoints (EndpointMappingExtensions.cs)</title></rect>
+          <rect class="bar" x="150" y="186" width="246" height="22" rx="4"><title>Health &amp; Diagnostics &mdash; 3 endpoints (Api/Common)</title></rect>
+          <rect class="bar" x="150" y="220" width="164" height="22" rx="4"><title>Auth &mdash; 2 endpoints (AuthEndpoints.cs)</title></rect>
+          <rect class="bar" x="150" y="254" width="82" height="22" rx="4"><title>Processing &mdash; 1 endpoint (ProcessingEndpoints.cs)</title></rect>
+        </g>
+
+        <g font-family="var(--font-mono)" font-size="13" font-weight="600" fill="var(--ink)">
+          <text x="650" y="32">6</text>
+          <text x="568" y="66">5</text>
+          <text x="486" y="100">4</text>
+          <text x="404" y="134">3</text>
+          <text x="404" y="168">3</text>
+          <text x="404" y="202">3</text>
+          <text x="322" y="236">2</text>
+          <text x="240" y="270">1</text>
+        </g>
+
+        <g font-family="var(--font-mono)" font-size="12" fill="var(--muted-ink)" text-anchor="middle">
+          <text x="150" y="300">0</text>
+          <text x="314" y="300">2</text>
+          <text x="478" y="300">4</text>
+          <text x="642" y="300">6</text>
+        </g>
+      </svg>
+      <details class="tableview">
+        <summary>Table view</summary>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Slice</th><th class="num">Endpoints</th></tr></thead>
+            <tbody>
+              <tr><td>Output</td><td class="num">6</td></tr>
+              <tr><td>Ingestion</td><td class="num">5</td></tr>
+              <tr><td>MemeLibrary</td><td class="num">4</td></tr>
+              <tr><td>Config</td><td class="num">3</td></tr>
+              <tr><td>Host wiring</td><td class="num">3</td></tr>
+              <tr><td>Health &amp; Diagnostics</td><td class="num">3</td></tr>
+              <tr><td>Auth</td><td class="num">2</td></tr>
+              <tr><td>Processing</td><td class="num">1</td></tr>
+              <tr><td><b>Total</b></td><td class="num"><b>27</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+    <figcaption><b>Counted from</b> every <code>MapGet/MapPost/MapPut/MapDelete</code> call site in <code>src/PoMemeVideo.Api</code>.</figcaption>
+  </figure>
+</section>
+
+<!-- ===================== TIER 2 ===================== -->
+<section data-tier="2" id="containers">
+  <p class="tier-flag">Tier 2 &middot; Containers and components</p>
+  <h2>How the pieces fit</h2>
+  <p>One deployable unit. The browser talks to exactly one origin; everything else &mdash; storage, the AI endpoint, the key vault &mdash; is reached from the server, with the single exception of the SAS upload, which is a direct browser&rarr;Blob <code>PUT</code>.</p>
+
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart TB
+  subgraph browser["Browser"]
+    WASM["PoMemeVideo.Client&lt;br/&gt;Blazor WebAssembly SPA"]
+  end
+
+  subgraph appsvc["Azure App Service &middot; app-pomemevideo &middot; F1 Linux"]
+    API["PoMemeVideo.Api&lt;br/&gt;ASP.NET Core minimal APIs&lt;br/&gt;+ SignalR + static host"]
+    FF["Bundled static ffmpeg / ffprobe&lt;br/&gt;publish/ffmpeg/"]
+  end
+
+  subgraph azure["Azure"]
+    TBL[("Table Storage&lt;br/&gt;stpomemevideo&lt;br/&gt;5 tables")]
+    BLB[("Blob Storage&lt;br/&gt;stpomemevideo&lt;br/&gt;3 containers")]
+    KV["Key Vault&lt;br/&gt;kv-poshared"]
+    AIF["Azure AI Foundry&lt;br/&gt;cognitiveservices.azure.com"]
+    ENT["Microsoft Entra ID&lt;br/&gt;/common"]
+    AI2["Application Insights&lt;br/&gt;via Serilog sink"]
+  end
+
+  WASM -- "HTTPS same-origin&lt;br/&gt;X-Session-ID / X-Correlation-ID" --> API
+  WASM -. "SignalR /hubs/engine&lt;br/&gt;anonymous negotiate" .-> API
+  WASM == "SAS PUT &mdash; direct upload&lt;br/&gt;needs Blob CORS rule" ==> BLB
+  API --> TBL
+  API --> BLB
+  API -- "secrets at startup&lt;br/&gt;system-assigned MI" --> KV
+  API -- "chat completions&lt;br/&gt;director + vision" --> AIF
+  API -- "OIDC code flow" --> ENT
+  API --> AI2
+  API --> FF
+  FF --> BLB</pre>
+    </div>
+    <figcaption><b>C4 level 2</b> &mdash; containers. The dashed edge is realtime progress; the heavy edge is the only path that bypasses the API. <span class="cite">EndpointMappingExtensions.cs:228-255</span><span class="cite">StartupConfigurationExtensions.cs:21-61</span></figcaption>
+  </figure>
+
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart LR
+  subgraph host["Composition root &mdash; Api/Configuration"]
+    SR["ServiceRegistrationExtensions&lt;br/&gt;the only file that sees&lt;br/&gt;every concrete slice type"]
+    EM["EndpointMappingExtensions&lt;br/&gt;middleware order + Map*"]
+  end
+
+  subgraph slices["Feature slices &mdash; Api/Features"]
+    ING["Ingestion"]
+    PRC["Processing"]
+    OUT["Output"]
+    MEM["MemeLibrary"]
+    AUT["Auth"]
+    CFG["Config"]
+  end
+
+  subgraph kernel["PoMemeVideo.Shared"]
+    CON["Contracts&lt;br/&gt;IRepositories &middot; IServices"]
+    DOM["Domain&lt;br/&gt;entities + strongly-typed ids"]
+  end
+
+  COM["Api/Common&lt;br/&gt;storage factories &middot; correlation&lt;br/&gt;UserIdentityResolution &middot; health &middot; diag"]
+
+  SR --> ING & PRC & OUT & MEM & AUT & CFG
+  EM --> ING & PRC & OUT & MEM & AUT & CFG
+  ING --> CON
+  PRC --> CON
+  OUT --> CON
+  MEM --> CON
+  ING --> COM
+  PRC --> COM
+  OUT --> COM
+  CON --> DOM
+  ING -. "never references" .-x OUT
+  PRC -. "never references" .-x MEM</pre>
+    </div>
+    <figcaption><b>C4 level 3</b> &mdash; components. Slice autonomy is enforced by what <code>GlobalUsings.cs</code> deliberately omits, not by the compiler. <span class="cite">GlobalUsings.cs:1-7</span><span class="cite">ServiceRegistrationExtensions.cs:10-17</span></figcaption>
+  </figure>
+
+  <h3>One session, end to end</h3>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant U as Source page
+  participant A as PoMemeVideo.Api
+  participant B as Blob Storage
+  participant F as AI Foundry
+  participant E as Engine + FFmpeg
+
+  U->>A: POST /api/ingestion/sas {fileName, fileSizeBytes}
+  A-->>U: 200 {sessionId, sasUrl, expiresAt} — 15 min write SAS
+  U->>B: PUT sasUrl (the video, direct)
+  U->>A: POST /api/ingestion/sessions/{id}/frames {frames[] base64 PNG}
+  A->>F: chat completions — keyframe batches of 8
+  A-->>U: 200 {visionLabels[], visionDiagnostics}
+  U->>A: POST /api/processing/sessions/{id}/initiate
+  A-->>U: 202 Accepted {sessionId, status:"Processing"}
+  E->>F: DirectAsync(labels, 48-sound menu) — JSON object response
+  E-->>U: SignalR DirectorLogEntry / DirectorScriptEntry / ProcessingComplete</pre>
+    </div>
+    <figcaption><b>Ten messages</b>, three of them fire-and-forget on the server side. The SAS <code>PUT</code> is the only browser call that does not reach the API. <span class="cite">Source.razor.cs:104,133,186</span><span class="cite">Engine.razor:121</span><span class="cite">EngineHub.cs:37-51</span></figcaption>
+  </figure>
+
+  <h3>JSON envelopes</h3>
+  <p>There is no single envelope type. Handlers return anonymous objects; four distinct shapes are in use. Each example below is a <b>verbatim response body</b> captured from the built application running under <code>ASPNETCORE_ENVIRONMENT=Staging</code> at commit <code>a495207</code>.</p>
+
+  <h4>Success &mdash; typed DTO</h4>
+  <pre><code>GET /api/memelibrary/sounds?limit=1
+{"totalCount":206,"sounds":[{"soundId":"018535cb-4690-2c55-b845-0c06832b6d99",
+"displayName":"Smoke Detector Beep","durationMs":1063,
+"actionVectorTags":["reaction","win"],
+"blobUrl":"https://stpomemevideo.blob.core.windows.net/sounds/smoke-detector-beep-97430.mp3"}]}</code></pre>
+  <p class="cites"><span class="cite">MemeLibraryEndpoints.cs:40-49</span><span class="cite">SoundAssetDto.cs:3-10</span></p>
+
+  <h4>Domain error &mdash; <code>error</code> code plus context</h4>
+  <pre><code>POST /api/ingestion/sas  {"fileName":"x.exe","fileSizeBytes":10}
+400 Bad Request
+{"error":"INVALID_EXTENSION",
+ "message":"Unsupported file extension '.exe'. Allowed: .mp4, .mov, .avi, .webm",
+ "allowedExtensions":[".mp4",".mov",".avi",".webm"]}</code></pre>
+  <p class="cites"><span class="cite">IngestionEndpoints.cs:29-37</span><span class="cite">IngestVideoCommand.cs:30-35</span></p>
+
+  <h4>Not found &mdash; <code>error</code> plus the id</h4>
+  <pre><code>GET /api/ingestion/sessions/11111111-1111-1111-1111-111111111111
+404 Not Found
+{"error":"SESSION_NOT_FOUND","sessionId":"11111111-1111-1111-1111-111111111111"}</code></pre>
+  <p class="cites"><span class="cite">IngestionEndpoints.cs:233</span><span class="cite">OutputEndpoints.cs:27,31</span></p>
+
+  <h4>Bare string &mdash; <code>Results.BadRequest(string)</code></h4>
+  <pre><code>PUT /api/config/ai-model  {"aiFoundryDeployment":"nope"}
+400 Bad Request
+Content-Type: application/json
+"Unknown deployment 'nope'."</code></pre>
+  <p class="cites"><span class="cite">ConfigEndpoints.cs:60,66</span></p>
+  <div class="note">
+    <p>This endpoint is annotated <code>.ProducesProblem(400)</code> <span class="cite">ConfigEndpoints.cs:76</span>, which advertises an RFC&nbsp;9457 <code>application/problem+json</code> body in the OpenAPI document. It emits a JSON string literal instead. The document and the wire disagree.</p>
+  </div>
+
+  <h4>Unhandled exception &mdash; the only problem-shaped body</h4>
+  <pre><code>{"type":"https://tools.ietf.org/html/rfc7231#section-6.6.1",
+ "title":"Internal Server Error","status":500,
+ "detail":"An unexpected error occurred. Check logs for details.",
+ "exceptionType":null,"stackTrace":null,"traceId":"0HNOG4RF98P5Q:00000001"}</code></pre>
+  <p class="cites"><span class="cite">GlobalExceptionHandler.cs:40-71</span></p>
+  <p>The handler&rsquo;s own summary says &ldquo;RFC 7807 Problem Details&rdquo; <span class="cite">GlobalExceptionHandler.cs:8</span>; the <code>type</code> URIs it emits point at RFC&nbsp;7231 status-code definitions, and the payload carries two non-standard members (<code>exceptionType</code>, <code>stackTrace</code>) that are populated only in Development. Nothing in the repository emits RFC&nbsp;9457.</p>
+
+  <h3>Tracing keys</h3>
+  <div class="tablewrap">
+    <table>
+      <caption>What a single user action can be stitched together by</caption>
+      <thead><tr><th>Key</th><th>Where it comes from</th><th>Where it lands</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>X-Session-ID</code></td><td>WASM client reads the <code>pmv-session-id</code> cookie and echoes it as a header</td><td>Serilog <code>SessionId</code> property on every request log</td><td><span class="cite">CorrelationHeaders.cs:9</span><span class="cite">CorrelationHeaderHandler.cs:24-27</span></td></tr>
+        <tr><td><code>X-Correlation-ID</code></td><td>New GUID per outbound client call; falls back to <code>HttpContext.TraceIdentifier</code></td><td>Echoed on every response; Serilog <code>CorrelationId</code></td><td><span class="cite">CorrelationHeaderHandler.cs:30</span><span class="cite">EndpointMappingExtensions.cs:132-137</span></td></tr>
+        <tr><td><code>pmv-session-id</code> cookie</td><td>Issued by the API when absent; <code>HttpOnly=false</code> on purpose so the client can read it</td><td>14-day, <code>SameSite=Lax</code>, <code>Secure</code> when the request is HTTPS</td><td><span class="cite">EndpointMappingExtensions.cs:113-129</span></td></tr>
+        <tr><td><code>UserId</code></td><td><code>ClaimTypes.NameIdentifier</code>, or the literal <code>"anonymous"</code></td><td>Serilog diagnostic context</td><td><span class="cite">EndpointMappingExtensions.cs:146</span></td></tr>
+        <tr><td><code>DiagRunId</code></td><td>8 hex chars minted per engine run, logged as <code>[diag:xxxxxxxx][session:&hellip;]</code></td><td>Serilog scope around the whole engine run</td><td><span class="cite">RunEngineCommand.cs:91-97</span></td></tr>
+        <tr><td><code>enduser.id</code></td><td>Entra <code>oid</code>, set as an <code>Activity</code> tag at sign-in</td><td>App Insights <code>user_AuthenticatedId</code></td><td><span class="cite">SignInTelemetry.cs:113</span></td></tr>
+        <tr><td>Activity source</td><td><code>PoMemeVideo.*</code></td><td>OTLP exporter &mdash; only when an endpoint is configured</td><td><span class="cite">ServiceRegistrationExtensions.cs:60,43-49</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TIER 3 ===================== -->
+<section data-tier="3" id="detail">
+  <p class="tier-flag">Tier 3 &middot; Schemas, bindings and keys</p>
+  <h2>The detail behind the summary</h2>
+
+  <h3>Strongly-typed identifiers</h3>
+  <p>Four <code>readonly record struct</code> ids exist because &ldquo;<code>repo.GetByIdAsync(userId, sessionId)</code> &mdash; arguments transposed &mdash; previously compiled and silently returned null&rdquo; <span class="cite">StronglyTypedIds.cs:1-5</span>. The invariant that made them safe to introduce over live data is that each is wire- and storage-identical to a bare <code>Guid</code>.</p>
+  <pre><code>[JsonConverter(typeof(SessionIdJsonConverter))]
+public readonly record struct SessionId(Guid Value) : IParsable&lt;SessionId&gt;
+{
+    public override string ToString() =&gt; Value.ToString();
+    public static SessionId Parse(string s, IFormatProvider? provider) =&gt; new(Guid.Parse(s));
+}
+
+public sealed class SessionIdJsonConverter : JsonConverter&lt;SessionId&gt;
+{
+    public override SessionId Read(ref Utf8JsonReader reader, Type _, JsonSerializerOptions __)
+        =&gt; new(reader.GetGuid());
+    public override void Write(Utf8JsonWriter writer, SessionId value, JsonSerializerOptions _)
+        =&gt; writer.WriteStringValue(value.Value);
+}</code></pre>
+  <p class="cites"><span class="cite">StronglyTypedIds.cs:15-31,92-99</span></p>
+  <p>The convention is <b>strong types inside, primitives at the edges</b>: domain entities, repository and service contracts take <code>SessionId</code>/<code>UserId</code>/<code>SoundId</code>/<code>EntryId</code>; the wire DTOs in <code>Shared/Models</code> keep raw <code>Guid</code> <span class="cite">VideoSessionDto.cs:7-8</span>. Minimal-API route parameters bind the strong type directly through <code>IParsable&lt;T&gt;</code> <span class="cite">IngestionEndpoints.cs:108-109</span>.</p>
+
+  <h3>Persistence bindings</h3>
+  <div class="tablewrap">
+    <table>
+      <caption>Table Storage keys &mdash; PartitionKey / RowKey per entity</caption>
+      <thead><tr><th>Table</th><th>PartitionKey</th><th>RowKey</th><th>Ownership filter</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>VideoSessions</code></td><td>constant <code>"sessions"</code></td><td><code>SessionId</code></td><td><code>OwnerUserId</code> column, checked on every read and write</td><td><span class="cite">VideoSessionTableRepository.cs:17,38,171-172</span></td></tr>
+        <tr><td><code>DirectorScripts</code></td><td><code>SessionId</code></td><td>constant <code>"script"</code></td><td><span class="pill risk">none</span></td><td><span class="cite">DirectorScriptTableRepository.cs:41</span></td></tr>
+        <tr><td><code>SoundAssets</code></td><td>constant <code>"library"</code></td><td><code>SoundId</code></td><td>n/a &mdash; shared catalogue</td><td><span class="cite">SoundAssetTableRepository.cs:11,64</span></td></tr>
+        <tr><td><code>UserIdentities</code></td><td><code>IdentityType</code> (<code>GUEST</code> / <code>Microsoft</code> / <code>ANON</code>)</td><td><code>IdentityId</code></td><td>n/a</td><td><span class="cite">UserIdentityTableRepository.cs:10-11,33-34</span></td></tr>
+        <tr><td><code>HealthCheck</code></td><td colspan="2">probe only &mdash; never written</td><td>n/a</td><td><span class="cite">StorageNames.cs:16-17</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The constant partition key on <code>VideoSessions</code> is deliberate: &ldquo;Per-user isolation is enforced by the <code>OwnerUserId</code> property&hellip; NOT by the partition key &mdash; because dev/ANON identities can rotate per request&rdquo; <span class="cite">VideoSessionTableRepository.cs:11-16</span>. <code>DirectorScripts</code> carries no owner column at all; <code>GetBySessionIdAsync</code> takes no <code>UserId</code> <span class="cite">IRepositories.cs:35</span>. The Output endpoint compensates by loading the session first and returning 404 before it reads the script <span class="cite">OutputEndpoints.cs:25-31</span>.</p>
+
+  <h4>Blob layout</h4>
+  <pre><code>sessions/{sessionId}/source.{mp4|mov|avi|webm}   IngestVideoCommand.cs:53
+sessions/{sessionId}/frames/frame_{i:D4}.png     IngestionEndpoints.cs:136
+sessions/{sessionId}/vision-labels.json          IngestionEndpoints.cs:158
+sessions/{sessionId}/output.mp4                  RenderVideoCommand.cs:115
+sounds/{soundId}{.mp3|.wav|.ogg}                 MemeLibraryEndpoints.cs:69
+dataprotection/keys.xml                          ServiceRegistrationExtensions.cs:220</code></pre>
+  <p>Container names are never literals &mdash; they come from <code>StorageNames.Containers</code> <span class="cite">StorageNames.cs:20-25</span>. <b>There are no migrations.</b> Table Storage is schemaless here and every table is created on first use via <code>CreateIfNotExists</code> <span class="cite">AzureTableClientFactory.cs:31</span>; no migration mechanism, versioning column or upgrade script exists anywhere in the repository.</p>
+
+  <h3>Configuration keys</h3>
+  <div class="tablewrap">
+    <table>
+      <caption>Every configuration key the server reads (key names only &mdash; no values)</caption>
+      <thead><tr><th>Key</th><th>Purpose</th><th>Default / fallback</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>KeyVault:Uri</code></td><td>Secret source</td><td>Outside Development, falls back to the shared vault URI constant when blank</td><td><span class="cite">StartupConfigurationExtensions.cs:21-28</span><span class="cite">PoMemeVideoNaming.cs:8</span></td></tr>
+        <tr><td><code>ConnectionStrings:AzureTableStorage</code></td><td>Table client</td><td>Falls back to <code>Azure:TableStorage:Endpoint</code> + managed identity</td><td><span class="cite">AzureTableClientFactory.cs:15-25</span></td></tr>
+        <tr><td><code>ConnectionStrings:AzureBlobStorage</code></td><td>Blob client, Data Protection ring</td><td>Falls back to <code>Azure:BlobStorage:UseDevelopmentStorage</code> then <code>Azure:BlobStorage:Endpoint</code></td><td><span class="cite">BlobServiceClientFactory.cs:19-33</span></td></tr>
+        <tr><td><code>AiFoundry:Endpoint</code> / <code>:Key</code></td><td>Director + vision</td><td>Vision falls back to <code>AzureOpenAI:*</code>; the director does <b>not</b> and throws</td><td><span class="cite">AiFoundryDirectorService.cs:41-42</span><span class="cite">AiFoundryVisionService.cs:43-47</span></td></tr>
+        <tr><td><code>AiFoundry:VisionDeployment</code></td><td>Vision model</td><td><code>"gpt-5.4-mini"</code></td><td><span class="cite">AiFoundryVisionService.cs:64-65</span></td></tr>
+        <tr><td><code>AiFoundry:KnownDeployments</code></td><td>The allow-list the runtime selector validates against</td><td><code>[]</code></td><td><span class="cite">ConfigEndpoints.cs:90-97</span></td></tr>
+        <tr><td><code>AiFoundry:TimeoutSeconds</code></td><td>Director wall clock</td><td>60 in Development, 0 (no timeout) elsewhere</td><td><span class="cite">AiFoundryDirectorService.cs:45-46</span></td></tr>
+        <tr><td><code>AiFoundry:DefaultDeployment</code></td><td><span class="pill gone">read by nothing</span></td><td>present in both appsettings files</td><td><span class="cite">appsettings.json:28</span></td></tr>
+        <tr><td><code>AzureAd:ClientId</code> / <code>:TenantId</code> / <code>:ClientSecret</code> / <code>:Instance</code> / <code>:CallbackPath</code></td><td>Entra ID OIDC</td><td><code>TenantId="common"</code>, <code>CallbackPath="/auth/callback"</code></td><td><span class="cite">appsettings.json:37-42</span><span class="cite">ServiceRegistrationExtensions.cs:117-127</span></td></tr>
+        <tr><td><code>Cors:AllowedOrigins</code></td><td>Blob-service CORS allow-list for direct upload</td><td>the deployed site origin</td><td><span class="cite">appsettings.json:9-13</span><span class="cite">EndpointMappingExtensions.cs:237</span></td></tr>
+        <tr><td><code>UseMockAI</code></td><td>Forces local AI interception outside Production</td><td><code>false</code></td><td><span class="cite">AiInterceptionHandler.cs:63-69</span></td></tr>
+        <tr><td><code>OpenTelemetry:Endpoint</code></td><td>OTLP target; tracing is registered only if this resolves</td><td>Development auto-wires <code>http://localhost:4317</code></td><td><span class="cite">ServiceRegistrationExtensions.cs:43-49</span></td></tr>
+        <tr><td><code>ApplicationInsights:ConnectionString</code></td><td>Serilog App Insights sink</td><td>also accepts <code>APPLICATIONINSIGHTS_CONNECTION_STRING</code> and an instrumentation key</td><td><span class="cite">PoPlatform.cs:48-66</span></td></tr>
+        <tr><td><code>FFmpegBinPath</code></td><td>Explicit ffmpeg directory</td><td>the bundled <code>ffmpeg/</code> beside the assembly</td><td><span class="cite">FFmpegRenderService.cs:41</span></td></tr>
+        <tr><td><code>SkipAutoSeed</code></td><td>Suppresses the Development auto-seed of the sound library</td><td><code>false</code></td><td><span class="cite">EndpointMappingExtensions.cs:271</span></td></tr>
+        <tr><td><code>AzureAiVision:Endpoint</code> / <code>:Key</code></td><td>Legacy Computer Vision &mdash; rendered on <code>/diag</code> and reported by <code>/health</code>, but no client is ever constructed from it</td><td>blank</td><td><span class="cite">DiagEndpoint.cs:22-23</span><span class="cite">HealthEndpoint.cs:77</span></td></tr>
+        <tr><td>env <code>PoMemeVideo__PersistAiSettings</code></td><td>Opt-in persistence of the selected deployment to <code>%LOCALAPPDATA%/PoMemeVideo</code></td><td>off</td><td><span class="cite">ConfigEndpoints.cs:106-117</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Key Vault naming: <code>PoMemeVideo--AiFoundry--Key</code> maps to <code>AiFoundry:Key</code>; un-prefixed shared secrets such as <code>AzureAd--TenantId</code> map straight through, and any secret carrying a different <code>Po*</code> prefix is skipped <span class="cite">Program.cs:84-103</span>. <b>No secret values appear in this document set.</b></p>
+
+  <h3>Telemetry</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Signal</th><th>Configuration</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Console log</td><td>always</td><td><span class="cite">appsettings.json:59-63</span></td></tr>
+        <tr><td>Rolling file</td><td>Development only, 7 files retained, <code>logs/pomemevideo-.log</code></td><td><span class="cite">StartupConfigurationExtensions.cs:104-110</span></td></tr>
+        <tr><td>Application Insights</td><td>Serilog sink only, when a connection string resolves. No <code>AddApplicationInsightsTelemetry</code> anywhere.</td><td><span class="cite">StartupConfigurationExtensions.cs:112-118</span></td></tr>
+        <tr><td>Enrichers</td><td><code>EnvironmentName</code>, <code>ThreadId</code>, <code>Application="PoMemeVideo"</code>, plus per-request <code>UserId</code>/<code>SessionId</code>/<code>CorrelationId</code></td><td><span class="cite">StartupConfigurationExtensions.cs:95-99</span><span class="cite">EndpointMappingExtensions.cs:144-153</span></td></tr>
+        <tr><td>Request-log level</td><td><code>/api/auth/me</code>, <code>/api/config</code> and <code>/api/config/ai-model*</code> demoted to Debug</td><td><span class="cite">EndpointMappingExtensions.cs:155-166</span></td></tr>
+        <tr><td>Traces</td><td>registered only when an OTLP endpoint resolves; <code>/health*</code> filtered out; <code>AlwaysOn</code> in Development, <code>ParentBased(TraceIdRatio 0.1)</code> otherwise</td><td><span class="cite">ServiceRegistrationExtensions.cs:49-72</span></td></tr>
+        <tr><td>Sign-in event</td><td><code>EventId 6001</code>, message <code>UserSignedIn</code>, emitted from the OIDC <code>OnTokenValidated</code> hook</td><td><span class="cite">SignInTelemetry.cs:43-46,115-124</span><span class="cite">ServiceRegistrationExtensions.cs:149-164</span></td></tr>
+        <tr><td><code>[LoggerMessage]</code> generators</td><td>13 on the engine path, 3 on the render path</td><td><span class="cite">RunEngineCommand.cs:17-56</span><span class="cite">FFmpegRenderService.cs:20-24</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== GAPS ===================== -->
+<section data-tier="1" id="gaps">
+  <p class="tier-flag">Tier 1 &middot; Register</p>
+  <h2>Gaps and risks found while documenting</h2>
+  <p class="lede">Each entry was found by reading the code for this document set, and each is anchored to the line that proves it. Nothing here is speculative; where a claim was checked against the running application, the observed response is quoted.</p>
+
+  <h3>Registered but unused</h3>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">The AI resilience pipeline is registered and never resolved</span><span class="pill risk">High</span></div>
+    <p><code>AddHttpClient("AiFoundry")</code> attaches <code>CorrelationPropagationHandler</code> and <code>AddStandardResilienceHandler()</code> &mdash; retry, timeout and circuit breaker &mdash; to a named client <span class="cite">ServiceRegistrationExtensions.cs:93-95</span>. <code>CreateClient("AiFoundry")</code> appears nowhere in the solution. Both AI services construct <code>AzureOpenAIClient</code> directly <span class="cite">AiFoundryDirectorService.cs:49-51</span><span class="cite">AiFoundryVisionService.cs:58-60</span>, so neither the resilience pipeline nor correlation-header propagation applies to a single AI call. The comment above the registration &mdash; &ldquo;per the .NET 10 resilience mandate&rdquo; &mdash; and <code>AGENT.md</code>&nbsp;&sect;9&rsquo;s claim that correlation ids are &ldquo;forwarded on outbound HTTP (AI Foundry, Azure OpenAI)&rdquo; both describe behaviour that does not occur.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">The meme-persona selector never reaches the model</span><span class="pill warn">Medium</span></div>
+    <p><code>DirectorPrompt.Build</code> accepts a <code>memePersona</code> argument and maps five personas onto prompt text <span class="cite">DirectorPrompt.cs:49,59-67</span>. The only caller omits it: <code>DirectorPrompt.Build(labelsJson, soundsCompact, hasRealVisionData)</code> <span class="cite">AiFoundryDirectorService.cs:78</span>. The value is chosen in the UI <span class="cite">Source.razor:141</span>, sent, persisted to the <code>MemePersona</code> column <span class="cite">VideoSessionTableRepository.cs:104</span> and displayed back on the History page <span class="cite">Results.razor:98</span> &mdash; but every session is directed with the default persona.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">Four shared-platform helpers are dead in this app</span><span class="pill info">Low</span></div>
+    <p><code>PoPlatform.SessionCookieName</code>, <code>AntiforgeryCookieName</code>, <code>TagEndUser</code> and <code>ApplicationProperty</code> are declared <span class="cite">PoPlatform.cs:34,78,82,125</span> and referenced nowhere outside the file. The Serilog enricher hard-codes the literal <code>"Application"</code> rather than using the constant that exists to keep that spelling uniform <span class="cite">StartupConfigurationExtensions.cs:99</span>. The <code>__Host-</code> cookie-prefix helper in particular is unused, so the auth cookie does not carry that browser-enforced protection.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt"><code>DirectorPrompt.SerializeSounds</code> and <code>AiFoundry:DefaultDeployment</code></span><span class="pill info">Low</span></div>
+    <p>The non-compact sound serialiser is public and has no caller <span class="cite">DirectorPrompt.cs:18</span> &mdash; only <code>SerializeSoundsCompact</code> is used. Its doc-comment is also duplicated verbatim <span class="cite">DirectorPrompt.cs:10-17</span>. <code>AiFoundry:DefaultDeployment</code> is set in both appsettings files <span class="cite">appsettings.json:28</span><span class="cite">appsettings.Development.json:16</span> and read by nothing; the actual default lives in code <span class="cite">RuntimeAiSettings.cs:17</span>.</p>
+  </div>
+
+  <h3>Declared but never emitted</h3>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">No endpoint emits RFC&nbsp;9457 &mdash; including the ones that advertise it</span><span class="pill warn">Medium</span></div>
+    <p><code>AddProblemDetails()</code> is registered <span class="cite">ServiceRegistrationExtensions.cs:28</span> and <code>PUT /api/config/ai-model</code> is annotated <code>.ProducesProblem(400)</code> <span class="cite">ConfigEndpoints.cs:76</span>, but the handler returns <code>Results.BadRequest(string)</code> and the wire carries a bare JSON string <span class="cite">ConfigEndpoints.cs:60,66</span>. <code>GlobalExceptionHandler</code> writes an anonymous object with RFC&nbsp;7231 <code>type</code> URIs and two non-standard members <span class="cite">GlobalExceptionHandler.cs:40-71</span>. Its own summary claims RFC&nbsp;7807 <span class="cite">GlobalExceptionHandler.cs:8</span>.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">Sign-in telemetry cannot fire in the default configuration</span><span class="pill info">Low</span></div>
+    <p><code>SignInTelemetry.TrackFrom</code> is wired only inside the <code>hasAzureAd</code> branch, on the OIDC <code>OnTokenValidated</code> event <span class="cite">ServiceRegistrationExtensions.cs:137-164</span>. <code>appsettings.json</code> ships <code>AzureAd:ClientId</code> as an empty string <span class="cite">appsettings.json:40</span>, so without Key Vault the branch is skipped and no <code>UserSignedIn</code> record is ever written. Guest and ANON sign-ins never emit one in any configuration. The class documents a sampling guarantee &mdash; &ldquo;Each app&rsquo;s telemetry registration keeps sign-in records out of the sampled set&rdquo; <span class="cite">SignInTelemetry.cs:31</span> &mdash; that this app does not implement; its sampler is an unconditional 10&nbsp;% ratio <span class="cite">ServiceRegistrationExtensions.cs:65</span>.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">AI interception is bypassed on the director</span><span class="pill warn">Medium</span></div>
+    <p><code>AiInterception.BuildClientOptions</code> exists so Test-environment AI calls are answered locally &ldquo;without spending a single token&rdquo; <span class="cite">AiInterceptionHandler.cs:1-3</span>. The vision service passes it <span class="cite">AiFoundryVisionService.cs:56</span>; the director does not construct its client with options at all <span class="cite">AiFoundryDirectorService.cs:49-51</span>. Interception therefore covers vision only. The integration suite is unaffected because it substitutes <code>MockDirectorService</code> over the registration <span class="cite">ProcessingEndpointsTests.cs:111</span> &mdash; but a Test-environment run that does not perform that substitution will call the live deployment.</p>
+  </div>
+
+  <h3>Documented but not deployed</h3>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">Two routes the contract suite pins do not exist</span><span class="pill warn">Medium</span></div>
+    <p><code>RoutingContractApiTests</code> asserts that <code>/api/output/sessions/{id}/export/gif</code> and <code>/export/punchline</code> are mapped <span class="cite">RoutingContractApiTests.cs:51-52</span>. No handler for either appears anywhere in <code>src/</code>. The suite&rsquo;s own helper only fails on a <em>bodyless</em> 404 <span class="cite">RoutingContractApiTests.cs:32-36</span>, which is precisely the check that a SPA-hosting app makes unreliable &mdash; and the suite is <code>workflow_dispatch</code>-only <span class="cite">ci-full.yml:14-15</span>, so nothing on the push path would notice. Probed against the built app at this commit, <code>/export/gif</code> answered a bodyless <code>404</code>.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt"><code>AGENT.md</code> describes a UI the client no longer has</span><span class="pill info">Low</span></div>
+    <p>&sect;10 states the Source page offers &ldquo;grouped <b>Remote &middot; AI Foundry</b> deployments and <b>Browser &middot; WebGPU</b> local models&rdquo; <span class="cite">AGENT.md:242</span>. The browser-LLM provider was removed &mdash; <code>RuntimeAiSettings</code> now carries only a deployment name <span class="cite">RuntimeAiSettings.cs:7-9</span> and the selector reads a flat configured list <span class="cite">ConfigEndpoints.cs:88-97</span>. A vestige survives in the client: <code>EngineHubClient</code> still carries a doc-comment for a &ldquo;server requests in-browser Transformers.js inference&rdquo; event with no member beneath it <span class="cite">EngineHubClient.cs:46-49</span>.</p>
+  </div>
+
+  <h3>Inconsistent between client and API</h3>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">The retry button sends a query parameter nothing binds</span><span class="pill warn">Medium</span></div>
+    <p>&ldquo;Retry with Safe Fallback Mode&rdquo; posts to <code>/api/processing/sessions/{id}/initiate?forceFallback=true</code> <span class="cite">Engine.razor:88</span>. The handler&rsquo;s signature is <code>(SessionId, IVideoSessionRepository, IEngineRunDispatcher, HttpContext, CancellationToken)</code> <span class="cite">ProcessingEndpoints.cs:13-18</span> &mdash; there is no <code>forceFallback</code> parameter and no read of <code>Request.Query</code>. The retry is identical to a normal initiate; the label promises a mode that does not exist.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">The History page re-hides the failed sessions the repository deliberately surfaces</span><span class="pill warn">Medium</span></div>
+    <p><code>ListCompletedAsync</code> returns <code>Complete</code> <em>and</em> <code>Error</code> rows on purpose: &ldquo;Failed sessions are intentionally surfaced so the user can find and retry them from the History page rather than re-running from scratch&rdquo; <span class="cite">IRepositories.cs:21-25</span><span class="cite">VideoSessionTableRepository.cs:73-76</span>. The History page then requests <code>/api/ingestion/sessions?status=Complete</code> <span class="cite">Results.razor:205</span>, and the endpoint filters the <code>Error</code> rows back out <span class="cite">IngestionEndpoints.cs:192-196</span>. The retry path the repository change was made for is unreachable from the UI.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">A dead login path is reachable whenever Entra ID is configured</span><span class="pill risk">High</span></div>
+    <p><code>options.LoginPath = "/login"</code> is set only in the <code>else</code> branch taken when <code>AzureAd:ClientId</code> is <em>absent</em> <span class="cite">ServiceRegistrationExtensions.cs:168-170</span>. When Entra ID is configured, <code>AddMicrosoftIdentityWebApp</code> registers its own cookie scheme and no <code>LoginPath</code> is applied, so the handler keeps the framework default. Observed against the built app under <code>ASPNETCORE_ENVIRONMENT=Staging</code>: <code>GET /api/ingestion/sessions</code> returned <code>302 Found</code> with <code>Location: /Account/Login?ReturnUrl=%2Fapi%2Fingestion%2Fsessions</code>, and <code>/Account/Login</code> answered <code>404</code>. The full sequence, and the other two auth findings, are in the <a href="AUTH_SECURITY_REPORT.html">Auth &amp; Security report</a>.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">A blank <code>KeyVault:Uri</code> silently binds a non-Development host to the shared vault</span><span class="pill warn">Medium</span></div>
+    <p>Outside Development, an empty or missing <code>KeyVault:Uri</code> is replaced by the hard-coded shared vault URI <span class="cite">StartupConfigurationExtensions.cs:21-28</span><span class="cite">PoMemeVideoNaming.cs:8</span>. Key Vault is added <em>after</em> the environment-variable provider, so vault secrets win over environment overrides. Observed: a Staging run started with explicit <code>ConnectionStrings__*</code> environment variables pointing at local Azurite connected to the production storage account instead &mdash; <code>/api/memelibrary/sounds</code> returned 206 catalogue rows with <code>stpomemevideo.blob.core.windows.net</code> URLs. Anyone running a non-Development profile locally is pointed at shared infrastructure by default.</p>
+  </div>
+</section>
+
+  </main>
+
+  <footer class="docfoot">
+    <div class="frow">
+      <span>Generated <b>2026-09-11</b></span>
+      <span>Commit <b>a4952075aa0d053d16792f0bcd1a9048477e7d65</b></span>
+      <span><b>PoMemeVideo</b> &middot; NET_DOCS</span>
+      <span>Evidence order: code &rarr; config &rarr; code comments &rarr; README</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.9.0/mermaid.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---- detail level (1 simple · 2 standard · 3 all details) -------------- */
+  var KEY = "pmv-netdocs-level";
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".levels button"));
+
+  function applyLevel(level, persist) {
+    document.documentElement.setAttribute("data-level", String(level));
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tier]"), function (el) {
+      el.hidden = Number(el.getAttribute("data-tier")) > level;   /* cumulative */
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-level") === String(level) ? "true" : "false");
+    });
+    if (persist !== false) {
+      try { localStorage.setItem(KEY, String(level)); } catch (e) { /* private mode */ }
+    }
+  }
+
+  function storedLevel() {
+    try {
+      var v = Number(localStorage.getItem(KEY));
+      return (v === 1 || v === 2 || v === 3) ? v : 3;
+    } catch (e) { return 3; }
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { applyLevel(Number(b.getAttribute("data-level"))); });
+  });
+
+  /* ---- mermaid ----------------------------------------------------------- */
+  function isDark() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp === "dark") return true;
+    if (stamp === "light") return false;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  var blocks = Array.prototype.slice.call(document.querySelectorAll(".mermaid"));
+  blocks.forEach(function (b) { b.setAttribute("data-src", b.textContent); });
+
+  function paletteFor(dark) {
+    return dark
+      ? { bg: "#121715", node: "#1a211e", nodeBorder: "#3ddc97", text: "#eef3f0",
+          line: "#8a948e", alt: "#222b27", cluster: "#0f1512", clusterBorder: "#37433d" }
+      : { bg: "#fffffd", node: "#eef2ee", nodeBorder: "#0f6b40", text: "#101613",
+          line: "#6d7671", alt: "#f4f5f2", cluster: "#f4f5f2", clusterBorder: "#bcc1b9" };
+  }
+
+  function renderMermaid() {
+    if (typeof window.mermaid === "undefined" || blocks.length === 0) return Promise.resolve();
+    var p = paletteFor(isDark());
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+      fontSize: 16,
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: "basis", padding: 14, nodeSpacing: 45, rankSpacing: 55 },
+      sequence: { useMaxWidth: true, actorFontSize: 15, noteFontSize: 14, messageFontSize: 14, width: 190, boxMargin: 12 },
+      er: { useMaxWidth: true, fontSize: 15, entityPadding: 14 },
+      theme: "base",
+      themeVariables: {
+        background: p.bg,
+        primaryColor: p.node,
+        primaryTextColor: p.text,
+        primaryBorderColor: p.nodeBorder,
+        secondaryColor: p.alt,
+        secondaryTextColor: p.text,
+        secondaryBorderColor: p.line,
+        tertiaryColor: p.alt,
+        tertiaryTextColor: p.text,
+        tertiaryBorderColor: p.line,
+        lineColor: p.line,
+        textColor: p.text,
+        mainBkg: p.node,
+        nodeBorder: p.nodeBorder,
+        clusterBkg: p.cluster,
+        clusterBorder: p.clusterBorder,
+        edgeLabelBackground: p.bg,
+        actorBkg: p.node,
+        actorBorder: p.nodeBorder,
+        actorTextColor: p.text,
+        actorLineColor: p.line,
+        signalColor: p.text,
+        signalTextColor: p.text,
+        labelBoxBkgColor: p.node,
+        labelBoxBorderColor: p.nodeBorder,
+        labelTextColor: p.text,
+        loopTextColor: p.text,
+        noteBkgColor: p.alt,
+        noteBorderColor: p.line,
+        noteTextColor: p.text,
+        sequenceNumberColor: p.bg,
+        attributeBackgroundColorOdd: p.node,
+        attributeBackgroundColorEven: p.alt,
+        fontSize: "16px"
+      }
+    });
+
+    blocks.forEach(function (b) {
+      b.removeAttribute("data-processed");
+      b.textContent = b.getAttribute("data-src");
+    });
+
+    return window.mermaid.run({ nodes: blocks, suppressErrors: false })["catch"](function (err) {
+      /* Surface a parse failure instead of leaving a blank frame. */
+      // eslint-disable-next-line no-console
+      console.error("[netdocs] mermaid render failed", err);
+    });
+  }
+
+  function boot() {
+    /* Render every diagram while the document is fully expanded — a mermaid
+       block inside a display:none container measures zero and renders blank —
+       then collapse to the reader's stored level. */
+    var want = storedLevel();          /* read BEFORE the temporary expansion */
+    applyLevel(3, false);
+    var done = renderMermaid();
+    (done && done.then ? done : Promise.resolve()).then(function () {
+      applyLevel(want);
+      document.documentElement.setAttribute("data-diagrams", "ready");
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      var lvl = storedLevel();
+      applyLevel(3, false);
+      var d = renderMermaid();
+      (d && d.then ? d : Promise.resolve()).then(function () { applyLevel(lvl); });
+    };
+    if (mq.addEventListener) { mq.addEventListener("change", onChange); }
+    else if (mq.addListener) { mq.addListener(onChange); }
+  }
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fail Closed, Redirect Nowhere</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<style>
+/* ============================================================================
+   PoMemeVideo · NET_DOCS
+   Identity: an engineering shooting-script. Monospace slate labels, paper
+   ground, one phosphor accent borrowed from the app's own retro-terminal
+   tokens and stepped for a light surface.
+   ========================================================================= */
+
+/* --- tokens: light is the bare :root, complete ---------------------------- */
+:root {
+  color-scheme: light;
+
+  --paper:        #f4f5f2;
+  --surface:      #fffffd;
+  --surface-2:    #eceee9;
+  --surface-3:    #e3e6e0;
+
+  --ink:          #101613;
+  --ink-2:        #414a45;
+  --ink-3:        #6d7671;
+
+  --rule:         #d9dcd6;
+  --rule-strong:  #bcc1b9;
+
+  --accent:       #0f6b40;
+  --accent-ink:   #0b5231;
+  --accent-soft:  rgba(15, 107, 64, 0.10);
+  --accent-line:  rgba(15, 107, 64, 0.35);
+
+  --code-bg:      #eceee9;
+  --code-ink:     #1d2a23;
+
+  /* status — fixed in both modes, always paired with an icon or word */
+  --good:    #0ca30c;
+  --warn:    #fab219;
+  --serious: #ec835a;
+  --crit:    #d03b3b;
+
+  /* chart series — validated (light surface #fcfcfb) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+
+  --chart-surface: #fcfcfb;
+  --grid:          #e1e0d9;
+  --axis:          #c3c2b7;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(16, 22, 19, 0.06), 0 8px 24px -16px rgba(16, 22, 19, 0.22);
+
+  --font-display: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+  --font-body:    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+
+  --measure: 74ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --paper:        #0b0e0d;
+    --surface:      #121715;
+    --surface-2:    #1a211e;
+    --surface-3:    #222b27;
+
+    --ink:          #eef3f0;
+    --ink-2:        #b9c3bd;
+    --ink-3:        #8a948e;
+
+    --rule:         #232b27;
+    --rule-strong:  #37433d;
+
+    --accent:       #3ddc97;
+    --accent-ink:   #6ff0b7;
+    --accent-soft:  rgba(61, 220, 151, 0.13);
+    --accent-line:  rgba(61, 220, 151, 0.38);
+
+    --code-bg:      #1a211e;
+    --code-ink:     #cfe6da;
+
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+
+    --chart-surface: #1a1a19;
+    --grid:          #2c2c2a;
+    --axis:          #383835;
+    --muted-ink:     #898781;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper:        #0b0e0d;
+  --surface:      #121715;
+  --surface-2:    #1a211e;
+  --surface-3:    #222b27;
+
+  --ink:          #eef3f0;
+  --ink-2:        #b9c3bd;
+  --ink-3:        #8a948e;
+
+  --rule:         #232b27;
+  --rule-strong:  #37433d;
+
+  --accent:       #3ddc97;
+  --accent-ink:   #6ff0b7;
+  --accent-soft:  rgba(61, 220, 151, 0.13);
+  --accent-line:  rgba(61, 220, 151, 0.38);
+
+  --code-bg:      #1a211e;
+  --code-ink:     #cfe6da;
+
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+
+  --chart-surface: #1a1a19;
+  --grid:          #2c2c2a;
+  --axis:          #383835;
+  --muted-ink:     #898781;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -18px rgba(0, 0, 0, 0.9);
+}
+
+/* --- reset / base -------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  overflow-wrap: break-word;
+}
+
+img { max-width: 100%; }
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* --- sticky header ------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-in {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand-mark { color: var(--accent); font-family: var(--font-mono); font-size: 13px; }
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.brand-doc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.docnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-right: auto;
+}
+.docnav a {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-2);
+  padding: 5px 9px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.docnav a:hover { background: var(--surface-2); color: var(--ink); }
+.docnav a[aria-current="page"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.levels { display: flex; gap: 0; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.levels button {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 6px 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 0;
+  border-right: 1px solid var(--rule);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.levels button:last-child { border-right: 0; }
+.levels button:hover { background: var(--surface-2); color: var(--ink); }
+.levels button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
+}
+:root[data-theme="dark"] .levels button[aria-pressed="true"],
+.levels button[aria-pressed="true"] { color: #06140d; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .levels button[aria-pressed="true"] { color: #06140d; }
+}
+
+/* --- page frame ---------------------------------------------------------- */
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 0; }
+
+.masthead { padding-block: 40px 26px; border-bottom: 2px solid var(--ink); }
+.masthead .kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 12px;
+}
+.masthead h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.masthead .standfirst {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: 17px;
+  color: var(--ink-2);
+}
+.slate {
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+  margin-top: 20px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+}
+.slate b { color: var(--ink-2); font-weight: 600; }
+
+main { padding-block: 0 60px; }
+
+section[data-tier] {
+  padding-block: 34px;
+  border-bottom: 1px solid var(--rule);
+}
+section[data-tier]:last-child { border-bottom: 0; }
+
+.tier-flag {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+.tier-flag::before {
+  content: "";
+  width: 18px; height: 2px; background: var(--accent); display: inline-block;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16.5px;
+  letter-spacing: 0.005em;
+  margin: 30px 0 8px;
+  text-wrap: balance;
+}
+h4 {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 24px 0 8px;
+}
+p, li { max-width: var(--measure); }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+
+.lede { font-size: 17px; color: var(--ink-2); max-width: var(--measure); }
+
+/* --- evidence citations -------------------------------------------------- */
+code, kbd, samp, pre { font-family: var(--font-mono); }
+code {
+  font-size: 0.875em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.cite {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  border-left: 2px solid var(--accent-line);
+  border-radius: 0;
+  padding: 0 0 0 6px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.cites { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; }
+
+pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  tab-size: 2;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: inherit; }
+figure { margin: 0 0 22px; }
+figcaption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 7px;
+}
+figcaption b { color: var(--ink-2); font-weight: 600; }
+
+/* --- tables -------------------------------------------------------------- */
+.tablewrap { overflow-x: auto; margin: 0 0 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+caption {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 14px 0;
+}
+th, td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+td code { white-space: nowrap; }
+
+/* --- pills / status ------------------------------------------------------ */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.pill.ok    { color: var(--good); }
+.pill.warn  { color: var(--serious); }
+.pill.risk  { color: var(--crit); }
+.pill.info  { color: var(--ink-3); }
+.pill.gone  { color: var(--ink-3); text-decoration: line-through; }
+
+/* --- card grids ---------------------------------------------------------- */
+.grid { display: grid; gap: 14px; margin: 0 0 18px; }
+.grid.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid.g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.g4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 0;
+}
+.card h3 { margin: 0; font-size: 15px; }
+.card p  { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
+.card .k {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+.card .v {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 600; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+.card .v small { font-size: 13px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+
+.navcard {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.navcard:hover { background: var(--surface-2); color: inherit; }
+.navcard .t { font-family: var(--font-display); font-weight: 600; font-size: 15.5px; }
+.navcard .d { font-size: 13.5px; color: var(--ink-2); }
+
+/* --- callouts ------------------------------------------------------------ */
+.note {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 13px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+.note p:last-child { margin-bottom: 0; }
+.note.undeclared { border-left-color: var(--serious); }
+.note.risk { border-left-color: var(--crit); }
+.note.ok { border-left-color: var(--good); }
+.note .nlabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  display: block; margin-bottom: 5px;
+}
+
+/* --- gaps register ------------------------------------------------------- */
+.gap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.gap:last-child { border-bottom: 0; }
+.gap .ghead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 9px; }
+.gap .gt { font-family: var(--font-display); font-weight: 600; font-size: 15px; }
+.gap p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+/* --- mermaid ------------------------------------------------------------- */
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 18px 14px;
+  overflow-x: auto;
+}
+.mermaid { min-height: 40px; }
+.mermaid svg { max-width: 100%; height: auto; font-size: 16px !important; }
+.mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid .messageText,
+.mermaid .labelText, .mermaid .loopText, .mermaid .noteText,
+.mermaid .actor > tspan, .mermaid .titleText, .mermaid .er .entityLabel {
+  font-size: 15px !important;
+  font-family: var(--font-body) !important;
+}
+.mermaid .cluster-label .nodeLabel { font-size: 15px !important; font-weight: 600; }
+/* Autonumber badges sit inside a fixed-radius circle: keep the size, add weight. */
+.mermaid .sequenceNumber { font-size: 12px !important; font-weight: 600 !important; }
+
+/* --- charts -------------------------------------------------------------- */
+.chart {
+  background: var(--chart-surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 16px 18px 12px;
+  overflow-x: auto;
+}
+.chart svg { display: block; width: 100%; height: auto; min-width: 300px; }
+.chart .ct {
+  font-family: var(--font-display); font-weight: 600; font-size: 15px;
+  margin: 0 0 2px; color: var(--ink);
+}
+.chart .cs { font-size: 13px; color: var(--ink-2); margin: 0 0 14px; max-width: var(--measure); }
+.bar { transition: opacity .12s ease; }
+.chart:hover .bar { opacity: .62; }
+.chart .bar:hover { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+details.tableview { margin-top: 12px; }
+details.tableview > summary {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding: 4px 0;
+}
+details.tableview > summary:hover { color: var(--ink); }
+
+/* --- footer -------------------------------------------------------------- */
+footer.docfoot {
+  border-top: 2px solid var(--ink);
+  padding-block: 22px 44px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+footer.docfoot .frow { display: flex; flex-wrap: wrap; gap: 6px 26px; }
+footer.docfoot b { color: var(--ink-2); font-weight: 600; }
+
+/* --- phone --------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar-in { padding: 9px 16px; gap: 8px 12px; }
+  .docnav { order: 3; width: 100%; margin-right: 0; }
+  .levels { order: 2; }
+  .page { padding-inline: 16px; }
+  .masthead { padding-block: 28px 20px; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="brand-mark">&#9656;</span>
+      <span class="brand-name">PoMemeVideo</span>
+      <span class="brand-doc">Auth &amp; Security</span>
+    </div>
+    <nav class="docnav" aria-label="Reports"><a href="index.html">Overview</a><a href="AI_SERVICES_REPORT.html">AI Services</a><a href="AUTH_SECURITY_REPORT.html" aria-current="page">Auth &amp; Security</a><a href="USER_WORKFLOW.html">User Workflow</a><a href="VISUAL_ARCHITECTURE_DASHBOARD.html">Architecture</a></nav>
+    <div class="levels" role="group" aria-label="Detail level">
+      <button type="button" data-level="1" aria-pressed="false">1 &middot; Simple</button>
+      <button type="button" data-level="2" aria-pressed="false">2 &middot; Standard</button>
+      <button type="button" data-level="3" aria-pressed="true">3 &middot; All details</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="masthead">
+    <p class="kicker">NET_DOCS &middot; 2026-09-11 &middot; Report 3 of 5</p>
+    <h1>Fail closed, redirect nowhere</h1>
+    <p class="standfirst">Every credential and its lifetime, the four schemes that can mint an identity, and the exact bodies a rejected request receives &mdash; captured from a running Staging host.</p>
+    <div class="slate"><span>Repo <b>PoMemeVideo</b></span><span>Branch <b>master</b></span><span>Commit <b>a495207</b></span><span>Build <b>0 warnings, 0 errors</b></span><span>Posture <b>deny by default</b></span></div>
+  </div>
+
+  <main>
+<section data-tier="1" id="thirty-seconds">
+  <p class="tier-flag">Tier 1 &middot; The thirty-second read</p>
+  <h2>Deny by default, with four ways in</h2>
+  <p class="lede">Authorization fails closed: a <code>FallbackPolicy</code> requiring an authenticated user applies to every endpoint that does not explicitly opt out. Authentication is a back-end-for-front-end &mdash; the WASM client never holds a token, only an encrypted <code>HttpOnly</code> cookie. Four schemes can mint that identity, and three of them are environment-gated.</p>
+
+  <div class="tablewrap">
+    <table>
+      <caption>Scope, targets, security and cost of the auth subsystem</caption>
+      <thead><tr><th>Dimension</th><th>What the repository says</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><b>Scope</b></td><td>Cookie is always the default scheme; Entra ID OIDC is layered on when <code>AzureAd:ClientId</code> is non-blank. No bearer tokens, no API keys, no JWT validation anywhere in the server.</td><td><span class="cite">ServiceRegistrationExtensions.cs:135-144</span></td></tr>
+        <tr><td><b>Default posture</b></td><td><code>FallbackPolicy = RequireAuthenticatedUser()</code>. 14 API routes opt out with <code>AllowAnonymous()</code>; 14 do not.</td><td><span class="cite">ServiceRegistrationExtensions.cs:193-198</span></td></tr>
+        <tr><td><b>Roles</b></td><td><b>None are used.</b> No <code>RequireRole</code>, no named policy, no <code>[Authorize(Roles=)]</code> anywhere. The only code that writes a role claim is the test-only <code>FakeAuthHandler</code>.</td><td><span class="cite">FakeAuthHandler.cs:58-65</span></td></tr>
+        <tr><td><b>Data isolation</b></td><td>Row-level, by an <code>OwnerUserId</code> column on <code>VideoSessions</code>, checked on every read, update and delete. A non-owner gets the same 404 a missing session gets.</td><td><span class="cite">VideoSessionTableRepository.cs:63-66,160-172</span></td></tr>
+        <tr><td><b>Cookie protection</b></td><td><code>HttpOnly</code>, <code>SameSite=Strict</code>, <code>Secure</code> everywhere except local HTTP &mdash; but only on the branch taken when Entra ID is <em>not</em> configured. Keys persist to the <code>dataprotection</code> blob container outside Development.</td><td><span class="cite">ServiceRegistrationExtensions.cs:168-179,209-227</span></td></tr>
+        <tr><td><b>Cost &amp; SLA</b></td><td><b>Not declared in the repository.</b> No rate limit, lockout policy, session quota, sign-in budget or availability target exists. <code>AddRateLimiter</code> appears nowhere.</td><td><span class="cite">grep -rn AddRateLimiter src</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note undeclared">
+    <span class="nlabel">Figures not declared in the repository</span>
+    <p>There is no lockout threshold, no rate limit, no MFA requirement, no password or token-rotation policy, and no availability objective. The nearest <em>enforced</em> lifetimes are listed in full in the credential table below: auth cookie <b>30 days</b>, dev-ANON cookie <b>30 days</b>, correlation cookie <b>14 days</b>, upload SAS <b>15 minutes</b>, user-delegation SAS start skew <b>&minus;5 minutes</b>, sign-in telemetry dedupe window <b>30 minutes</b> (declared but unreachable here). Data-protection key lifetime is the ASP.NET Core default &mdash; <code>SetDefaultKeyLifetime</code> is never called.</p>
+  </div>
+
+  <h3>Three findings</h3>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">1 &middot; The challenge redirects to a route that does not exist</span><span class="pill risk">High</span></div>
+    <p><code>options.LoginPath = "/login"</code> sits inside the <code>else</code> branch taken only when <code>AzureAd:ClientId</code> is blank <span class="cite">ServiceRegistrationExtensions.cs:166-180</span>. With Entra ID configured, <code>AddMicrosoftIdentityWebApp</code> registers its own cookie scheme and nothing sets <code>LoginPath</code>, so the framework default applies. <b>Observed</b> against the built app under <code>ASPNETCORE_ENVIRONMENT=Staging</code> with <code>AzureAd:ClientId</code> present from Key Vault:</p>
+    <pre><code>$ curl -i http://localhost:5399/api/ingestion/sessions
+HTTP/1.1 302 Found
+Location: http://localhost:5399/Account/Login?ReturnUrl=%2Fapi%2Fingestion%2Fsessions
+Content-Length: 0
+
+$ curl -o /dev/null -w '%{http_code}' http://localhost:5399/Account/Login
+404</code></pre>
+    <p>An unauthenticated XHR therefore receives a <code>302</code> to a dead path instead of a <code>401</code>, and a browser follows it to a 404. This is also why the API E2E suite explicitly declines to assert the posture: &ldquo;Deny-by-default is deliberately NOT asserted here&rdquo; <span class="cite">RoutingContractApiTests.cs:200-204</span>.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">2 &middot; Header-asserted identity is live in Staging, not just Development and Test</span><span class="pill risk">High</span></div>
+    <p><code>FakeAuthHandler</code> authenticates a caller from the unverified <code>X-Fake-User</code> header, and both its registration <span class="cite">ServiceRegistrationExtensions.cs:187-191</span> and the middleware that promotes it <span class="cite">EndpointMappingExtensions.cs:70-83</span> are guarded by <code>!IsProduction()</code> &mdash; which is true of Staging, and of any custom environment name. <b>Observed</b> under Staging:</p>
+    <pre><code>$ curl -H 'X-Fake-User: docs-probe' \
+       http://localhost:5399/api/ingestion/sessions/1111…1111
+{"error":"SESSION_NOT_FOUND","sessionId":"11111111-1111-1111-1111-111111111111"}</code></pre>
+    <p>The request reached the protected handler; without the header the same URL returned the 302 above. The class&rsquo;s own guardrail &mdash; a constructor that throws in Production <span class="cite">FakeAuthHandler.cs:29-34</span> &mdash; is exactly right, but <code>IsProduction()</code> is a narrower gate than the &ldquo;dev/test only&rdquo; intent the comments state. The user id is <code>MD5(userName)</code>, so any caller can deterministically assume any other fake user&rsquo;s partition <span class="cite">FakeAuthHandler.cs:72-77</span>.</p>
+  </div>
+
+  <div class="gap">
+    <div class="ghead"><span class="gt">3 &middot; Two anonymous endpoints do more than report status</span><span class="pill warn">Medium</span></div>
+    <p><code>POST /api/memelibrary/seed</code> is <code>AllowAnonymous</code> <span class="cite">MemeLibraryEndpoints.cs:145</span> and performs unauthenticated <b>writes</b>: it reads a manifest from disk, downloads any missing clip from its <code>sourceUrl</code> over the network, uploads to Blob Storage, upserts rows into <code>SoundAssets</code>, and evicts the shared cache. <b>Observed</b> under Staging: an unauthenticated <code>POST</code> returned <code>200</code>. <code>GET /diag</code> is also anonymous <span class="cite">DiagEndpoint.cs:81</span> and, while every value is masked, the masking is <code>first three + last three characters</code> for anything longer than six <span class="cite">DiagEndpoint.cs:150-154</span> &mdash; so an anonymous caller learns which of 15 named secrets exist, plus six characters of each, including <code>AzureAd:ClientSecret</code> and <code>AiFoundry:Key</code>. Short values such as <code>TenantId="common"</code> render as <code>***</code>.</p>
+  </div>
+</section>
+
+<section data-tier="1" id="posture-chart">
+  <p class="tier-flag">Tier 1 &middot; Posture</p>
+  <h2>Who can reach what</h2>
+  <figure>
+    <div class="chart">
+      <p class="ct">API routes by the authorization that reaches them</p>
+      <p class="cs">Counted from every <code>Map*</code> call site. &ldquo;Fallback policy&rdquo; means the route carries no metadata of its own and is protected only because the default is closed &mdash; removing the fallback would open these two.</p>
+      <svg viewBox="0 0 720 240" role="img" aria-label="Horizontal bar chart of API routes by authorization: explicit RequireAuthorization 12, AllowAnonymous 14, protected by fallback policy only 2, gated to non-Development 2.">
+        <g stroke="var(--grid)" stroke-width="1">
+          <line x1="290" y1="8" x2="290" y2="186"></line>
+          <line x1="420" y1="8" x2="420" y2="186"></line>
+          <line x1="550" y1="8" x2="550" y2="186"></line>
+          <line x1="680" y1="8" x2="680" y2="186"></line>
+        </g>
+        <line x1="160" y1="8" x2="160" y2="186" stroke="var(--axis)" stroke-width="1"></line>
+
+        <g font-family="var(--font-body)" font-size="13" fill="var(--ink-2)" text-anchor="end">
+          <text x="152" y="34">AllowAnonymous</text>
+          <text x="152" y="80">RequireAuthorization</text>
+          <text x="152" y="126">Fallback policy only</text>
+          <text x="152" y="172">401 outside Development</text>
+        </g>
+
+        <g>
+          <rect class="bar" x="160" y="18" width="364" height="24" rx="4" fill="var(--s2)"><title>AllowAnonymous — 14 routes</title></rect>
+          <rect class="bar" x="160" y="64" width="312" height="24" rx="4" fill="var(--s1)"><title>Explicit RequireAuthorization — 12 routes (ingestion 5, processing 1, output 6)</title></rect>
+          <rect class="bar" x="160" y="110" width="52" height="24" rx="4" fill="var(--s3)"><title>Protected only by the deny-by-default fallback — 2 routes (memelibrary sounds, memelibrary upload)</title></rect>
+          <rect class="bar" x="160" y="156" width="52" height="24" rx="4" fill="var(--s4)"><title>Gated by bespoke middleware — 2 routes (/scalar, /openapi)</title></rect>
+        </g>
+
+        <g font-family="var(--font-mono)" font-size="13" font-weight="600" fill="var(--ink)">
+          <text x="532" y="35">14</text>
+          <text x="480" y="81">12</text>
+          <text x="220" y="127">2</text>
+          <text x="220" y="173">2</text>
+        </g>
+
+        <g font-family="var(--font-mono)" font-size="12" fill="var(--muted-ink)" text-anchor="middle">
+          <text x="160" y="206">0</text>
+          <text x="290" y="206">5</text>
+          <text x="420" y="206">10</text>
+          <text x="550" y="206">15</text>
+          <text x="680" y="206">20</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><i style="background:var(--s2)"></i>Open to anyone</span>
+        <span><i style="background:var(--s1)"></i>Explicitly protected</span>
+        <span><i style="background:var(--s3)"></i>Protected by default only</span>
+        <span><i style="background:var(--s4)"></i>Bespoke gate</span>
+      </div>
+      <details class="tableview">
+        <summary>Table view</summary>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Authorization</th><th class="num">Routes</th><th>Which</th></tr></thead>
+            <tbody>
+              <tr><td>AllowAnonymous</td><td class="num">14</td><td>/health, /health/live, /diag, /hubs/engine, /api/auth/me, /auth/guest, /auth/login/microsoft, /auth/callback, /auth/logout, /api/config, GET+PUT /api/config/ai-model, /api/memelibrary/seed, sound stream</td></tr>
+              <tr><td>RequireAuthorization on the group</td><td class="num">12</td><td>/api/ingestion (5), /api/output (6), /api/processing (1)</td></tr>
+              <tr><td>Fallback policy only</td><td class="num">2</td><td>GET /api/memelibrary/sounds, POST /api/memelibrary/upload</td></tr>
+              <tr><td>Bespoke middleware</td><td class="num">2</td><td>/scalar, /openapi</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+    <figcaption><b>The WASM shell</b> (<code>MapStaticAssets</code>, <code>MapFallbackToFile</code>) is anonymous too and is excluded here &mdash; it has to be, since it renders the login page. <span class="cite">EndpointMappingExtensions.cs:222-225</span></figcaption>
+  </figure>
+</section>
+
+<section data-tier="2" id="credentials">
+  <p class="tier-flag">Tier 2 &middot; Credentials and sequences</p>
+  <h2>Every credential and its lifetime</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Credential</th><th>Issued by</th><th>Lifetime</th><th>Protection</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Auth cookie (Entra ID)</td><td><code>AddMicrosoftIdentityWebApp</code> &mdash; its own <code>"Cookies"</code> scheme</td><td>framework default; no <code>ExpireTimeSpan</code> set</td><td>Data Protection; <b>no explicit <code>SameSite</code>, <code>HttpOnly</code> or <code>SecurePolicy</code> applied by this app</b></td><td><span class="cite">ServiceRegistrationExtensions.cs:133-144</span></td></tr>
+        <tr><td>Auth cookie (no Entra ID)</td><td><code>AddCookie</code></td><td>30 days when set by <code>/auth/guest</code> or the dev ANON middleware</td><td><code>HttpOnly</code>, <code>SameSite=Strict</code>, <code>Secure=Always</code> outside Development</td><td><span class="cite">ServiceRegistrationExtensions.cs:168-179</span><span class="cite">AuthEndpoints.cs:77-81</span></td></tr>
+        <tr><td><code>PmvDevAnon</code> cookie</td><td>Development middleware</td><td>30 days</td><td><code>HttpOnly</code>, <code>SameSite=Lax</code>, <code>Secure</code> on HTTPS</td><td><span class="cite">UserIdentityResolution.cs:148-158</span></td></tr>
+        <tr><td><code>pmv-session-id</code> cookie</td><td>API middleware, any environment</td><td>14 days</td><td><b><code>HttpOnly=false</code> by design</b> &mdash; the client must read it to echo <code>X-Session-ID</code></td><td><span class="cite">EndpointMappingExtensions.cs:113-129</span><span class="cite">CorrelationHeaderHandler.cs:22-24</span></td></tr>
+        <tr><td>Upload SAS</td><td><code>BlobServiceClientFactory</code></td><td>15 minutes; delegation SAS starts at &minus;5 min</td><td><code>Write | Create</code> on one blob path only</td><td><span class="cite">IngestionEndpoints.cs:49</span><span class="cite">BlobServiceClientFactory.cs:71-86</span></td></tr>
+        <tr><td>Data Protection key ring</td><td>Blob <code>dataprotection/keys.xml</code></td><td>ASP.NET Core default &mdash; not configured</td><td>app name pinned to <code>PoMemeVideo</code>; Development keeps the ephemeral local store</td><td><span class="cite">ServiceRegistrationExtensions.cs:209-227</span></td></tr>
+        <tr><td>Key Vault access</td><td><code>AzureCliCredential</code> in Development, <code>DefaultAzureCredential</code> otherwise</td><td>token lifetime managed by the SDK</td><td>system-assigned managed identity in Azure &mdash; no client secret in app settings</td><td><span class="cite">StartupConfigurationExtensions.cs:32-38</span></td></tr>
+        <tr><td>Deploy credential</td><td>GitHub OIDC federated credential, subject <code>refs/heads/master</code></td><td>per-run</td><td>secretless &mdash; <code>azure/login@v2</code> with <code>id-token: write</code></td><td><span class="cite">deploy-pomemevideo.yml:14-15,100-107</span></td></tr>
+        <tr><td><code>X-Fake-User</code> / <code>X-Fake-Roles</code></td><td>the caller, unverified</td><td>per request</td><td>none by design; refused only in Production</td><td><span class="cite">FakeAuthHandler.cs:16-18,29-34</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Sign-in sequences</h3>
+
+  <h4>Microsoft Entra ID</h4>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant A as PoMemeVideo.Api
+  participant E as Entra ID /common
+  participant L as Serilog / App Insights
+
+  B->>A: GET /auth/login/microsoft (AllowAnonymous)
+  A->>A: is an OpenIdConnect scheme registered?
+  A-->>B: 302 ChallengeAsync(OIDC, RedirectUri "/")
+  B->>E: authorization code flow
+  E-->>A: POST /auth/callback (CallbackPath from AzureAd config)
+  A->>A: OnTokenValidated — run Identity.Web's handler first, then ours
+  A->>L: UserSignedIn — EventId 6001, oid/email/name/tid
+  A-->>B: Set-Cookie (encrypted), 302 to "/"</pre>
+    </div>
+    <figcaption>Step 6 is written as a <code>PostConfigure</code> that <em>awaits</em> the existing handler rather than replacing it: &ldquo;dropping it would tear out the wiring Identity.Web depends on&rdquo; <span class="cite">ServiceRegistrationExtensions.cs:146-164</span>. When no OIDC scheme is registered, step 3 becomes a plain redirect to <code>/login</code> <span class="cite">EndpointMappingExtensions.cs:200-203</span>.</figcaption>
+  </figure>
+
+  <h4>GUEST &mdash; Development and Test only</h4>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">sequenceDiagram
+  autonumber
+  participant B as Login page
+  participant A as PoMemeVideo.Api
+  participant R as UserIdentities table
+
+  B->>A: POST /auth/guest
+  A->>A: env is Development or Test? otherwise the route was never mapped
+  A->>A: displayName = "GUEST" + Random.Shared.Next(10_000_000, 99_999_999)
+  A->>R: CreateAsync — PartitionKey "GUEST", RowKey new Guid
+  A->>A: SignInAsync(Cookie, claims, IsPersistent, +30 days)
+  A-->>B: 200 {identityId, displayName, identityType:"GUEST"}
+  B->>A: GET /api/auth/me — client re-reads its own identity</pre>
+    </div>
+    <figcaption>The button is hidden unless <code>GET /api/config</code> reports <code>isDevelopment: true</code> <span class="cite">Login.razor:36,76-77</span>, and the route itself is never mapped outside Development/Test <span class="cite">AuthEndpoints.cs:41-42</span> &mdash; two independent gates. Verified under Staging: <code>POST /auth/guest</code> issued no guest identity &mdash; it answered <code>302 Found</code> to the login path, exactly as a protected route does.</figcaption>
+  </figure>
+
+  <h4>Development ANON &mdash; why everything looks signed in locally</h4>
+  <figure>
+    <div class="diagram">
+      <pre class="mermaid">flowchart TB
+  REQ([Request in Development]) --> EX{"path excluded?&lt;br/&gt;/auth /health /hubs /scalar&lt;br/&gt;/openapi /api/config /_framework&lt;br/&gt;or has a file extension"}
+  EX -- yes --> NEXT([pass through unchanged])
+  EX -- no --> AUTHED{"already authenticated&lt;br/&gt;and not identity_type=ANON?"}
+  AUTHED -- yes --> NEXT
+  AUTHED -- no --> FILE{"%TEMP%/pomemevideo-dev-anon.txt&lt;br/&gt;holds a GUID?"}
+  FILE -- yes --> USE[/"reuse that UserId"/]
+  FILE -- no --> COOKIE{"PmvDevAnon cookie?"}
+  COOKIE -- yes --> USE
+  COOKIE -- no --> MINT[/"mint a GUID and write the file"/]
+  MINT --> USE
+  USE --> CLAIMS[["ANON###### principal&lt;br/&gt;+ PmvDevAnon cookie&lt;br/&gt;+ best-effort SignInAsync"]]
+  CLAIMS --> NEXT</pre>
+    </div>
+    <figcaption><code>/hubs</code> is excluded for a specific reason: &ldquo;minting an ANON identity here would <code>SignInAsync</code> over the browser&rsquo;s existing cookie and silently swap the user mid-session. Because userId is the VideoSessions PartitionKey, every in-flight session then 404s&rdquo; <span class="cite">EndpointMappingExtensions.cs:92-97</span>. <b>Authorization changes must be verified under Staging, not Development</b> &mdash; locally, almost every request is authenticated. <span class="cite">UserIdentityResolution.cs:63-178</span></figcaption>
+  </figure>
+</section>
+
+<section data-tier="3" id="detail">
+  <p class="tier-flag">Tier 3 &middot; Claims, policies and refusal codes</p>
+  <h2>Token formats, claims and exact payloads</h2>
+
+  <h3>There is no token format on the wire</h3>
+  <p>This is a BFF. The browser holds one Data-Protection-encrypted cookie and nothing else; the client&rsquo;s own auth provider says so: &ldquo;The WASM client never sees a token &mdash; it only learns whether the HttpOnly session cookie maps to a signed-in user&rdquo; <span class="cite">ApiAuthenticationStateProvider.cs:7-11</span>. The OIDC id-token is consumed server-side in <code>OnTokenValidated</code> and never forwarded. No <code>AddJwtBearer</code>, no <code>[Authorize(AuthenticationSchemes=&hellip;)]</code>, no downstream API token acquisition appears in the solution.</p>
+
+  <h3>Claims by scheme</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Scheme</th><th>Claims written</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>Cookies</code> &mdash; GUEST</td>
+          <td><code>NameIdentifier</code> = new GUID &middot; <code>Name</code> = <code>GUEST########</code> &middot; <code>Email</code> = <code>guest########@guest.pomemevideo.local</code> &middot; <code>identity_type</code> = <code>GUEST</code></td>
+          <td><span class="cite">AuthEndpoints.cs:63-69</span></td>
+        </tr>
+        <tr>
+          <td><code>Cookies</code> &mdash; dev ANON</td>
+          <td><code>NameIdentifier</code> = persisted GUID &middot; <code>Name</code> = <code>ANON######</code> &middot; <code>Email</code> = <code>anon######@anon.pomemevideo.local</code> &middot; <code>identity_type</code> = <code>ANON</code></td>
+          <td><span class="cite">UserIdentityResolution.cs:130-139</span></td>
+        </tr>
+        <tr>
+          <td><code>Fake</code></td>
+          <td><code>NameIdentifier</code> = <code>MD5(userName.ToLowerInvariant())</code> as a GUID &middot; <code>Name</code> &middot; <code>Email</code> = <code>{user}@fake.pomemevideo.local</code> &middot; <code>identity_type</code> = <code>FAKE</code> &middot; one <code>Role</code> claim per comma-separated entry in <code>X-Fake-Roles</code></td>
+          <td><span class="cite">FakeAuthHandler.cs:48-66</span></td>
+        </tr>
+        <tr>
+          <td><code>OpenIdConnect</code></td>
+          <td>whatever Entra ID returns &mdash; this app writes none of its own. It <em>reads</em> <code>oid</code>, the <code>objectidentifier</code> schema claim, <code>sub</code>, <code>email</code>, <code>preferred_username</code>, <code>name</code>, <code>given_name</code>, <code>tid</code>.</td>
+          <td><span class="cite">SignInTelemetry.cs:80-99</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>How a caller becomes a <code>UserId</code></h4>
+  <pre><code>public static UserId? TryGetUserId(HttpContext httpContext)
+{
+    var user = httpContext.User;
+
+    // Cookie-based GUEST/ANON identities set NameIdentifier to a Guid directly.
+    var nameId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (Guid.TryParse(nameId, out var userId))
+        return new UserId(userId);
+
+    // Entra ID (OIDC) users: NameIdentifier is the `sub` pairwise id (not a Guid),
+    // so fall back to the object-identifier (`oid`) claim, which is a stable Guid.
+    var oid = user.FindFirstValue(EntraObjectIdSchemaClaim) ?? user.FindFirstValue("oid");
+    return Guid.TryParse(oid, out var objectId) ? new UserId(objectId) : null;
+}</code></pre>
+  <p class="cites"><span class="cite">UserIdentityResolution.cs:35-49</span></p>
+  <p>Two call sites treat a <code>null</code> here differently. <code>Processing</code> returns <code>Results.Unauthorized()</code> <span class="cite">ProcessingEndpoints.cs:20-22</span>; <code>Ingestion</code> and <code>Output</code> both throw <code>InvalidOperationException("Authenticated user id claim is missing.")</code>, which <code>GlobalExceptionHandler</code> turns into a <b>500</b> <span class="cite">IngestionEndpoints.cs:267-271</span><span class="cite">OutputEndpoints.cs:318-322</span>. Both helpers carry a stale doc-comment claiming they &ldquo;fall back to <code>Guid.Empty</code>&rdquo;, which the code does not do.</p>
+
+  <h3>Policies and role bindings</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Policy</th><th>Requirement</th><th>Applies to</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>FallbackPolicy</code></td><td><code>RequireAuthenticatedUser()</code></td><td>every endpoint with no authorization metadata</td><td><span class="cite">ServiceRegistrationExtensions.cs:195-197</span></td></tr>
+        <tr><td><code>DefaultPolicy</code></td><td>framework default (<code>RequireAuthenticatedUser</code>) &mdash; not overridden</td><td>the three groups calling bare <code>RequireAuthorization()</code></td><td><span class="cite">IngestionEndpoints.cs:12</span><span class="cite">OutputEndpoints.cs:13</span><span class="cite">ProcessingEndpoints.cs:11</span></td></tr>
+        <tr><td>Named policies</td><td colspan="2"><span class="pill info">none declared</span> &mdash; <code>AddPolicy</code> is never called</td><td><span class="cite">ServiceRegistrationExtensions.cs:193-198</span></td></tr>
+        <tr><td>Role bindings</td><td colspan="2"><span class="pill info">none</span> &mdash; no <code>RequireRole</code>, no <code>[Authorize(Roles=)]</code>, no role check in any handler. <code>X-Fake-Roles</code> writes role claims that nothing reads.</td><td><span class="cite">FakeAuthHandler.cs:58-65</span></td></tr>
+        <tr><td>Client-side</td><td><code>[Authorize]</code> applied globally via <code>_Imports.razor</code>; <code>Login.razor</code> opts out with <code>[AllowAnonymous]</code></td><td>every Razor page</td><td><span class="cite">_Imports.razor:7</span><span class="cite">Login.razor:8</span></td></tr>
+        <tr><td>Antiforgery</td><td>explicitly disabled on the multipart sound upload</td><td><code>POST /api/memelibrary/upload</code></td><td><span class="cite">MemeLibraryEndpoints.cs:105</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The exact 401 / 403 payloads</h3>
+  <div class="note risk">
+    <span class="nlabel">RFC 9457</span>
+    <p><b>No 401 or 403 in this application emits an RFC&nbsp;9457 <code>application/problem+json</code> body.</b> The only problem-shaped payload in the codebase is <code>GlobalExceptionHandler</code>&rsquo;s, it covers unhandled exceptions only, and it emits RFC&nbsp;7231 <code>type</code> URIs plus two non-standard members <span class="cite">GlobalExceptionHandler.cs:40-71</span>. What follows is what the wire actually carries, captured from the built application under <code>ASPNETCORE_ENVIRONMENT=Staging</code> at commit <code>a495207</code>.</p>
+  </div>
+
+  <h4>Unauthenticated call to a protected endpoint &mdash; no 401 at all</h4>
+  <pre><code>GET /api/ingestion/sessions
+
+HTTP/1.1 302 Found
+Location: http://localhost:5399/Account/Login?ReturnUrl=%2Fapi%2Fingestion%2Fsessions
+Content-Length: 0
+Server: Kestrel
+
+(empty body)</code></pre>
+  <p>Identical shape for <code>POST /api/processing/sessions/{id}/initiate</code> and <code>GET /api/memelibrary/sounds</code>. The cookie handler converts the authorization failure into a challenge; no status code in the 4xx range is ever sent.</p>
+
+  <h4>The one genuine 401 &mdash; the API-docs gate</h4>
+  <pre><code>GET /scalar/
+
+HTTP/1.1 401 Unauthorized
+Transfer-Encoding: chunked
+(no Content-Type)
+
+Unauthorized — sign in to access API documentation.</code></pre>
+  <p>Plain text, written by a bespoke middleware rather than the auth stack <span class="cite">EndpointMappingExtensions.cs:52-66</span>. Note it is written <em>before</em> <code>UseAuthorization</code> and after <code>UseAuthentication</code>, so it reads <code>context.User</code> directly.</p>
+
+  <h4>403 Forbidden</h4>
+  <p><b>Nothing in the application produces one.</b> There is no authorization requirement an authenticated user can fail: no roles, no named policies, no resource-based handler. Ownership violations are deliberately rendered as <code>404</code>, not <code>403</code> &mdash; <code>GetByIdAsync</code> returns <code>null</code> when <code>OwnerUserId</code> does not match <span class="cite">VideoSessionTableRepository.cs:63-66</span>, and the mutating paths throw <code>SessionNotFoundException</code> for the same case <span class="cite">VideoSessionTableRepository.cs:160-168</span>. A non-owner and a non-existent session are indistinguishable to the caller, which is the correct choice for an enumerable GUID key.</p>
+  <pre><code>GET /api/output/sessions/{someone-elses-session}/script
+404 Not Found
+{"error":"SESSION_NOT_FOUND","sessionId":"…"}</code></pre>
+
+  <h3>Refusal-code registry</h3>
+  <p>There is no shared error-code enum; every code below is a string literal at its own call site. This is the complete set in <code>src/</code>.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Code</th><th>Status</th><th>Raised when</th><th>Extra members</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td><code>INVALID_EXTENSION</code></td><td>400</td><td>file extension not in <code>.mp4 .mov .avi .webm</code></td><td><code>message</code>, <code>allowedExtensions[]</code></td><td><span class="cite">IngestVideoCommand.cs:32-35</span><span class="cite">IngestionEndpoints.cs:29-37</span></td></tr>
+        <tr><td><code>FILE_TOO_LARGE</code></td><td>400</td><td><code>fileSizeBytes &gt; 524288000</code></td><td><code>message</code>, <code>maxBytes</code>, <code>receivedBytes</code></td><td><span class="cite">IngestVideoCommand.cs:39-43</span><span class="cite">IngestionEndpoints.cs:38-47</span></td></tr>
+        <tr><td><code>SESSION_NOT_FOUND</code></td><td>404</td><td>no row, <em>or</em> the row&rsquo;s <code>OwnerUserId</code> is not the caller</td><td><code>sessionId</code></td><td><span class="cite">IngestionEndpoints.cs:75,120,233</span><span class="cite">OutputEndpoints.cs:27,91,128,165,200,239</span></td></tr>
+        <tr><td><code>SCRIPT_NOT_FOUND</code></td><td>404</td><td>the session exists but no <code>DirectorScripts</code> row does</td><td><code>sessionId</code></td><td><span class="cite">OutputEndpoints.cs:31</span></td></tr>
+        <tr><td><code>OUTPUT_NOT_READY</code></td><td>404</td><td><code>OutputBlobPath</code> is still null &mdash; render has not finished</td><td><code>sessionId</code></td><td><span class="cite">OutputEndpoints.cs:94,131</span></td></tr>
+        <tr><td><code>SOURCE_NOT_FOUND</code></td><td>404</td><td><code>SourceBlobPath</code> is empty</td><td><code>sessionId</code></td><td><span class="cite">OutputEndpoints.cs:167</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;Session &hellip; not found.&rdquo;</td><td>404</td><td>initiate against an unknown session</td><td>&mdash;</td><td><span class="cite">ProcessingEndpoints.cs:27</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;&hellip; is not in a retryable state&rdquo;</td><td>409</td><td>status is neither <code>Ingesting</code>, <code>Error</code> nor <code>Processing</code></td><td>&mdash;</td><td><span class="cite">ProcessingEndpoints.cs:35-41</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;&hellip; is already queued or running.&rdquo;</td><td>409</td><td>the dispatcher already holds this <code>SessionId</code></td><td>&mdash;</td><td><span class="cite">ProcessingEndpoints.cs:48-49</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;Unknown deployment '&hellip;'.&rdquo;</td><td>400</td><td>deployment name not in <code>AiFoundry:KnownDeployments</code></td><td>bare JSON string, not an object</td><td><span class="cite">ConfigEndpoints.cs:66</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;aiFoundryDeployment is required.&rdquo;</td><td>400</td><td>blank deployment name</td><td>bare JSON string</td><td><span class="cite">ConfigEndpoints.cs:60</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;No audio file provided.&rdquo;</td><td>400</td><td>empty multipart upload</td><td><code>error</code> only</td><td><span class="cite">MemeLibraryEndpoints.cs:62</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;Only .mp3, .wav, and .ogg&hellip;&rdquo;</td><td>400</td><td>unsupported audio extension</td><td><code>error</code> only</td><td><span class="cite">MemeLibraryEndpoints.cs:66</span></td></tr>
+        <tr><td><i>(prose)</i> &ldquo;sounds-metadata.json not found.&rdquo;</td><td>404</td><td>seed manifest missing on disk</td><td><code>error</code>, <code>path</code> &mdash; <b>leaks a server filesystem path to an anonymous caller</b></td><td><span class="cite">MemeLibraryEndpoints.cs:121</span></td></tr>
+        <tr><td>&mdash;</td><td>500</td><td>any unhandled exception, including a missing user-id claim on Ingestion/Output</td><td>problem-shaped object; <code>stackTrace</code> populated only in Development</td><td><span class="cite">GlobalExceptionHandler.cs:47-69</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Transport and header hardening</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Control</th><th>State</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>HTTPS redirection</td><td><span class="pill ok">on outside Development</span></td><td><span class="cite">EndpointMappingExtensions.cs:46-47</span></td></tr>
+        <tr><td>Forwarded headers</td><td><span class="pill warn">XForwardedFor + XForwardedProto with <code>KnownProxies</code> and <code>KnownIPNetworks</code> cleared</span> &mdash; required for App Service to build https OIDC redirect URIs, and it means any upstream may set them</td><td><span class="cite">ServiceRegistrationExtensions.cs:30-37</span></td></tr>
+        <tr><td>HSTS</td><td><span class="pill risk">not configured</span> &mdash; <code>UseHsts</code> appears nowhere</td><td><span class="cite">EndpointMappingExtensions.cs:20-50</span></td></tr>
+        <tr><td>CSP / X-Frame-Options / X-Content-Type-Options / Referrer-Policy</td><td><span class="pill risk">none set</span> &mdash; no security-header middleware exists</td><td><span class="cite">EndpointMappingExtensions.cs:20-140</span></td></tr>
+        <tr><td>CORS (app traffic)</td><td><span class="pill ok">none needed</span> &mdash; the WASM client is same-origin</td><td><span class="cite">EndpointMappingExtensions.cs:28</span></td></tr>
+        <tr><td>CORS (Blob account)</td><td>Rules are <b>replaced</b> on every start: <code>Cors.Clear()</code> then one rule, <code>PUT,GET,HEAD,DELETE,OPTIONS</code>, <code>AllowedHeaders="*"</code>, 3600&nbsp;s</td><td><span class="cite">BlobServiceClientFactory.cs:104-114</span></td></tr>
+        <tr><td>Rate limiting</td><td><span class="pill risk">none</span></td><td><span class="cite">grep -rn AddRateLimiter src</span></td></tr>
+        <tr><td>Request size limits</td><td>Validated logically (500&nbsp;MB, from the client-declared <code>fileSizeBytes</code>) but <b>not enforced at the Kestrel or form layer</b>; the frames endpoint accepts an unbounded base64 array</td><td><span class="cite">IngestVideoCommand.cs:37-44</span><span class="cite">IngestionEndpoints.cs:126-137</span></td></tr>
+        <tr><td>Scalar / OpenAPI</td><td>401 outside Development; the nav link is hidden unless <code>isDevelopment</code></td><td><span class="cite">EndpointMappingExtensions.cs:52-66</span><span class="cite">NavBar.razor:32</span></td></tr>
+        <tr><td>Diagnostics output encoding</td><td><span class="pill ok">every rendered value HTML-encoded</span> &mdash; &ldquo;a value carrying markup must never render as markup&rdquo;</td><td><span class="cite">DiagEndpoint.cs:146-148</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Secret handling</h3>
+  <p>Secrets reach the process only through Key Vault or environment configuration. <code>appsettings.json</code> ships every secret slot as an empty string <span class="cite">appsettings.json:14-45</span>, and <code>appsettings.Development.json</code> is gitignored. The prefix manager loads <code>PoMemeVideo--*</code> with the prefix stripped, loads un-prefixed shared secrets as-is, and <b>skips any secret belonging to a different <code>Po*</code> app</b> <span class="cite">Program.cs:84-95</span>. The only place a secret value is ever rendered is <code>/diag</code>, masked (see finding 3). <b>No secret value appears anywhere in this document set &mdash; key names only.</b></p>
+</section>
+
+  </main>
+
+  <footer class="docfoot">
+    <div class="frow">
+      <span>Generated <b>2026-09-11</b></span>
+      <span>Commit <b>a4952075aa0d053d16792f0bcd1a9048477e7d65</b></span>
+      <span><b>PoMemeVideo</b> &middot; NET_DOCS</span>
+      <span>Evidence order: code &rarr; config &rarr; code comments &rarr; README</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.9.0/mermaid.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---- detail level (1 simple · 2 standard · 3 all details) -------------- */
+  var KEY = "pmv-netdocs-level";
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".levels button"));
+
+  function applyLevel(level, persist) {
+    document.documentElement.setAttribute("data-level", String(level));
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tier]"), function (el) {
+      el.hidden = Number(el.getAttribute("data-tier")) > level;   /* cumulative */
+    });
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-level") === String(level) ? "true" : "false");
+    });
+    if (persist !== false) {
+      try { localStorage.setItem(KEY, String(level)); } catch (e) { /* private mode */ }
+    }
+  }
+
+  function storedLevel() {
+    try {
+      var v = Number(localStorage.getItem(KEY));
+      return (v === 1 || v === 2 || v === 3) ? v : 3;
+    } catch (e) { return 3; }
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { applyLevel(Number(b.getAttribute("data-level"))); });
+  });
+
+  /* ---- mermaid ----------------------------------------------------------- */
+  function isDark() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp === "dark") return true;
+    if (stamp === "light") return false;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  var blocks = Array.prototype.slice.call(document.querySelectorAll(".mermaid"));
+  blocks.forEach(function (b) { b.setAttribute("data-src", b.textContent); });
+
+  function paletteFor(dark) {
+    return dark
+      ? { bg: "#121715", node: "#1a211e", nodeBorder: "#3ddc97", text: "#eef3f0",
+          line: "#8a948e", alt: "#222b27", cluster: "#0f1512", clusterBorder: "#37433d" }
+      : { bg: "#fffffd", node: "#eef2ee", nodeBorder: "#0f6b40", text: "#101613",
+          line: "#6d7671", alt: "#f4f5f2", cluster: "#f4f5f2", clusterBorder: "#bcc1b9" };
+  }
+
+  function renderMermaid() {
+    if (typeof window.mermaid === "undefined" || blocks.length === 0) return Promise.resolve();
+    var p = paletteFor(isDark());
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+      fontSize: 16,
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: "basis", padding: 14, nodeSpacing: 45, rankSpacing: 55 },
+      sequence: { useMaxWidth: true, actorFontSize: 15, noteFontSize: 14, messageFontSize: 14, width: 190, boxMargin: 12 },
+      er: { useMaxWidth: true, fontSize: 15, entityPadding: 14 },
+      theme: "base",
+      themeVariables: {
+        background: p.bg,
+        primaryColor: p.node,
+        primaryTextColor: p.text,
+        primaryBorderColor: p.nodeBorder,
+        secondaryColor: p.alt,
+        secondaryTextColor: p.text,
+        secondaryBorderColor: p.line,
+        tertiaryColor: p.alt,
+        tertiaryTextColor: p.text,
+        tertiaryBorderColor: p.line,
+        lineColor: p.line,
+        textColor: p.text,
+        mainBkg: p.node,
+        nodeBorder: p.nodeBorder,
+        clusterBkg: p.cluster,
+        clusterBorder: p.clusterBorder,
+        edgeLabelBackground: p.bg,
+        actorBkg: p.node,
+        actorBorder: p.nodeBorder,
+        actorTextColor: p.text,
+        actorLineColor: p.line,
+        signalColor: p.text,
+        signalTextColor: p.text,
+        labelBoxBkgColor: p.node,
+        labelBoxBorderColor: p.nodeBorder,
+        labelTextColor: p.text,
+        loopTextColor: p.text,
+        noteBkgColor: p.alt,
+        noteBorderColor: p.line,
+        noteTextColor: p.text,
+        sequenceNumberColor: p.bg,
+        attributeBackgroundColorOdd: p.node,
+        attributeBackgroundColorEven: p.alt,
+        fontSize: "16px"
+      }
+    });
+
+    blocks.forEach(function (b) {
+      b.removeAttribute("data-processed");
+      b.textContent = b.getAttribute("data-src");
+    });
+
+    return window.mermaid.run({ nodes: blocks, suppressErrors: false })["catch"](function (err) {
+      /* Surface a parse failure instead of leaving a blank frame. */
+      // eslint-disable-next-line no-console
+      console.error("[netdocs] mermaid render failed", err);
+    });
+  }
+
+  function boot() {
+    /* Render every diagram while the document is fully expanded — a mermaid
+       block inside a display:none container measures zero and renders blank —
+       then collapse to the reader's stored level. */
+    var want = storedLevel();          /* read BEFORE the temporary expansion */
+    applyLevel(3, false);
+    var done = renderMermaid();
+    (done && done.then ? done : Promise.resolve()).then(function () {
+      applyLevel(want);
+      document.documentElement.setAttribute("data-diagrams", "ready");
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    var onChange = function () {
+      var lvl = storedLevel();
+      applyLevel(3, false);
+      var d = renderMermaid();
+      (d && d.then ? d : Promise.resolve()).then(function () { applyLevel(lvl); });
+    };
+    if (mq.addEventListener) { mq.addEventListener("change", onChange); }
+    else if (mq.addListener) { mq.addListener(onChange); }
+  }
+})();
+</script>
+
+</body>
+</html>
