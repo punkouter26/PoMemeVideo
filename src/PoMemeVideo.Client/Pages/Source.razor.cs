@@ -31,42 +31,20 @@ public partial class Source
 
     private bool _isDevelopment;
     private bool _soundLibraryEmpty;
-    private string _activeProvider = "AiFoundry";
-    private string _pendingProvider = "AiFoundry";
-    // BrowserLLM (WebGPU / ONNX, local to the browser)
-    private const string DefaultBrowserModel = "smollm2-360m-instruct-onnx";
-    private string _activeBrowserModelId = DefaultBrowserModel;
-    private string _pendingBrowserModelId = DefaultBrowserModel;
-    private List<LocalModelInfo> _localModels = [];
-    // Browser model in-browser cache & download tracking
-    private DotNetObjectReference<Source>? _dotNetRef;
-    private readonly HashSet<string> _cachedModelIds = new(StringComparer.OrdinalIgnoreCase);
-    private bool _isDownloadingModel;
-    private string _downloadingModelId = "";
-    private string _downloadingModelLabel = "";
-    private string _downloadStatusText = "";
-    private int _downloadProgressPercent;
-    private long _downloadLoadedBytes;
-    private long _downloadTotalBytes;
-    private bool _hasWebGpu = true;
-    // AI Foundry
+    // AI Foundry deployment selection.
+    // Seeded, not empty: an empty list renders a <select> with no <option>s — a blank control
+    // with no explanation — if the config call is slow or fails.
     private const string DefaultDeployment = "gpt-5.4-nano";
-    private string _activeFoundryDeployment = DefaultDeployment;
-    private string _pendingFoundryDeployment = DefaultDeployment;
-    // Seeded, not empty: the server enumerates deployments from ARM and that call is slow on a
-    // cold start, so the first render happens before it returns. An empty list renders a
-    // <select> with no <option>s — a blank control with no explanation.
-    private List<string> _foundryDeployments = [DefaultDeployment];
+    private string _activeDeployment = DefaultDeployment;
+    private string _pendingDeployment = DefaultDeployment;
+    private List<string> _deployments = [DefaultDeployment];
     private bool _modelDirty;
     private bool _modelApplying;
     private string? _modelMessage;
-    private string _pendingModelSelection = $"remote:{DefaultDeployment}";
-    private string _dropdownHint = "";
     private int CurrentStep => !_uploaded ? 1 : _visionInProgress ? 2 : 3;
 
     private ElementReference _videoRef;
     private DitheredKeyframeStrip? _keyframeStrip;
-    [Inject] private Vibe3DService Vibe3D { get; set; } = default!;
 
     private string _aspectRatio = "original";
     private string _memePersona = "Standard";
@@ -78,9 +56,10 @@ public partial class Source
         _aspectRatio = ratio;
     }
 
-    private async Task OnPersonaChanged()
+    private void OnPersonaChanged()
     {
-        await Vibe3D.SetPersonaPaletteAsync(_memePersona);
+        // Persona is read at initiate time; nothing to do on change now that the
+        // aurora palette it used to drive is gone.
     }
 
     private void OnTrimChanged()
@@ -91,9 +70,7 @@ public partial class Source
 
     protected override async Task OnInitializedAsync()
     {
-        _dotNetRef = DotNetObjectReference.Create(this);
-        await Vibe3D.SetAuroraStateAsync("idle");
-        await Task.WhenAll(LoadAiModelStateAsync(), CheckSoundLibraryAsync(), RefreshBrowserCacheStatusAsync());
+        await Task.WhenAll(LoadAiModelStateAsync(), CheckSoundLibraryAsync());
     }
 
     private async Task CheckSoundLibraryAsync()
@@ -121,7 +98,6 @@ public partial class Source
         _statusMessage = "REQUESTING SAS TOKEN...";
         _visionFallbackMessage = "AI VISION: no triggers detected - time-based placement will be used";
         StateHasChanged();
-        await Vibe3D.SetAuroraStateAsync("analyzing");
 
         try
         {
@@ -382,100 +358,30 @@ public partial class Source
             if (ai is null)
                 throw new InvalidOperationException("/api/config/ai-model returned no body.");
 
-            _activeProvider = ai.Provider;
-            _pendingProvider = ai.Provider;
             _isDevelopment = ai.IsDevelopment;
-
-            _localModels = ai.LocalModels?.ToList() ?? [];
-            _activeBrowserModelId = ai.BrowserLLMModel ?? (_localModels.FirstOrDefault()?.Id ?? _activeBrowserModelId);
-            _pendingBrowserModelId = _activeBrowserModelId;
-
-            _activeFoundryDeployment = ai.AiFoundryDeployment ?? DefaultDeployment;
-            _pendingFoundryDeployment = _activeFoundryDeployment;
+            _activeDeployment = ai.AiFoundryDeployment ?? DefaultDeployment;
+            _pendingDeployment = _activeDeployment;
             if (ai.AiFoundryDeployments is { Length: > 0 } deployments)
-                _foundryDeployments = deployments.ToList();
+                _deployments = deployments.ToList();
 
             _modelMessage = null;
         }
         catch
         {
-            // The server enumerates AI Foundry deployments from ARM with DefaultAzureCredential.
-            // That call can take tens of seconds on a cold start and can fail outright with no
-            // Azure session. Falling through silently here used to leave _foundryDeployments
-            // empty, which renders a <select> with zero <option>s — a blank control with no
-            // explanation, indistinguishable from a broken page.
-            _modelMessage = "MODEL LIST UNAVAILABLE — showing the active deployment only. "
-                          + "Reload once Azure sign-in completes to see the full list.";
+            _modelMessage = "MODEL LIST UNAVAILABLE — showing the active deployment only.";
         }
 
         // Whatever happened above, the dropdown must never be empty: it always offers at least
         // the deployment that is actually active.
-        if (!_foundryDeployments.Contains(_activeFoundryDeployment, StringComparer.OrdinalIgnoreCase))
-            _foundryDeployments.Insert(0, _activeFoundryDeployment);
+        if (!_deployments.Contains(_activeDeployment, StringComparer.OrdinalIgnoreCase))
+            _deployments.Insert(0, _activeDeployment);
 
-        _pendingModelSelection = _activeProvider == "BrowserLLM"
-            ? $"browser:{_activeBrowserModelId}"
-            : $"remote:{_activeFoundryDeployment}";
-        UpdateDropdownHint();
-        _displayActiveModel = ComputeDisplayName(_activeProvider);
-    }
-
-    private string ComputeDisplayName(string provider) => provider switch
-    {
-        "AzureOpenAI" => "Azure OpenAI · GPT-5.4 Nano",
-        "AiFoundry" => $"AI Foundry · {_activeFoundryDeployment}",
-        "BrowserLLM" => _localModels.Count > 0
-            ? $"{_localModels.FirstOrDefault(m => m.Id == _activeBrowserModelId)?.Label ?? _activeBrowserModelId} (WebGPU)"
-            : "Browser · WebGPU",
-        _ => provider,
-    };
-
-    private void RecomputeModelDirty()
-    {
-        _modelDirty = _pendingProvider != _activeProvider
-                      || _pendingFoundryDeployment != _activeFoundryDeployment
-                      || _pendingBrowserModelId != _activeBrowserModelId;
+        _displayActiveModel = $"AI Foundry · {_activeDeployment}";
     }
 
     private void OnModelSelectionChanged()
     {
-        // The dropdown uses "kind:name" tokens so the optgroup value is unambiguous.
-        if (string.IsNullOrWhiteSpace(_pendingModelSelection)) return;
-        var sep = _pendingModelSelection.IndexOf(':');
-        if (sep <= 0) return;
-        var kind = _pendingModelSelection[..sep];
-        var name = _pendingModelSelection[(sep + 1)..];
-        switch (kind)
-        {
-            case "remote":
-                // Must be AiFoundry, not AzureOpenAI: the deployment name below is only honoured
-                // by the Foundry director. Selecting a deployment used to silently switch to the
-                // Azure OpenAI path, which ignores it.
-                _pendingProvider = "AiFoundry";
-                _pendingFoundryDeployment = name;
-                _dropdownHint = $"Remote AI Foundry deployment → {name}";
-                break;
-            case "browser":
-                _pendingProvider = "BrowserLLM";
-                _pendingBrowserModelId = name;
-                _dropdownHint = $"Browser WebGPU model → {name}";
-                if (!IsModelCached(name))
-                {
-                    _ = TriggerModelDownloadAsync(name);
-                }
-                break;
-        }
-        RecomputeModelDirty();
-    }
-
-    private void UpdateDropdownHint()
-    {
-        _dropdownHint = _pendingProvider switch
-        {
-            "BrowserLLM" => $"⚡ Browser · {(string.IsNullOrEmpty(_pendingBrowserModelId) ? "(no model)" : _pendingBrowserModelId)}",
-            "AzureOpenAI" => "☁ Azure OpenAI · GPT-5.4 Nano",
-            _ => $"☁ AI Foundry · {_pendingFoundryDeployment}",
-        };
+        _modelDirty = _pendingDeployment != _activeDeployment;
     }
 
     private async Task ApplyModelAsync()
@@ -486,26 +392,19 @@ public partial class Source
 
         try
         {
-            var body = new
-            {
-                provider = _pendingProvider,
-                browserLLMModel = _pendingBrowserModelId,
-                aiFoundryDeployment = _pendingFoundryDeployment,
-            };
-            var response = await Http.PutAsJsonAsync("/api/config/ai-model", body);
+            var response = await Http.PutAsJsonAsync(
+                "/api/config/ai-model",
+                new { aiFoundryDeployment = _pendingDeployment });
 
             if (!response.IsSuccessStatusCode)
             {
-                var msg = await BuildErrorMessageAsync(response, "MODEL SWITCH FAILED");
-                _modelMessage = msg;
+                _modelMessage = await BuildErrorMessageAsync(response, "MODEL SWITCH FAILED");
                 return;
             }
 
-            _activeProvider = _pendingProvider;
-            _activeFoundryDeployment = _pendingFoundryDeployment;
-            _activeBrowserModelId = _pendingBrowserModelId;
+            _activeDeployment = _pendingDeployment;
             _modelDirty = false;
-            _displayActiveModel = ComputeDisplayName(_activeProvider);
+            _displayActiveModel = $"AI Foundry · {_activeDeployment}";
             _modelMessage = $"MODEL ACTIVE: {_displayActiveModel}";
             await NavRefresh.NotifyAiChangedAsync();
         }
@@ -537,13 +436,9 @@ public partial class Source
 
     private sealed record VisionLabel(double TimestampSeconds, string Label);
     private sealed record AiModelResponse(
-        string Provider,
-        string? BrowserLLMModel,
-        LocalModelInfo[]? LocalModels,
         string? AiFoundryDeployment,
         string[]? AiFoundryDeployments,
         bool IsDevelopment);
-    private sealed record LocalModelInfo(string Id, string Label, bool Available);
     private sealed record FrameUploadResult(int FramesStored, VisionLabelItem[]? VisionLabels, VisionDiagnostics? VisionDiagnostics);
     private sealed record VisionDiagnostics(int FramesReceived, int FramesStored, bool AnalysisAttempted, string? AnalysisError, int LabelsDetected, string PlacementMode);
     private sealed record VisionLabelItem(double TimestampSeconds, string Label);
@@ -557,114 +452,4 @@ public partial class Source
         || message.Contains("CORS", StringComparison.OrdinalIgnoreCase)
         || message.Contains("network", StringComparison.OrdinalIgnoreCase)
         || message.Contains("Failed to", StringComparison.OrdinalIgnoreCase);
-
-    private async Task RefreshBrowserCacheStatusAsync()
-    {
-        try
-        {
-            var status = await JS.InvokeAsync<BrowserCacheStatusDto>("browserLLM.checkAllCacheStatus");
-            _hasWebGpu = status.HasWebGpu;
-            _cachedModelIds.Clear();
-            if (status.CachedModels is not null)
-            {
-                foreach (var (id, isCached) in status.CachedModels)
-                {
-                    if (isCached)
-                        _cachedModelIds.Add(id);
-                }
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-        catch
-        {
-            // Non-critical: defaults apply
-        }
-    }
-
-    public bool IsModelCached(string modelId) => _cachedModelIds.Contains(modelId);
-
-    private string GetModelBadge(string modelId) =>
-        IsModelCached(modelId) ? "[cached]" : "[download on select]";
-
-    private string GetModelDisplayName(string modelId) =>
-        _localModels.FirstOrDefault(m => m.Id == modelId)?.Label ?? modelId;
-
-    private async Task TriggerModelDownloadAsync(string modelId)
-    {
-        if (_isDownloadingModel) return;
-        _isDownloadingModel = true;
-        _downloadingModelId = modelId;
-        _downloadingModelLabel = GetModelDisplayName(modelId);
-        _downloadProgressPercent = 0;
-        _downloadLoadedBytes = 0;
-        _downloadTotalBytes = 0;
-        _downloadStatusText = "Connecting to Hugging Face...";
-        _modelMessage = $"DOWNLOADING {GetModelDisplayName(modelId)} to browser cache via WebGPU...";
-        StateHasChanged();
-        await Audio.PlayTelemetryChirpAsync();
-
-        try
-        {
-            await JS.InvokeVoidAsync("browserLLM.downloadModel", modelId, _dotNetRef);
-        }
-        catch (Exception ex)
-        {
-            _modelMessage = $"DOWNLOAD FAILED: {ex.Message}";
-            _isDownloadingModel = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ClearBrowserCacheAsync(string modelId)
-    {
-        try
-        {
-            await JS.InvokeVoidAsync("browserLLM.clearCache", modelId);
-            _cachedModelIds.Remove(modelId);
-            _modelMessage = $"CACHE PURGED: {GetModelDisplayName(modelId)}";
-            await Audio.PlayClickAsync(0.8);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _modelMessage = $"PURGE FAILED: {ex.Message}";
-        }
-    }
-
-    [JSInvokable]
-    public void OnDownloadProgress(DownloadProgressDto progress)
-    {
-        _downloadProgressPercent = progress.Progress;
-        _downloadLoadedBytes = progress.LoadedBytes;
-        _downloadTotalBytes = progress.TotalBytes;
-        _downloadStatusText = string.IsNullOrWhiteSpace(progress.File) ? progress.Status : $"{progress.Status} · {progress.File}";
-        InvokeAsync(StateHasChanged);
-    }
-
-    [JSInvokable]
-    public async Task OnDownloadComplete(string modelId)
-    {
-        _cachedModelIds.Add(modelId);
-        _isDownloadingModel = false;
-        _downloadProgressPercent = 100;
-        _modelMessage = $"MODEL READY: {GetModelDisplayName(modelId)} cached in browser for WebGPU.";
-        await Audio.PlayFanfareAsync();
-        await InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        _dotNetRef?.Dispose();
-    }
-
-    public sealed record BrowserCacheStatusDto(bool HasWebGpu, Dictionary<string, bool>? CachedModels);
-
-    public sealed class DownloadProgressDto
-    {
-        public string Status { get; set; } = "";
-        public string File { get; set; } = "";
-        public int Progress { get; set; }
-        public long LoadedBytes { get; set; }
-        public long TotalBytes { get; set; }
-    }
 }

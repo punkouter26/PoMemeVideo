@@ -1,7 +1,7 @@
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
 
-namespace PoMemeVideo.Api.Endpoints;
+namespace PoMemeVideo.Api.Common;
 
 public static class HealthEndpoint
 {
@@ -69,33 +69,40 @@ public static class HealthEndpoint
                 }
             }
 
-            // AI vision is provided by AzureOpenAiVisionService (gpt-5.4-nano chat
-            // completions with image parts). It reads AzureOpenAI:Endpoint + Key, so we
-            // report Healthy when that endpoint is configured. The legacy AzureAiVision
-            // (Computer Vision) key is still accepted as a fallback.
-            var visionEndpoint = configuration["AzureAiVision:Endpoint"];
-            var openAiEndpoint = configuration["AzureOpenAI:Endpoint"];
-            if (string.IsNullOrWhiteSpace(visionEndpoint) && string.IsNullOrWhiteSpace(openAiEndpoint))
+            // Vision and the director both call the same Azure AI Services (Foundry) resource.
+            // `AiFoundry:Endpoint` is canonical; `AzureOpenAI:Endpoint` is the legacy name still
+            // accepted as a fallback, and `AzureAiVision:Endpoint` the older Computer Vision one.
+            var foundryEndpoint = configuration["AiFoundry:Endpoint"];
+            var legacyOpenAiEndpoint = configuration["AzureOpenAI:Endpoint"];
+            var computerVisionEndpoint = configuration["AzureAiVision:Endpoint"];
+
+            var chatEndpoint = !string.IsNullOrWhiteSpace(foundryEndpoint) ? foundryEndpoint
+                : !string.IsNullOrWhiteSpace(legacyOpenAiEndpoint) ? legacyOpenAiEndpoint
+                : null;
+
+            if (chatEndpoint is null && string.IsNullOrWhiteSpace(computerVisionEndpoint))
             {
-                checks["azureAiVision"] = "Degraded: not configured (set AzureOpenAI:Endpoint or AzureAiVision:Endpoint)";
+                checks["aiVision"] = "Degraded: not configured (set AiFoundry:Endpoint)";
                 isHealthy = false;
             }
             else
             {
-                checks["azureAiVision"] = string.IsNullOrWhiteSpace(visionEndpoint)
-                    ? "Healthy (Azure OpenAI gpt-5.4-nano vision)"
+                checks["aiVision"] = chatEndpoint is not null
+                    ? "Healthy (AI Foundry chat vision)"
                     : "Healthy (Azure Computer Vision)";
             }
 
-            // Azure OpenAI director / chat completions
-            if (string.IsNullOrWhiteSpace(openAiEndpoint))
+            // The director — one cloud provider, reached through the same endpoint.
+            if (chatEndpoint is null)
             {
-                checks["azureOpenAI"] = "Degraded: not configured";
+                checks["aiFoundry"] = "Degraded: not configured";
                 isHealthy = false;
             }
             else
             {
-                checks["azureOpenAI"] = "Healthy";
+                checks["aiFoundry"] = string.IsNullOrWhiteSpace(foundryEndpoint)
+                    ? "Healthy (via legacy AzureOpenAI:Endpoint — migrate to AiFoundry:Endpoint)"
+                    : "Healthy";
             }
 
             var result = new

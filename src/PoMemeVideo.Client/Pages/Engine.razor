@@ -27,11 +27,6 @@
         </div>
     </div>
 
-    <!-- Neural Core Compact Telemetry Strip -->
-    <div class="neural-core-stage ascii-border-double vibe-glass-card">
-        <canvas id="neural-core-canvas" class="neural-core-canvas"></canvas>
-    </div>
-
     @if (_hubClient is not null)
     {
         <!-- Mobile Segmented Tab Switcher (visible <= 820px) -->
@@ -116,9 +111,6 @@
 
         _hubClient.ProcessingComplete += OnComplete;
         _hubClient.ProcessingError += OnError;
-        _hubClient.BrowserLLMInferenceRequest += OnBrowserLLMInferenceRequest;
-        _hubClient.DirectorLogEntry += OnDirectorLog;
-        _hubClient.DirectorScriptEntry += OnDirectorScript;
 
         await _hubClient.JoinSessionAsync(SessionId);
 
@@ -168,65 +160,12 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private void OnBrowserLLMInferenceRequest(string payloadJson)
-    {
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var entriesJson = await JS.InvokeAsync<string>("browserLLM.generate", payloadJson);
-
-                using var doc = System.Text.Json.JsonDocument.Parse(payloadJson);
-                var sid = doc.RootElement.GetProperty("sessionId").GetGuid();
-
-                using var content = new StringContent(
-                    $"{{\"entries\":{entriesJson}}}",
-                    System.Text.Encoding.UTF8,
-                    "application/json");
-
-                await Http.PostAsync(
-                    $"/api/processing/sessions/{sid}/browser-director-result",
-                    content);
-            }
-            catch (Exception ex)
-            {
-                _errorMessage = $"BrowserLLM error: {ex.Message}";
-                await InvokeAsync(StateHasChanged);
-            }
-        });
-    }
-
-    private void OnDirectorLog(string message)
-    {
-        _ = JS.InvokeVoidAsync("neuralCore.triggerChirp");
-    }
-
-    private void OnDirectorScript(ScriptEntryDto entry)
-    {
-        _ = JS.InvokeVoidAsync("neuralCore.setState", "rendering");
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("neuralCore.init", "neural-core-canvas");
-            }
-            catch { }
-        }
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (_hubClient is not null)
         {
             _hubClient.ProcessingComplete -= OnComplete;
             _hubClient.ProcessingError -= OnError;
-            _hubClient.BrowserLLMInferenceRequest -= OnBrowserLLMInferenceRequest;
-            _hubClient.DirectorLogEntry -= OnDirectorLog;
-            _hubClient.DirectorScriptEntry -= OnDirectorScript;
             await _hubClient.LeaveSessionAsync(SessionId);
             await _hubClient.DisposeAsync();
         }

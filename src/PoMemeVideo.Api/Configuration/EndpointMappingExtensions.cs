@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.FileProviders;
-using PoMemeVideo.Api.Endpoints;
 using PoMemeVideo.Api.Features.Auth;
 using PoMemeVideo.Api.Features.Config;
 using PoMemeVideo.Api.Features.Ingestion;
@@ -42,23 +39,6 @@ internal static class EndpointMappingExtensions
                 }
             }
         });
-
-        var modelsRoot = ResolveModelsRoot(app.Environment.ContentRootPath);
-        if (modelsRoot is not null)
-        {
-            var modelContentTypes = new FileExtensionContentTypeProvider();
-            modelContentTypes.Mappings[".onnx"] = "application/octet-stream";
-            modelContentTypes.Mappings[".onnx_data"] = "application/octet-stream";
-            modelContentTypes.Mappings[".model"] = "application/octet-stream";
-
-            app.UseStaticFiles(new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(modelsRoot),
-                RequestPath = "/models",
-                ContentTypeProvider = modelContentTypes,
-                ServeUnknownFileTypes = true,
-            });
-        }
 
         app.MapOpenApi();
         app.MapScalarApiReference("/scalar");
@@ -118,7 +98,6 @@ internal static class EndpointMappingExtensions
                     || path.StartsWithSegments("/scalar")
                     || path.StartsWithSegments("/openapi")
                     || path.StartsWithSegments("/api/config")
-                    || path.StartsWithSegments("/models")
                     || path.StartsWithSegments("/_framework")
                     || Path.HasExtension(path);
 
@@ -194,29 +173,11 @@ internal static class EndpointMappingExtensions
         // silently lose all live progress updates.
         app.MapHub<EngineHub>("/hubs/engine").AllowAnonymous();
 
-        // /diag is deliberately anonymous: it is a deploy-time smoke target and every value it
-        // renders is masked (see DiagModel.MaskValue). Without this it would inherit the
-        // deny-by-default FallbackPolicy and the post-deploy health gate would fail on a 302.
-        app.MapRazorPages().AllowAnonymous();
-
+        app.MapDiagEndpoint();
         app.MapHealthEndpoint();
         app.MapConfigEndpoints();
         app.MapIngestionEndpoints();
         app.MapProcessingEndpoints();
-
-        // The browser posts its locally-computed director script back here, resolving the
-        // TaskCompletionSource that BrowserLLMDirectorService is awaiting. Anonymous because the
-        // callback carries the session id and races the auth cookie on a cold WASM boot.
-        app.MapPost("/api/processing/sessions/{sessionId:guid}/browser-director-result",
-            (SessionId sessionId,
-             BrowserDirectorResultDto result,
-             BrowserLLMDirectorService svc) =>
-                svc.TryResolve(sessionId, result)
-                    ? Results.NoContent()
-                    : Results.NotFound(new { error = $"No pending BrowserLLM inference for session {sessionId}." }))
-            .WithName("BrowserDirectorResult")
-            .WithTags("Processing")
-            .AllowAnonymous();
 
         app.MapMemeLibraryEndpoints();
         app.MapOutputEndpoints();
@@ -354,17 +315,5 @@ internal static class EndpointMappingExtensions
         {
             // Non-fatal — storage may not be available at startup
         }
-    }
-
-    private static string? ResolveModelsRoot(string contentRoot)
-    {
-        var candidates = new[]
-        {
-            Path.Combine(contentRoot, "MODEL"),
-            Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "MODEL")),
-            Path.Combine(Directory.GetCurrentDirectory(), "MODEL"),
-        };
-
-        return candidates.FirstOrDefault(Directory.Exists);
     }
 }

@@ -32,7 +32,8 @@ src/
                                 Output (rendering), Processing (AI director + providers).
     Common/                   ← Cross-cutting kernel: storage client factories,
                                 GlobalExceptionHandler.
-    Configuration/, Endpoints/, Hubs/, Pages/  ← host wiring, health, SignalR, Diag.
+    Configuration/, Hubs/          ← host wiring + SignalR. Health and Diag are
+                                endpoints in Common/, not folders of their own.
   PoMemeVideo.Shared/         ← Shared kernel. Referenced by both Api and Client.
     Domain/                   ← Cross-slice entities + strongly-typed ids
                                 (SessionId/UserId/SoundId/EntryId).
@@ -90,32 +91,30 @@ transposing `(sessionId, userId)` is now a compile error instead of a silent nul
 
 ---
 
-## 4. AI Provider Switching (`Api/Features/Processing/`)
+## 4. The AI Director (`Api/Features/Processing/`)
 
-The app supports three AI back-ends selected at runtime via `RuntimeAiSettings`, plus a mock:
+One cloud director, plus a mock for tests:
 
 | Provider | Class | When used |
 |---|---|---|
-| **Browser LLM** | `BrowserLLMDirectorService` | WebGPU-capable browser; Development default |
-| **AI Foundry** | `AiFoundryDirectorService` | Azure AI Foundry endpoint; Production default |
-| **Azure OpenAI** | `AzureOpenAiDirectorService` | Azure OpenAI resource |
-| **Mock** | `MockDirectorService` (IMockable) | Tests / CI |
+| **AI Foundry** | `AiFoundryDirectorService` | Every environment; registered as `IDirectorService` |
+| **Mock** | `MockDirectorService` | Substituted over the DI registration by the integration suite |
 
-`SwitchingDirectorService` dispatches to the correct provider, defaulting to AI Foundry for any
-unrecognised `Provider` value — the setting is runtime-mutable via `PUT /api/config/ai-model`, so
-an unknown value must still render a video rather than throw.
 When **any mock** is active the top nav must display **"USING MOCK DATA"**.
 
-**Browser LLM round-trip.** The server serialises the inference payload, pushes it to the browser
-over SignalR, and awaits a `TaskCompletionSource` keyed by session id; the anonymous
-`POST /api/processing/sessions/{id}/browser-director-result` endpoint resolves it. The wait times
-out at 90 s, and `RunEngineCommand` degrades to deterministic fallback entries rather than failing
-the session. Weights live under `MODEL/<model-id>/` — `python scripts/download-models.py`.
+What is runtime-mutable is which *deployment* the director targets: `PUT /api/config/ai-model`
+changes it without a restart. The name is validated against `AiFoundry:KnownDeployments` in
+configuration — do not accept free text there, the value reaches the Foundry endpoint as a
+deployment id.
 
-**Removed provider.** `Ollama` was deleted: it required a daemon on `localhost:11434` that
-production does not have. It is absent from `RuntimeAiSettings.ValidProviders`, so a persisted
-settings file written by an older build cannot re-enable it, and `SwitchingDirectorService`
-routes it to the AI Foundry fallback.
+**Removed providers.** This was a three-provider matrix (`AzureOpenAI` | `AiFoundry` | `BrowserLLM`)
+behind a `SwitchingDirectorService` that dispatched on a runtime-mutable `Provider` string, with
+`AiFoundry` as both the default everywhere and the fallback for unrecognised values. The other two
+branches therefore served a path nothing selected, while carrying an in-browser WebGPU model
+catalogue with download/cache UI, a SignalR inference round-trip resolved by an anonymous
+`/browser-director-result` callback, ONNX weights served from `MODEL/`, and a 324-line ARM
+deployment lister. All removed. `Ollama` had been deleted before that, for needing a daemon on
+`localhost:11434` that production does not have.
 
 ---
 
@@ -178,7 +177,7 @@ Table repositories: `VideoSessionTableRepository`, `UserIdentityTableRepository`
 - **Health check:** `GET /health` → JSON
 - **Diagnostics:** `GET /diag` → masked keys + connection status (dev + prod, hidden from nav)
 - **SignalR:** engine progress hub at `/hubs/engine` (`EngineHub`, `AllowAnonymous`)
-- **Endpoints folder:** `src/PoMemeVideo.Api/Endpoints/`
+- **Health/Diag endpoints:** `Api/Common/HealthEndpoint.cs`, `Api/Common/DiagEndpoint.cs`
 - HTTP test file: `PoMemeVideo.Api.http`
 
 ---
@@ -191,8 +190,21 @@ Priority (highest → lowest):
 3. `appsettings.json` (safe defaults, all empty strings)
 4. Environment variables
 
-Key Vault naming: `PoMemeVideo--AzureOpenAI--Key` maps to `AzureOpenAI:Key`.  
+Key Vault naming: `PoMemeVideo--AiFoundry--Key` maps to `AiFoundry:Key`.  
 Shared secrets (no prefix): `AzureAd--TenantId` → `AzureAd:TenantId`.
+
+**`AzureOpenAI:*` is a legacy alias, pending removal.** It and `AiFoundry:*` address the same Azure
+AI Services resource over the same OpenAI chat-completions API — Foundry endpoints are
+`…cognitiveservices.azure.com`, and both sections resolved there. The director that justified a
+second section is gone, so `AiFoundryVisionService` now reads `AiFoundry:Endpoint` / `:Key` /
+`:VisionDeployment` and falls back to the `AzureOpenAI:*` equivalents only when the canonical ones
+are unset.
+
+To finish the migration: add `PoMemeVideo--AiFoundry--Endpoint` (and `--Key`, if using key auth
+rather than managed identity) to `kv-poshared`, confirm `/health` reports `aiFoundry: Healthy`
+**without** the "via legacy" suffix, then delete `PoMemeVideo--AzureOpenAI--Endpoint` and
+`--Key` and strip the `Coalesce` fallbacks. Until then, do not delete the old secrets — they are
+what production vision is running on.
 
 ---
 
@@ -275,10 +287,9 @@ Local dev uses `dev` environment (real AI calls).
 
 | Script | Purpose |
 |---|---|
-| `setup.ps1` | Bootstrap new machine: Winget, Docker, `az login` check |
-| `setup-new-machine.py` | Python alternative bootstrap |
+| `setup.ps1` | The one bootstrap: Winget, Docker/Azurite, sounds, tooling, `az login` check |
+| `download-meme-sounds.py` | Fetch the curated meme audio clips into `scripts/meme-sounds/` |
 | `seed-meme-sounds.py` | Populate Azurite/Azure with sound assets |
-| `download-models.py` | Pull ONNX weights for the BrowserLLM provider into `MODEL/` |
 | `check-azurite.py` | Verify local Azurite connectivity |
 | `cleanup-testcontainers.ps1` | Idempotent — removes any Docker container matching `*-test-*-{16-32hex}` (Testcontainers' default name pattern). Preserves `pomemevideo-azurite` (dev compose). Wire into `dotnet test` pre/post or let `TestcontainersCleanupFixture` invoke it at collection teardown. |
 
@@ -303,12 +314,13 @@ Local dev uses `dev` environment (real AI calls).
   which is split in two tiers: build + test-budget + **unit tests** on every push and PR, and the
   integration / API-E2E / UI-E2E jobs `workflow_dispatch`-only (each needs an Azurite service
   container, and the UI one a published app and a browser). Run CI manually for the full suite
-  after touching storage, auth or the render pipeline. `azure.yaml` is a legacy azd manifest;
-  there is no `infra/` Bicep dir. **Do not** set `WEBSITE_RUN_FROM_PACKAGE=1` — the read-only mount
-  blocks the ffmpeg bit-fixup at startup.
-- **Bumping back to B1:** the `Dockerfile` is still valid and still installs ffmpeg; restore the
-  container deploy, flip `linuxFxVersion` to `DOCKER|…`, re-add the `DOCKER_REGISTRY_SERVER_*`
-  app settings.
+  after touching storage, auth or the render pipeline. There is no `infra/` Bicep dir, and no
+  `azure.yaml` — the azd manifest was deleted as a second, wrong answer to "how does this ship?".
+  **Do not** set `WEBSITE_RUN_FROM_PACKAGE=1` — the read-only mount blocks the ffmpeg bit-fixup at
+  startup.
+- **Bumping back to B1:** the `Dockerfile` was removed too (it was explicitly not the deploy path
+  and free to drift). A container deploy means writing a fresh one, flipping `linuxFxVersion` to
+  `DOCKER|…` and re-adding the `DOCKER_REGISTRY_SERVER_*` app settings.
 
 ---
 

@@ -2,7 +2,6 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
-@inject Radzen.DialogService DialogService
 @using PoMemeVideo.Shared.Models
 @using PoMemeVideo.Shared.Enums
 
@@ -93,10 +92,10 @@
                                 </div>
 
                                 <div class="session-item-badges">
-                                    <span class="rz-badge rz-badge-info">@(session.VideoDurationSeconds.ToString("F1"))s</span>
+                                    <span class="status-badge status-badge-info">@(session.VideoDurationSeconds.ToString("F1"))s</span>
                                     @if (!string.IsNullOrEmpty(session.MemePersona))
                                     {
-                                        <span class="rz-badge rz-badge-warning">@session.MemePersona</span>
+                                        <span class="status-badge status-badge-warning">@session.MemePersona</span>
                                     }
                                 </div>
                             </div>
@@ -136,12 +135,6 @@
                             </button>
                             <button class="ascii-btn compact-btn" @onclick="() => DownloadVideo(_activeSession.SessionId)">
                                 [ ⬇ MP4 ]
-                            </button>
-                            <button class="ascii-btn compact-btn" @onclick="() => ExportGif(_activeSession.SessionId)">
-                                [ 🎞 GIF ]
-                            </button>
-                            <button class="ascii-btn compact-btn" @onclick="() => ExportPunchline(_activeSession.SessionId)">
-                                [ 🎯 5s Clip ]
                             </button>
                         </div>
                     }
@@ -253,44 +246,12 @@
         }
     }
 
-    private async Task ExportGif(Guid sessionId)
-    {
-        try
-        {
-            var downloadUrl = $"/api/output/sessions/{sessionId}/export/gif";
-            var fileName = $"pomeme_{sessionId:N}.gif";
-            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
-            Notify($"[ GIF EXPORTED: {fileName} ]");
-        }
-        catch (Exception ex)
-        {
-            Notify($"[ GIF EXPORT ERROR: {ex.Message} ]");
-        }
-    }
-
-    private async Task ExportPunchline(Guid sessionId)
-    {
-        try
-        {
-            var downloadUrl = $"/api/output/sessions/{sessionId}/export/punchline";
-            var fileName = $"punchline_{sessionId:N}.mp4";
-            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
-            Notify($"[ PUNCHLINE CLIP EXPORTED: {fileName} ]");
-        }
-        catch (Exception ex)
-        {
-            Notify($"[ PUNCHLINE CLIP ERROR: {ex.Message} ]");
-        }
-    }
-
     private async Task ConfirmDeleteSession(VideoSessionDto session)
     {
-        var confirmed = await DialogService.Confirm(
-            $"Permanently delete session {session.SessionId.ToString()[..8]}…?",
-            "Confirm Deletion",
-            new Radzen.ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Permanently delete session {session.SessionId.ToString()[..8]}…?");
 
-        if (confirmed == true)
+        if (confirmed)
         {
             await DeleteSession(session);
         }
@@ -299,12 +260,10 @@
     private async Task ConfirmBatchDelete()
     {
         var count = _selectedSessionIds.Count;
-        var confirmed = await DialogService.Confirm(
-            $"Permanently delete {count} selected session(s)?",
-            "Confirm Batch Deletion",
-            new Radzen.ConfirmOptions { OkButtonText = "Delete Selected", CancelButtonText = "Cancel" });
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            $"Permanently delete {count} selected session(s)?");
 
-        if (confirmed == true)
+        if (confirmed)
         {
             await DeleteSelectedSessions();
         }

@@ -100,11 +100,18 @@ try {
 
     if (-not $SkipPythonBootstrap) {
         if (-not (Test-Command -Name 'python')) {
-            throw 'Python is required to run setup-new-machine.py.'
+            throw 'Python is required for the sound-library bootstrap.'
         }
 
-        Write-Host 'Running Python bootstrap (models/sounds/seeding)...'
-        python scripts/setup-new-machine.py
+        # These two steps used to sit behind setup-new-machine.py, a second bootstrap that
+        # duplicated the winget/Docker/Azurite work above and additionally pulled ONNX weights
+        # for the retired in-browser LLM provider. Calling the surviving scripts directly
+        # leaves one bootstrap entry point instead of two that had drifted apart.
+        Write-Host 'Downloading meme sounds...'
+        python scripts/download-meme-sounds.py
+
+        Write-Host 'Seeding the sound library into Azurite...'
+        python scripts/seed-meme-sounds.py
     }
 
     if (-not $SkipTools) {

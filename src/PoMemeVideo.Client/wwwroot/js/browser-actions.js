@@ -5,6 +5,13 @@
 //
 // Loaded as a classic script from index.html so pages can call these without module plumbing.
 window.poBrowser = (function () {
+    function stopAllAudio() {
+        document.querySelectorAll('audio').forEach(a => {
+            a.pause();
+            a.currentTime = 0;
+        });
+    }
+
     function clickAnchor(href, fileName) {
         const a = document.createElement('a');
         a.href = href;
@@ -37,6 +44,24 @@ window.poBrowser = (function () {
         // survives a Content-Security-Policy that forbids unsafe-eval.
         readCookies: function () {
             return document.cookie;
+        },
+
+        // Auditioning a sound from the library or the cue list. This replaces soundboard-fx.js,
+        // which routed the same <audio> elements through a Web Audio graph purely to offer a
+        // bitcrusher, a bass-boost and a spectrum canvas. Plain playback is the whole feature.
+        playAudio: function (elementId) {
+            stopAllAudio();
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            el.currentTime = 0;
+            const p = el.play();
+            // play() rejects when the browser has no user-gesture credit yet; that is not an error
+            // worth surfacing, the button simply does nothing until the next click.
+            if (p && p.catch) p.catch(() => { });
+        },
+
+        stopAllAudio: function () {
+            stopAllAudio();
         },
 
         // Web Share where available, clipboard otherwise. Returns which one ran so the caller

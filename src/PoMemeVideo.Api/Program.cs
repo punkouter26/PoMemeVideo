@@ -72,7 +72,7 @@ public partial class Program { }
 
 /// <summary>
 /// Loads app-prefixed secrets (PoMemeVideo--) and shared un-prefixed secrets.
-/// App-specific secrets strip the prefix (PoMemeVideo--AzureOpenAI--Key -> AzureOpenAI:Key),
+/// App-specific secrets strip the prefix (PoMemeVideo--AiFoundry--Key -> AiFoundry:Key),
 /// while shared secrets map directly (AzureAd--TenantId -> AzureAd:TenantId).
 /// </summary>
 internal sealed class PrefixKeyVaultSecretManager : KeyVaultSecretManager

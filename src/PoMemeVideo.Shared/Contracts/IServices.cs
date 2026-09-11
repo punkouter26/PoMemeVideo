@@ -77,9 +77,4 @@ public interface IEngineNotifier
     Task CompleteAsync(SessionId sessionId, string outputBlobPath, CancellationToken cancellationToken = default);
     Task ErrorAsync(SessionId sessionId, string errorMessage, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Asks the connected browser client to run local inference via Transformers.js
-    /// and POST the result back to /api/processing/sessions/{id}/browser-director-result.
-    /// </summary>
-    Task BrowserLLMInferenceRequestAsync(SessionId sessionId, string payloadJson, CancellationToken cancellationToken = default);
 }

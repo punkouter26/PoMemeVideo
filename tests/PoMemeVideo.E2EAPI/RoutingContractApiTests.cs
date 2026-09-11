@@ -139,15 +139,14 @@ public sealed class RoutingContractApiTests
     }
 
     [Fact]
-    public async Task BrowserDirectorCallback_IsMappedAndAnonymous()
+    public async Task RemovedBrowserDirectorCallback_NoLongerSucceeds()
     {
-        // The browser posts its locally-computed script here without waiting on the auth cookie.
-        // With no inference pending for this session the handler answers a JSON 404 — which is
-        // the handler running, not the route being absent.
+        // The browser-side LLM provider is gone, and with it the anonymous callback that
+        // resolved its pending inference. Pinned so the route does not quietly come back.
         var response = await _client.PostAsJsonAsync(
             $"/api/processing/sessions/{SessionId}/browser-director-result", new { entries = Array.Empty<object>() });
 
-        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.False(response.IsSuccessStatusCode, $"browser-director-result still answers {(int)response.StatusCode}");
     }
 
     // ── Public surface ────────────────────────────────────────────────────
@@ -169,45 +168,33 @@ public sealed class RoutingContractApiTests
     }
 
     [Fact]
-    public async Task AiModel_ReportsOnlyTheSupportedProviders()
+    public async Task AiModel_ReportsTheActiveDeployment()
     {
         var model = await _client.GetFromJsonAsync<AiModelPayload>("/api/config/ai-model");
 
         Assert.NotNull(model);
-        Assert.Contains(model!.Provider, RuntimeAiSettings.ValidProviders);
+        Assert.False(string.IsNullOrWhiteSpace(model!.AiFoundryDeployment));
+        Assert.Contains(model.AiFoundryDeployment, model.AiFoundryDeployments!);
     }
 
     [Fact]
-    public async Task AiModel_RejectsARemovedProvider()
+    public async Task AiModel_RejectsADeploymentThatIsNotConfigured()
     {
         var response = await _client.PutAsJsonAsync(
-            "/api/config/ai-model", new { provider = "Ollama" });
+            "/api/config/ai-model", new { aiFoundryDeployment = "not-a-real-deployment" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task AiModel_AcceptsBrowserLlmAndEchoesModel()
+    public async Task AiModel_AcceptsAConfiguredDeploymentAndEchoesIt()
     {
         var response = await _client.PutAsJsonAsync(
-            "/api/config/ai-model", new { provider = "BrowserLLM", browserLLMModel = "smollm2-360m-instruct-onnx" });
+            "/api/config/ai-model", new { aiFoundryDeployment = "gpt-4o-mini" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var payload = await response.Content.ReadFromJsonAsync<AiModelPayload>();
-        Assert.Equal("BrowserLLM", payload!.Provider);
-        Assert.Equal("smollm2-360m-instruct-onnx", payload.BrowserLLMModel);
-    }
-
-    [Fact]
-    public async Task AiModel_AcceptsAiFoundryAndEchoesTheDeployment()
-    {
-        var response = await _client.PutAsJsonAsync(
-            "/api/config/ai-model", new { provider = "AiFoundry", aiFoundryDeployment = "gpt-4o-mini" });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<AiModelPayload>();
-        Assert.Equal("AiFoundry", payload!.Provider);
-        Assert.Equal("gpt-4o-mini", payload.AiFoundryDeployment);
+        Assert.Equal("gpt-4o-mini", payload!.AiFoundryDeployment);
     }
 
     // Deny-by-default is deliberately NOT asserted here. In the Test environment these
@@ -216,5 +203,5 @@ public sealed class RoutingContractApiTests
     // is explicit that authorization changes are verified under Staging, not under a
     // Development/Test host where the auth stack is deliberately relaxed.
 
-    private sealed record AiModelPayload(string Provider, string? BrowserLLMModel, string? AiFoundryDeployment);
+    private sealed record AiModelPayload(string AiFoundryDeployment, string[]? AiFoundryDeployments);
 }

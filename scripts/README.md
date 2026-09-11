@@ -7,15 +7,15 @@ Utility scripts for the PoMemeVideo project. Run from the repository root unless
 - Python 3.10+
 - `pip install azure-storage-blob azure-data-tables mutagen` (for storage scripts)
 - Docker Desktop running (for Azurite)
-- FFmpeg on PATH (for video rendering — see setup-new-machine.py)
+- FFmpeg on PATH (for video rendering — installed by `setup.ps1`)
 
 ---
 
 ## setup.ps1 ⭐ one-command bootstrap
 
-**Purpose:** Windows-first bootstrap entrypoint that installs prerequisites via winget,
-starts Azurite using docker compose, validates local mock-key readiness, and then
-executes the Python bootstrap pipeline.
+**Purpose:** The single bootstrap entrypoint. Installs prerequisites via winget, clears ports
+7000/5001, starts Azurite using docker compose, validates local mock-key readiness, downloads and
+seeds the meme sound library, clones the agent tooling, and checks `az login` status.
 
 **Usage:**
 ```powershell
@@ -24,30 +24,6 @@ pwsh -File scripts/setup.ps1
 
 # Skip package installation and run only project bootstrap
 pwsh -File scripts/setup.ps1 -SkipWinget
-```
-
----
-
-## setup-new-machine.py ⭐ start here on a new machine
-
-**Purpose:** One-shot bootstrap for a freshly cloned repository. Checks Python, installs Python
-dependencies, checks FFmpeg, starts Azurite if needed, downloads ONNX browser-LLM models, downloads
-meme sounds, and seeds storage — all in one go.
-
-**Usage:**
-```bash
-# Full setup (local Azurite)
-python scripts/setup-new-machine.py
-
-# Skip individual steps
-python scripts/setup-new-machine.py --skip-models --skip-sounds
-
-# Target real Azure Storage instead of Azurite
-python scripts/setup-new-machine.py --connection-string "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
-
-# Private HuggingFace models
-python scripts/setup-new-machine.py --hf-token hf_xxxx
-# or: set HF_TOKEN=hf_xxxx before running
 ```
 
 ---
@@ -74,17 +50,6 @@ python scripts/download-meme-sounds.py
 
 ---
 
-## download-models.py
-
-**Purpose:** Downloads ONNX/embedding models listed in `model-manifest.json` into the local `MODEL/` directory used by the BrowserLLM feature.
-
-**Usage:**
-```bash
-python scripts/download-models.py
-```
-
----
-
 ## seed-meme-sounds.py
 
 **Purpose:** Seeds Blob Storage and the SoundAssets Table with meme sound metadata. Targets Azurite
@@ -101,12 +66,6 @@ python scripts/seed-meme-sounds.py --connection-string "DefaultEndpointsProtocol
 
 The BlobUrl stored in each table row is automatically computed from the connection string (Azurite
 format vs. `https://<account>.blob.core.windows.net/…` for real Azure). Re-runs are idempotent.
-
----
-
-## model-manifest.json
-
-Configuration file listing model names, download URLs, and target paths used by `download-models.py`.
 
 ---
 

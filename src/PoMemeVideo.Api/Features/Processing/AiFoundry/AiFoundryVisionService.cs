@@ -1,4 +1,6 @@
-// GoF: Adapter Pattern — wraps Azure OpenAI SDK to IAiVisionService domain interface
+// GoF: Adapter Pattern — wraps the Azure AI Foundry chat endpoint to the IAiVisionService
+// domain interface. Named AzureOpenAi* until the provider matrix collapsed; the SDK type is
+// still AzureOpenAIClient because Foundry speaks the OpenAI chat-completions API.
 using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +11,7 @@ using System.Text.Json.Serialization;
 
 namespace PoMemeVideo.Api.Features.Processing;
 
-public sealed class AzureOpenAiVisionService : IAiVisionService
+public sealed class AiFoundryVisionService : IAiVisionService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -21,18 +23,33 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
     };
 
     private readonly ChatClient _chatClient;
-    private readonly ILogger<AzureOpenAiVisionService> _logger;
+    private readonly ILogger<AiFoundryVisionService> _logger;
 
-    public AzureOpenAiVisionService(
+    public AiFoundryVisionService(
         IConfiguration config,
         IHostEnvironment environment,
-        ILogger<AzureOpenAiVisionService> logger)
+        ILogger<AiFoundryVisionService> logger)
     {
         _logger = logger;
-        var endpoint = config["AzureOpenAI:Endpoint"]
-            ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured.");
 
-        var key = config["AzureOpenAI:Key"];
+        // `AiFoundry:*` is the canonical section; `AzureOpenAI:*` is the legacy name kept as a
+        // fallback. Both have always addressed the same Azure AI Services resource over the same
+        // OpenAI chat-completions API — the director that justified a second section is gone, so
+        // there is nothing left for this one to mean on its own. The fallback is deliberate:
+        // the legacy values live only in Key Vault, so dropping them outright would break vision
+        // in any environment whose vault has not been updated yet. Once
+        // `PoMemeVideo--AiFoundry--Endpoint` (and `--Key`, if key auth is used) are present
+        // everywhere, delete the two `PoMemeVideo--AzureOpenAI--*` secrets and this fallback.
+        var endpoint = Coalesce(config["AiFoundry:Endpoint"], config["AzureOpenAI:Endpoint"])
+            ?? throw new InvalidOperationException(
+                "AiFoundry:Endpoint not configured (legacy AzureOpenAI:Endpoint is also unset).");
+
+        var key = Coalesce(config["AiFoundry:Key"], config["AzureOpenAI:Key"]);
+
+        _logger.LogInformation(
+            "Vision service endpoint resolved from {Section}. AuthMode={AuthMode}",
+            string.IsNullOrWhiteSpace(config["AiFoundry:Endpoint"]) ? "AzureOpenAI (legacy)" : "AiFoundry",
+            string.IsNullOrWhiteSpace(key) ? "DefaultAzureCredential" : "ApiKey");
 
         // Non-null in test environments: routes the SDK through AiInterceptionHandler so no
         // tokens are spent while the real client/serialisation path is still exercised.
@@ -42,11 +59,22 @@ public sealed class AzureOpenAiVisionService : IAiVisionService
             ? new AzureOpenAIClient(new Uri(endpoint), new Azure.Identity.DefaultAzureCredential(), options)
             : new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(key), options);
 
-        // Vision model. Configurable via AzureOpenAI:VisionDeployment so operators can
+        // Vision model. Configurable via AiFoundry:VisionDeployment so operators can
         // route around quota contention on the default 1-capacity gpt-5.4-nano.
-        var deployment = config["AzureOpenAI:VisionDeployment"] ?? "gpt-5.4-mini";
+        var deployment = Coalesce(config["AiFoundry:VisionDeployment"], config["AzureOpenAI:VisionDeployment"])
+            ?? "gpt-5.4-mini";
         _chatClient = client.GetChatClient(deployment);
     }
+
+    /// <summary>
+    /// First non-blank value. <see cref="string"/> null-coalescing is not enough here: an unset
+    /// key read through <see cref="IConfiguration"/> often arrives as an empty string rather than
+    /// null (appsettings.json ships every secret as <c>""</c>), which would win over the fallback.
+    /// </summary>
+    private static string? Coalesce(string? preferred, string? legacy) =>
+        !string.IsNullOrWhiteSpace(preferred) ? preferred
+        : !string.IsNullOrWhiteSpace(legacy) ? legacy
+        : null;
 
     private const int VisionBatchSize = 8;
     private const double FrameIntervalSeconds = 3.0;

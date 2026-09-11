@@ -31,7 +31,7 @@ python scripts/seed-meme-sounds.py                 # or: dotnet run --project sr
 python scripts/check-azurite.py
 
 # New machine bootstrap
-pwsh -File scripts/setup.ps1        # or: python scripts/setup-new-machine.py
+pwsh -File scripts/setup.ps1        # the one bootstrap entrypoint
 ```
 
 There is no separate lint step — `TreatWarningsAsErrors` in `Directory.Build.props` means **the build
@@ -91,7 +91,7 @@ Minimal-API route parameters bind the strong type directly via `IParsable<T>`.
 explicit authorization metadata is protected**. Forgetting `RequireAuthorization()` fails closed.
 
 The consequence: a new endpoint that must be public needs an explicit `AllowAnonymous()`. The opt-outs
-today cover `/health` + `/health/live`, `/diag` (via `MapRazorPages`), `/api/config`, the `/auth/*`
+today cover `/health` + `/health/live`, `/diag`, `/api/config`, the `/auth/*`
 family, the sound-stream and browser-director-result callbacks, and the WASM shell
 (`MapStaticAssets`, `MapFallbackToFile`) — get the current list with
 `grep -rn AllowAnonymous src/PoMemeVideo.Api`. Omitting it on a monitoring or static-asset endpoint
@@ -103,26 +103,26 @@ registered outside Production and throwing if constructed in Production; a Devel
 middleware that assigns an ANON identity to most requests — which is why **everything looks
 authenticated in Development**. Verify authorization changes under `Staging`, not `Development`.
 
-### AI director provider switching
+### One AI director
 
-`IDirectorService` is fronted by `SwitchingDirectorService`, which dispatches at call time on
-`RuntimeAiSettings.Provider` (`AzureOpenAI` | `AiFoundry` | `BrowserLLM`), mutable at runtime via
-`/api/config/ai-model` without a restart. `AiFoundry` is the fallback for any unrecognised value,
-because the provider is runtime-mutable and an unknown one must still render a video.
+`IDirectorService` resolves to `AiFoundryDirectorService` — a single cloud director, registered
+directly in `ServiceRegistrationExtensions`.
 
-`BrowserLLM` is unusual: the server *asks the browser* to run inference over SignalR and awaits a
-`TaskCompletionSource` that the anonymous `/browser-director-result` endpoint resolves. It needs
-ONNX weights under `MODEL/` (`python scripts/download-models.py`); with none present the Source
-page preselects the cloud path rather than letting the engine stall on an inference that can
-never complete. It is the Development default and never the Production one.
+It used to be fronted by a `SwitchingDirectorService` that dispatched at call time on a
+runtime-mutable `RuntimeAiSettings.Provider` across `AzureOpenAI` | `AiFoundry` | `BrowserLLM`.
+`AiFoundry` was the default in every environment *and* the fallback for any unrecognised value, so
+the other two branches served a path nothing selected while carrying a model-download UI, a
+SignalR round-trip to run inference in the browser, and an ARM deployment lister. All of it is
+gone; `RuntimeAiSettings` now holds only `AiFoundryDeployment`.
 
-The `Ollama` provider was removed — it required a daemon on `localhost:11434` that production
-does not have. `RuntimeAiSettings.ValidProviders` rejects it, so a settings file persisted by an
-older build cannot re-enable it.
+What remains runtime-mutable is *which deployment* that director targets: `PUT /api/config/ai-model`
+sets it without a restart, validated against `AiFoundry:KnownDeployments` in configuration. Do not
+reintroduce free-text deployment names — the value reaches the Foundry endpoint as a deployment id.
 
 In Test environments (or with `UseMockAI`), `AiInterception` routes the Azure OpenAI SDK through a
 `DelegatingHandler` that answers locally — the real client, serialisation and retry path still run,
-but no tokens are spent. Hard-disabled in Production.
+but no tokens are spent. Hard-disabled in Production. The integration suite additionally substitutes
+`MockDirectorService` / `MockAiVisionService` over the DI registrations.
 
 ### Client styling
 
@@ -174,7 +174,8 @@ The one permitted `style` attribute is a **CSS custom property carrying a per-re
 
 - Only use the `master` branch for all work and only use other branches if specifically asked to.
 - Always restart app and verify it restarts successfully after making code change.
-- Check for a `docs` folder in the root to get an overall summary of the project.
+- `AGENT.MD` is the project summary — read it first. `docs/` holds only the architecture
+  diagrams (`*.mmd`); there is no prose summary there.
 - Do not use dotnet secrets to store data locally / Put it in appSettings or Azure Key Vault (if one exists).
 - Never push code to remote without me specifically asking unless I typed `git sync`.
 - When `git sync` happens, create a git commit that is short and uses american slang so it seems a human wrote it and also push code.

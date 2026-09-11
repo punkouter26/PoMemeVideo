@@ -584,26 +584,6 @@ public partial class FFmpegRenderService : IVideoRenderService, IAsyncDisposable
         return string.Empty;
     }
 
-    public async Task<string> RenderGifAsync(string mp4Path, SessionId sessionId, CancellationToken cancellationToken)
-    {
-        var tempGif = Path.Combine(Path.GetTempPath(), $"{PoMemeVideoNaming.ApplicationSlug}-{sessionId}-export.gif");
-        var args = $"-i \"{mp4Path}\" -vf \"fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" -y \"{tempGif}\"";
-        var exitCode = await RunFFmpegAsync(args, sessionId, cancellationToken);
-        if (exitCode != 0 || !File.Exists(tempGif))
-            throw new InvalidOperationException($"FFmpeg GIF export failed with exit code {exitCode}.");
-        return tempGif;
-    }
-
-    public async Task<string> RenderPunchlineClipAsync(string mp4Path, SessionId sessionId, double startSeconds, double durationSeconds, CancellationToken cancellationToken)
-    {
-        var tempClip = Path.Combine(Path.GetTempPath(), $"{PoMemeVideoNaming.ApplicationSlug}-{sessionId}-punchline.mp4");
-        var args = $"-ss {startSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)} -i \"{mp4Path}\" -t {durationSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)} -c:v libx264 -preset veryfast -c:a aac -y \"{tempClip}\"";
-        var exitCode = await RunFFmpegAsync(args, sessionId, cancellationToken);
-        if (exitCode != 0 || !File.Exists(tempClip))
-            throw new InvalidOperationException($"FFmpeg punchline clip export failed with exit code {exitCode}.");
-        return tempClip;
-    }
-
     private async Task<int> RunFFmpegAsync(string args, SessionId sessionId, CancellationToken cancellationToken)
     {
         var psi = BuildPsi("ffmpeg", args);

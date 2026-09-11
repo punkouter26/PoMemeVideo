@@ -9,8 +9,6 @@
      @ondragover="OnDragOver"
      @ondragleave="OnDragLeave">
 
-    <canvas id="dropzone-physics-canvas" class="dropzone-physics-canvas" aria-hidden="true"></canvas>
-
     @* Invisible overlay covering the entire dropzone so native file drops and clicks trigger Blazor's InputFile *@
     <InputFile id="ascii-file-input"
                OnChange="OnFileInputChange"
@@ -87,24 +85,6 @@
         }
         catch { }
 
-        try
-        {
-            await JS.InvokeVoidAsync("dropzonePhysics.triggerDropImpact");
-        }
-        catch { }
-
         await OnFileAccepted.InvokeAsync(file);
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("dropzonePhysics.init", "dropzone-physics-canvas", "ascii-drop-zone-container");
-            }
-            catch { }
-        }
     }
 }

@@ -2,7 +2,6 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Nav
-@inject Vibe3DService Vibe3D
 @inject CyberAudioService Audio
 @using PoMemeVideo.Shared.Models
 @using PoMemeVideo.Shared.Enums
@@ -37,12 +36,6 @@
         <div class="reveal-actions-bar">
             <button class="ascii-btn download-btn compact-btn" @onclick="DownloadVideo" title="Download Rendered MP4 Video">
                 [ ⬇ Download MP4 ]
-            </button>
-            <button class="ascii-btn compact-btn" @onclick="ExportGifAsync" disabled="@_exportingGif" title="Export as Animated GIF">
-                @(_exportingGif ? "[ ⏳ Exporting GIF… ]" : "[ 🎞 Export GIF ]")
-            </button>
-            <button class="ascii-btn compact-btn" @onclick="ExportPunchlineAsync" disabled="@_exportingPunchline" title="Export Punchline 5-Second Short">
-                @(_exportingPunchline ? "[ ⏳ Exporting Clip… ]" : "[ 🎯 5s Punchline ]")
             </button>
             <button class="ascii-btn compact-btn" @onclick="ShareVideo" title="Share Video Link">
                 [ 📤 Share ]
@@ -91,24 +84,18 @@
             </button>
         </div>
 
-        <!-- Studio Splitter Workspace -->
-        <RadzenSplitter Orientation="Orientation.Horizontal" class="@($"reveal-splitter mobile-mode-{_mobilePane} {(_theaterMode ? "theater-mode-active" : "")}")">
+        <!-- Studio Workspace -->
+        <div class="reveal-workspace mobile-mode-@_mobilePane">
             <!-- Left Pane: Video Player Stage -->
-            <RadzenSplitterPane Size="54%" Min="35%" Max="70%" class="reveal-stage-pane">
-                <div class="video-panel-inner ascii-border-double vibe-3d-stage vibe-glass-card @(_theaterMode ? "theater-mode-stage" : "")">
+            <div class="reveal-stage-pane">
+                <div class="video-panel-inner ascii-border-double vibe-3d-stage vibe-glass-card">
                     <div class="video-header-row">
                         <div class="panel-header-title">
-                            [ @(_showLaserWipe ? "INTERACTIVE LASER WIPE" : (_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : (_theaterMode ? "THEATER MODE" : "OUTPUT VIDEO"))) ]
+                            [ @(_showSplitPlayer ? "BEFORE & AFTER COMPARISON" : "OUTPUT VIDEO") ]
                         </div>
                         <div class="video-header-actions">
-                            <button class="ascii-btn compact-btn @(_showLaserWipe ? "active" : "")" @onclick="ToggleLaserWipe" title="Interactive Draggable Laser Seam">
-                                @(_showLaserWipe ? "[ ⚡ Exit Laser Wipe ]" : "[ ⚡ Laser Wipe ]")
-                            </button>
                             <button class="ascii-btn compact-btn @(_showSplitPlayer ? "active" : "")" @onclick="ToggleSplitPlayer" title="Side-by-side Before/After comparison">
-                                @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Dual Split ]")
-                            </button>
-                            <button class="ascii-btn compact-btn @(_theaterMode ? "active" : "")" @onclick="ToggleTheaterMode" title="Toggle Fullscreen Theater Presentation">
-                                @(_theaterMode ? "[ ✕ Exit Theater ]" : "[ ⛶ Theater Mode ]")
+                                @(_showSplitPlayer ? "[ 📺 Single Player ]" : "[ 🎭 Compare ]")
                             </button>
                         </div>
                     </div>
@@ -116,28 +103,7 @@
                     @if (!string.IsNullOrWhiteSpace(_session.OutputBlobPath))
                     {
                         <div class="player-stage-body">
-                            @if (_showLaserWipe)
-                            {
-                                <div class="split-master-toolbar ascii-border-double">
-                                    <span class="split-master-label">LASER WIPE DRAG &amp; SYNC:</span>
-                                    <button class="ascii-btn compact-btn" @onclick='() => MasterPlaySync("laser-source-video", "laser-meme-video")'>[ ▶ PLAY ]</button>
-                                    <button class="ascii-btn compact-btn" @onclick='() => MasterPauseSync("laser-source-video", "laser-meme-video")'>[ ⏸ PAUSE ]</button>
-                                    <button class="ascii-btn compact-btn" @onclick='() => MasterRestartSync("laser-source-video", "laser-meme-video")'>[ ⏮ RESTART ]</button>
-                                </div>
-
-                                <div class="laser-wipe-stage ascii-border-double">
-                                    <canvas id="laser-wipe-canvas" class="laser-wipe-canvas"></canvas>
-                                </div>
-
-                                @* Hidden videos providing frames for the laser-wipe canvas *@
-                                <video id="laser-source-video" class="is-hidden" preload="auto" playsinline muted>
-                                    <source src="/api/output/sessions/@SessionId/stream/source" type="video/mp4" />
-                                </video>
-                                <video id="laser-meme-video" class="is-hidden" preload="auto" playsinline>
-                                    <source src="/api/output/sessions/@SessionId/stream/video" type="video/mp4" />
-                                </video>
-                            }
-                            else if (_showSplitPlayer)
+                            @if (_showSplitPlayer)
                             {
                                 <div class="split-master-toolbar ascii-border-double">
                                     <span class="split-master-label">MASTER SYNC:</span>
@@ -197,10 +163,10 @@
                         <pre class="output-not-ready">[ OUTPUT NOT READY ]</pre>
                     }
                 </div>
-            </RadzenSplitterPane>
+            </div>
 
             <!-- Right Pane: Director Script & Cue Studio -->
-            <RadzenSplitterPane Size="46%" Min="30%" Max="65%" class="reveal-studio-pane">
+            <div class="reveal-studio-pane">
                 <div class="script-panel-reveal ascii-border-double vibe-3d-stage vibe-glass-card">
                     <div class="script-header-row">
                         <div class="script-title-block">
@@ -363,8 +329,8 @@
                         <pre class="script-status">@_scriptStatusMessage</pre>
                     }
                 </div>
-            </RadzenSplitterPane>
-        </RadzenSplitter>
+            </div>
+        </div>
     }
 
     <!-- Raw JSON Inspector Modal Overlay (Preserves zero-scroll layout) -->
@@ -403,11 +369,7 @@
     private bool _showCompleteFlash;
     private bool _videoLoadFailed;
     private bool _showSplitPlayer;
-    private bool _theaterMode;
-    private bool _exportingGif;
-    private bool _exportingPunchline;
     private bool _rerendering;
-    private bool _showLaserWipe;
     private IJSObjectReference? _revealJs;
     private readonly Dictionary<int, long> _editedTimings = [];
     private string? _statusBanner;
@@ -425,17 +387,11 @@
         await LoadSessionAsync();
     }
 
-    private void ToggleTheaterMode()
-    {
-        _theaterMode = !_theaterMode;
-    }
-
     private async Task ToggleSplitPlayer()
     {
         _showSplitPlayer = !_showSplitPlayer;
         if (_showSplitPlayer)
         {
-            _showLaserWipe = false;
             if (_revealJs is not null)
             {
                 await Task.Delay(100);
@@ -445,25 +401,6 @@
                 }
                 catch { }
             }
-        }
-    }
-
-    private async Task ToggleLaserWipe()
-    {
-        _showLaserWipe = !_showLaserWipe;
-        if (_showLaserWipe)
-        {
-            _showSplitPlayer = false;
-            await Task.Delay(100);
-            try
-            {
-                await JS.InvokeVoidAsync("laserWipePlayer.init", "laser-wipe-canvas", "laser-source-video", "laser-meme-video");
-                if (_revealJs is not null)
-                {
-                    await _revealJs.InvokeVoidAsync("setupDualVideoSync", "laser-source-video", "laser-meme-video");
-                }
-            }
-            catch { }
         }
     }
 
@@ -500,7 +437,7 @@
             _activeAuditionKey = null;
             try
             {
-                await JS.InvokeVoidAsync("soundboardFx.stopAll");
+                await JS.InvokeVoidAsync("poBrowser.stopAllAudio");
             }
             catch { }
         }
@@ -510,7 +447,7 @@
             var audioId = $"reveal-audio-{soundId}-{idx}";
             try
             {
-                await JS.InvokeVoidAsync("soundboardFx.playAudio", audioId);
+                await JS.InvokeVoidAsync("poBrowser.playAudio", audioId);
             }
             catch { }
         }
@@ -643,52 +580,6 @@
         }
     }
 
-    private async Task ExportGifAsync()
-    {
-        _exportingGif = true;
-        StateHasChanged();
-
-        try
-        {
-            var downloadUrl = $"/api/output/sessions/{SessionId}/export/gif";
-            var fileName = $"pomeme_{SessionId:N}.gif";
-            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
-            SetStatus($"[ GIF EXPORTED: {fileName} ]");
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"[ GIF EXPORT FAILED: {ex.Message} ]");
-        }
-        finally
-        {
-            _exportingGif = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ExportPunchlineAsync()
-    {
-        _exportingPunchline = true;
-        StateHasChanged();
-
-        try
-        {
-            var downloadUrl = $"/api/output/sessions/{SessionId}/export/punchline";
-            var fileName = $"punchline_{SessionId:N}.mp4";
-            await JS.InvokeVoidAsync("poBrowser.downloadUrl", downloadUrl, fileName);
-            SetStatus($"[ PUNCHLINE CLIP EXPORTED: {fileName} ]");
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"[ PUNCHLINE CLIP FAILED: {ex.Message} ]");
-        }
-        finally
-        {
-            _exportingPunchline = false;
-            StateHasChanged();
-        }
-    }
-
     private long GetTiming(int idx, long defaultVal) =>
         _editedTimings.TryGetValue(idx, out var val) ? val : defaultVal;
 
@@ -704,7 +595,6 @@
         try
         {
             _revealJs = await JS.InvokeAsync<IJSObjectReference>("import", "/js/reveal.js");
-            await _revealJs.InvokeVoidAsync("playTransition");
 
             var sessionResponse = await Http.GetAsync($"/api/ingestion/sessions/{SessionId}");
             if (!sessionResponse.IsSuccessStatusCode)
@@ -765,8 +655,6 @@
             if (_session?.Status == SessionStatus.Complete)
             {
                 _showCompleteFlash = true;
-                _ = Vibe3D.SetAuroraStateAsync("complete");
-                _ = Vibe3D.TriggerCelebrationBurstAsync();
                 SetStatus("[ RENDER COMPLETE: Your meme video is ready for playback & download! ]");
                 _ = Task.Delay(3500).ContinueWith(_ => InvokeAsync(() =>
                 {

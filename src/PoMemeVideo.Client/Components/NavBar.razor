@@ -36,9 +36,6 @@
         <button class="ascii-btn compact-btn nav-audio-btn @(_sfxMuted ? "is-muted" : "")" @onclick="ToggleSfx" title="Toggle Programmatic UI Audio SFX">
             @(_sfxMuted ? "[ 🔇 SFX ]" : "[ 🔊 SFX ]")
         </button>
-        <button class="ascii-btn compact-btn nav-audio-btn @(_ambienceEnabled ? "active" : "")" @onclick="ToggleAmbience" title="Toggle Generative Cyberpunk Ambience">
-            @(_ambienceEnabled ? "[ ♫ DRONE ]" : "[ ♩ OFF ]")
-        </button>
     </div>
 
     <div class="status-cluster" aria-label="Runtime status">
@@ -84,20 +81,10 @@
     private bool _isDevelopment;
     private bool _mobileMenuOpen;
     private bool _sfxMuted;
-    private bool _ambienceEnabled;
 
     private async Task ToggleSfx()
     {
         _sfxMuted = await CyberAudio.ToggleMuteAsync();
-    }
-
-    private async Task ToggleAmbience()
-    {
-        try
-        {
-            _ambienceEnabled = await JS.InvokeAsync<bool>("cyberAmbience.toggle");
-        }
-        catch { }
     }
 
     private void ToggleMobileMenu()
@@ -118,11 +105,6 @@
         NavRefresh.Subscribe(OnAiChangedAsync);
 
         _sfxMuted = await CyberAudio.GetMutedAsync();
-        try
-        {
-            _ambienceEnabled = await JS.InvokeAsync<bool>("cyberAmbience.isEnabled");
-        }
-        catch { }
 
         // React to login/logout via the authentication state provider instead of polling.
         AuthProvider.AuthenticationStateChanged += OnAuthStateChanged;
@@ -167,22 +149,7 @@
                 return;
             }
 
-            if (ai.Provider == "AzureOpenAI")
-            {
-                _aiDisplay = "[ AI: OPENAI ]";
-                return;
-            }
-
-            if (ai.Provider == "AiFoundry")
-            {
-                _aiDisplay = $"[ AI: {(ai.AiFoundryDeployment ?? "FOUNDRY").ToUpperInvariant()} ]";
-                return;
-            }
-
-            var selected = ai.LocalModels?.FirstOrDefault(m => m.Id == ai.BrowserLLMModel)?.Label
-                           ?? ai.BrowserLLMModel
-                           ?? "LOCAL";
-            _aiDisplay = $"[ AI: {selected.ToUpperInvariant()} ]";
+            _aiDisplay = $"[ AI: {(ai.AiFoundryDeployment ?? "FOUNDRY").ToUpperInvariant()} ]";
         }
         catch
         {
@@ -252,10 +219,5 @@
 
     private sealed record AuthMeResponse(string? DisplayName, string? Email);
     private sealed record ConfigResponse(bool UseMockAI, bool IsDevelopment);
-    private sealed record AiModelResponse(
-        string Provider,
-        string? BrowserLLMModel,
-        LocalModelInfo[]? LocalModels,
-        string? AiFoundryDeployment);
-    private sealed record LocalModelInfo(string Id, string Label);
+    private sealed record AiModelResponse(string? AiFoundryDeployment);
 }

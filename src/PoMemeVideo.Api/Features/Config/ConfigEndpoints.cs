@@ -10,14 +10,12 @@ public static class ConfigEndpoints
     {
         app.MapGet("/api/config", (
             IHostEnvironment environment,
-            RuntimeAiSettings settings,
             IConfiguration configuration) =>
         {
             return Results.Ok(new
             {
                 isDevelopment = environment.IsDevelopment(),
-                provider = settings.Provider,
-                useMockAI = configuration.GetValue<bool>("UseMockAI")
+                useMockAI = configuration.GetValue<bool>("UseMockAI"),
             });
         })
         .WithName("GetConfig")
@@ -25,66 +23,26 @@ public static class ConfigEndpoints
         .Produces<object>(200)
         .AllowAnonymous();
 
-        // ── AI model selection ───────────────────────────────────────────────
-        app.MapGet("/api/config/ai-model", async (
+        // ── AI deployment selection ──────────────────────────────────────────
+        //
+        // The deployment list comes from AiFoundry:KnownDeployments in configuration. It was
+        // previously enumerated live from ARM by FoundryDeploymentLister, which needed an AAD
+        // session the app does not have in production, fell back to this same curated list on
+        // every failure, and existed to populate a dropdown that also offered browser-side
+        // ONNX models. Reading the configured list directly is what actually happened in
+        // practice, minus 300 lines and an ARM round-trip on every page load.
+        app.MapGet("/api/config/ai-model", (
             [FromServices] RuntimeAiSettings settings,
-            [FromServices] FoundryDeploymentLister foundry,
             IConfiguration configuration,
             IWebHostEnvironment env) =>
         {
-            var localModelIds = GetAvailableLocalModelIds(env);
-            var selectedBrowserLLMModel = RuntimeAiSettings.LocalModelDisplayNames.ContainsKey(settings.BrowserLLMModel)
-                ? settings.BrowserLLMModel
-                : RuntimeAiSettings.LocalModelDisplayNames.Keys.FirstOrDefault();
-
-            // Enumerate AI Foundry / Azure OpenAI deployments from ARM.
-            // On any failure (no AAD session, network, missing subscription) we fall back
-            // to a curated list so the dropdown still has selectable values.
-            var foundryDeployments = await foundry.ListAsync(default);
-            var foundryDeploymentNames = foundryDeployments
-                .Select(d => d.Name)
-                .ToArray();
-
-            // Curated fallback list — common GPT-5 / o-series names. Used when ARM call
-            // returned empty (e.g. no AAD credential available). Operators can extend via
-            // AiFoundry:KnownDeployments (comma-separated) in appsettings.
-            var curated = configuration
-                .GetSection("AiFoundry:KnownDeployments")
-                .Get<string[]>()
-                ?? Array.Empty<string>();
-
-            if (foundryDeploymentNames.Length == 0 && curated.Length > 0)
-                foundryDeploymentNames = curated;
-
-            // If the cached/active deployment isn't in the live list (e.g. it was just
-            // deleted), keep it visible so the user can still see what's selected.
-            var selectedFoundry = settings.AiFoundryDeployment;
-            var allFoundryNames = foundryDeploymentNames.Contains(selectedFoundry, StringComparer.OrdinalIgnoreCase)
-                ? foundryDeploymentNames
-                : new[] { selectedFoundry }.Concat(foundryDeploymentNames).Distinct().ToArray();
+            var selected = settings.AiFoundryDeployment;
+            var deployments = GetKnownDeployments(configuration, selected);
 
             return Results.Ok(new
             {
-                provider = settings.Provider,
-                browserLLMModel = selectedBrowserLLMModel,
-                localModels = RuntimeAiSettings.LocalModelDisplayNames.Select(model => new
-                {
-                    id = model.Key,
-                    label = model.Value,
-                    available = true,
-                    serverCached = localModelIds.Contains(model.Key, StringComparer.OrdinalIgnoreCase),
-                }),
-                aiFoundryDeployment = selectedFoundry,
-                aiFoundryDeployments = allFoundryNames,
-                aiFoundryDeploymentDetails = foundryDeployments.Select(d => new
-                {
-                    name = d.Name,
-                    model = d.ModelName,
-                    version = d.ModelVersion,
-                    provisioningState = d.ProvisioningState,
-                    capacity = d.Capacity,
-                    skuName = d.SkuName,
-                }),
+                aiFoundryDeployment = selected,
+                aiFoundryDeployments = deployments,
                 isDevelopment = env.IsDevelopment(),
             });
         })
@@ -96,44 +54,21 @@ public static class ConfigEndpoints
         app.MapPut("/api/config/ai-model", (
             AiModelRequest req,
             [FromServices] RuntimeAiSettings settings,
-            IWebHostEnvironment env) =>
+            IConfiguration configuration) =>
         {
-            if (!RuntimeAiSettings.ValidProviders.Contains(req.Provider))
-                return Results.BadRequest($"provider must be one of: {string.Join(", ", RuntimeAiSettings.ValidProviders)}.");
+            if (string.IsNullOrWhiteSpace(req.AiFoundryDeployment))
+                return Results.BadRequest("aiFoundryDeployment is required.");
 
-            var localModelIds = GetAvailableLocalModelIds(env);
+            // Only names the operator has configured are accepted. Without this the field is a
+            // free-text value that reaches the Foundry endpoint as a deployment id.
+            var known = GetKnownDeployments(configuration, settings.AiFoundryDeployment);
+            if (!known.Contains(req.AiFoundryDeployment, StringComparer.OrdinalIgnoreCase))
+                return Results.BadRequest($"Unknown deployment '{req.AiFoundryDeployment}'.");
 
-            switch (req.Provider)
-            {
-                case "BrowserLLM":
-                    if (string.IsNullOrWhiteSpace(req.BrowserLLMModel))
-                        return Results.BadRequest("browserLLMModel is required when provider is 'BrowserLLM'.");
-                    if (!RuntimeAiSettings.LocalModelDisplayNames.ContainsKey(req.BrowserLLMModel))
-                        return Results.BadRequest($"Unknown browserLLMModel '{req.BrowserLLMModel}'.");
-                    settings.BrowserLLMModel = req.BrowserLLMModel;
-                    break;
-
-                case "AiFoundry":
-                    if (!string.IsNullOrWhiteSpace(req.AiFoundryDeployment))
-                        settings.AiFoundryDeployment = req.AiFoundryDeployment;
-                    break;
-
-                default: // AzureOpenAI — allow pre-selecting a BrowserLLM model while switching
-                    if (!string.IsNullOrWhiteSpace(req.BrowserLLMModel)
-                        && RuntimeAiSettings.LocalModelDisplayNames.ContainsKey(req.BrowserLLMModel))
-                        settings.BrowserLLMModel = req.BrowserLLMModel;
-                    break;
-            }
-
-            settings.Provider = req.Provider;
+            settings.AiFoundryDeployment = req.AiFoundryDeployment;
             PersistSettings(settings);
 
-            return Results.Ok(new
-            {
-                provider = settings.Provider,
-                browserLLMModel = settings.BrowserLLMModel,
-                aiFoundryDeployment = settings.AiFoundryDeployment,
-            });
+            return Results.Ok(new { aiFoundryDeployment = settings.AiFoundryDeployment });
         })
         .WithName("SetAiModel")
         .WithTags("Config")
@@ -144,36 +79,22 @@ public static class ConfigEndpoints
         return app;
     }
 
-    private sealed record AiModelRequest(
-        string Provider,
-        string? BrowserLLMModel,
-        string? AiFoundryDeployment);
+    private sealed record AiModelRequest(string? AiFoundryDeployment);
 
-    private static string[] GetAvailableLocalModelIds(IWebHostEnvironment env)
+    /// <summary>
+    /// Configured deployment names, with the active one always present so a selection made
+    /// before a configuration change stays visible in the dropdown.
+    /// </summary>
+    private static string[] GetKnownDeployments(IConfiguration configuration, string selected)
     {
-        var modelsRoot = ResolveModelsRoot(env.ContentRootPath);
-        if (modelsRoot is null)
-            return [];
+        var curated = configuration
+            .GetSection("AiFoundry:KnownDeployments")
+            .Get<string[]>()
+            ?? [];
 
-        return Directory
-            .GetDirectories(modelsRoot)
-            .Select(Path.GetFileName)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Cast<string>()
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
-    private static string? ResolveModelsRoot(string contentRoot)
-    {
-        var candidates = new[]
-        {
-            Path.Combine(contentRoot, "MODEL"),
-            Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "MODEL")),
-            Path.Combine(Directory.GetCurrentDirectory(), "MODEL"),
-        };
-
-        return candidates.FirstOrDefault(Directory.Exists);
+        return curated.Contains(selected, StringComparer.OrdinalIgnoreCase)
+            ? curated
+            : [selected, .. curated];
     }
 
     /// <summary>
@@ -202,12 +123,7 @@ public static class ConfigEndpoints
 
         try
         {
-            var data = new
-            {
-                provider = settings.Provider,
-                browserLLMModel = settings.BrowserLLMModel,
-                aiFoundryDeployment = settings.AiFoundryDeployment,
-            };
+            var data = new { aiFoundryDeployment = settings.AiFoundryDeployment };
             File.WriteAllText(path, JsonSerializer.Serialize(data));
         }
         catch
@@ -225,16 +141,8 @@ public static class ConfigEndpoints
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("provider", out var p) && p.GetString() is { } provider
-                && RuntimeAiSettings.ValidProviders.Contains(provider))
-                settings.Provider = provider;
-
-            if (root.TryGetProperty("browserLLMModel", out var b) && b.GetString() is { } browserModel)
-                settings.BrowserLLMModel = browserModel;
-
-            if (root.TryGetProperty("aiFoundryDeployment", out var f) && f.GetString() is { } foundry)
+            if (doc.RootElement.TryGetProperty("aiFoundryDeployment", out var f)
+                && f.GetString() is { } foundry)
                 settings.AiFoundryDeployment = foundry;
         }
         catch

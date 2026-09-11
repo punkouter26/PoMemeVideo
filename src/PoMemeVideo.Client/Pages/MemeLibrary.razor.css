@@ -152,17 +152,48 @@
 .grid-container-viewport {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: auto;
     display: flex;
     flex-direction: column;
 }
 
-.sounds-radzen-grid {
-    height: 100% !important;
-    max-height: 100% !important;
-    width: 100% !important;
-    border: none !important;
+/* Was a RadzenDataGrid. Four columns over a server-paged list needs a table, not a
+   grid component — the sorting and virtualisation it brought were never reachable. */
+.sounds-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
 }
+
+.sounds-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--term-cyan, #00f0ff);
+    background: var(--term-bg, #04140f);
+    border-bottom: 1px solid rgba(0, 240, 255, 0.35);
+    padding: 0.45rem 0.6rem;
+}
+
+.sounds-table tbody td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid rgba(0, 255, 65, 0.12);
+    vertical-align: middle;
+}
+
+.sounds-table tbody tr:hover td {
+    background: rgba(0, 255, 65, 0.05);
+}
+
+.sounds-table .col-name { width: 32%; }
+.sounds-table .col-dur { width: 14%; }
+.sounds-table .col-tags { width: 38%; }
+.sounds-table .col-audition { width: 16%; text-align: center; }
 
 .grid-sound-name {
     font-family: var(--font-ui);

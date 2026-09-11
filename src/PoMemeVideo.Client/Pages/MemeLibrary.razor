@@ -1,5 +1,4 @@
 @page "/memelibrary"
-@page "/library"
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -26,9 +25,6 @@
                    @bind="TagFilter"
                    @bind:event="oninput" />
             <button class="ascii-btn compact-btn" @onclick="ClearFilters" disabled="@_loading">[ Clear ]</button>
-            <button class="ascii-btn compact-btn @(_showDspRack ? "is-active" : "")" @onclick="() => _showDspRack = !_showDspRack">
-                @(_showDspRack ? "[ 🎛️ Hide DSP ]" : "[ 🎛️ Audio DSP ]")
-            </button>
             <button class="ascii-btn compact-btn is-cyan" @onclick="ToggleUploadModal">
                 @(_showUploadModal ? "[ ✕ Close ]" : "[ ⬆ Upload ]")
             </button>
@@ -39,26 +35,6 @@
     {
         <div class="ascii-panel reveal-in library-notice">
             <pre class="status library-notice-text">@_statusNotification</pre>
-        </div>
-    }
-
-    @if (_showDspRack)
-    {
-        <div class="soundboard-rack-panel ascii-border-double reveal-in vibe-glass-card">
-            <div class="soundboard-header">
-                <span class="soundboard-title">[ 🎛️ MEME DSP SOUNDBOARD RACK &amp; SPECTRUM ANALYZER ]</span>
-                <div class="soundboard-controls">
-                    <button class="ascii-btn compact-btn @(_bitcrusherOn ? "active" : "")" @onclick="ToggleBitcrusher">
-                        @(_bitcrusherOn ? "[ 👾 8-BIT CRUNCH: ON ]" : "[ 16-BIT AUDIO ]")
-                    </button>
-                    <button class="ascii-btn compact-btn @(_bassBoostOn ? "active" : "")" @onclick="ToggleBassBoost">
-                        @(_bassBoostOn ? "[ 💥 BASS BOOST: ON ]" : "[ NORMAL BASS ]")
-                    </button>
-                    <span class="soundboard-speed-label">SPEED: @(_playbackRate.ToString("F1"))x</span>
-                    <input type="range" min="0.5" max="2.0" step="0.1" @bind="_playbackRate" @bind:after="OnRateChanged" class="soundboard-slider" />
-                </div>
-            </div>
-            <canvas id="soundboard-spectrum-canvas" class="soundboard-spectrum-canvas"></canvas>
         </div>
     }
 
@@ -119,46 +95,40 @@
     else
     {
         <div class="grid-container-viewport ascii-border-double vibe-glass-card">
-            <RadzenDataGrid Data="@_sounds"
-                            TItem="SoundAssetDto"
-                            AllowSorting="true"
-                            Class="rz-data-grid sounds-radzen-grid"
-                            EmptyText="No sounds found">
-                <Columns>
-                    <RadzenDataGridColumn TItem="SoundAssetDto" Property="DisplayName" Title="Sound Name" Width="32%">
-                        <Template Context="sound">
-                            <span class="grid-sound-name">@sound.DisplayName</span>
-                        </Template>
-                    </RadzenDataGridColumn>
-
-                    <RadzenDataGridColumn TItem="SoundAssetDto" Property="DurationMs" Title="Duration" Width="14%">
-                        <Template Context="sound">
-                            <span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span>
-                        </Template>
-                    </RadzenDataGridColumn>
-
-                    <RadzenDataGridColumn TItem="SoundAssetDto" Title="Tags" Width="38%">
-                        <Template Context="sound">
-                            <div class="sound-tag-row">
-                                @foreach (var tag in sound.ActionVectorTags)
-                                {
-                                    <span class="ascii-tag cursor-pointer" @onclick="() => { TagFilter = tag; }">#@tag</span>
-                                }
-                            </div>
-                        </Template>
-                    </RadzenDataGridColumn>
-
-                    <RadzenDataGridColumn TItem="SoundAssetDto" Title="Audition" Width="16%" TextAlign="TextAlign.Center">
-                        <Template Context="sound">
-                            <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
-                            <button class="ascii-btn compact-btn audition-btn @(_playingSoundId == sound.SoundId ? "active" : "")"
-                                    @onclick="() => TogglePlaySound(sound.SoundId)">
-                                @(_playingSoundId == sound.SoundId ? "[ ■ ]" : "[ ▶ ]")
-                            </button>
-                        </Template>
-                    </RadzenDataGridColumn>
-                </Columns>
-            </RadzenDataGrid>
+            <table class="sounds-table">
+                <thead>
+                    <tr>
+                        <th class="col-name">Sound Name</th>
+                        <th class="col-dur">Duration</th>
+                        <th class="col-tags">Tags</th>
+                        <th class="col-audition">Audition</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sound in _sounds)
+                    {
+                        <tr>
+                            <td class="col-name"><span class="grid-sound-name">@sound.DisplayName</span></td>
+                            <td class="col-dur"><span class="grid-sound-dur">@((sound.DurationMs / 1000.0).ToString("F2"))s</span></td>
+                            <td class="col-tags">
+                                <div class="sound-tag-row">
+                                    @foreach (var tag in sound.ActionVectorTags)
+                                    {
+                                        <span class="ascii-tag cursor-pointer" @onclick="() => { TagFilter = tag; }">#@tag</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="col-audition">
+                                <audio id="audio-@sound.SoundId" src="/api/memelibrary/sounds/@sound.SoundId/stream" preload="none"></audio>
+                                <button class="ascii-btn compact-btn audition-btn @(_playingSoundId == sound.SoundId ? "active" : "")"
+                                        @onclick="() => TogglePlaySound(sound.SoundId)">
+                                    @(_playingSoundId == sound.SoundId ? "[ ■ ]" : "[ ▶ ]")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
 
         <div class="library-footer-row">
@@ -192,7 +162,6 @@
     private string _tagFilter = string.Empty;
 
     // View toggles
-    private bool _showDspRack;
     private Guid? _playingSoundId;
 
     // Upload Modal State
@@ -203,28 +172,6 @@
     private bool _uploading;
     private string? _uploadMessage;
 
-    // DSP Soundboard Controls
-    private bool _bitcrusherOn;
-    private bool _bassBoostOn;
-    private double _playbackRate = 1.0;
-
-    private async Task ToggleBitcrusher()
-    {
-        _bitcrusherOn = !_bitcrusherOn;
-        await JS.InvokeVoidAsync("soundboardFx.setBitcrusher", _bitcrusherOn);
-    }
-
-    private async Task ToggleBassBoost()
-    {
-        _bassBoostOn = !_bassBoostOn;
-        await JS.InvokeVoidAsync("soundboardFx.setBassBoost", _bassBoostOn);
-    }
-
-    private async Task OnRateChanged()
-    {
-        await JS.InvokeVoidAsync("soundboardFx.setPlaybackRate", _playbackRate);
-    }
-
     private async Task TogglePlaySound(Guid soundId)
     {
         if (_playingSoundId == soundId)
@@ -232,7 +179,7 @@
             _playingSoundId = null;
             try
             {
-                await JS.InvokeVoidAsync("soundboardFx.stopAll");
+                await JS.InvokeVoidAsync("poBrowser.stopAllAudio");
             }
             catch { }
         }
@@ -241,19 +188,7 @@
             _playingSoundId = soundId;
             try
             {
-                await JS.InvokeVoidAsync("soundboardFx.playAudio", $"audio-{soundId}");
-            }
-            catch { }
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("soundboardFx.init", "soundboard-spectrum-canvas");
+                await JS.InvokeVoidAsync("poBrowser.playAudio", $"audio-{soundId}");
             }
             catch { }
         }

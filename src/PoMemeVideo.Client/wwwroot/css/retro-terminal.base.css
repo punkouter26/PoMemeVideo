@@ -50,16 +50,6 @@ pre {
     overflow-wrap: anywhere;
 }
 
-/* ── Zero-CLS Aspect Ratio & Wireframe Placeholder ──────────── */
-.video-crt-wrap,
-.history-card-preview {
-    aspect-ratio: 16 / 9;
-    background: #020704;
-    position: relative;
-    contain: layout paint;
-}
-
-
 /* ────────────────────────────────────────────────────────────────────────────
    Blazor shell chrome — merged in from the former app.css. It was a second,
    parallel stylesheet loaded alongside the retro-terminal layers; keeping it
@@ -201,21 +191,6 @@ code {
     }
 }
 
-/* =========================================================================
-   VIBE3D HIGH-FIDELITY GFX, SHADERS, PHYSICS & GLASSMORPHISM
-   ========================================================================= */
-
-.vibe-aurora-bg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: -10;
-    pointer-events: none;
-    opacity: 0.85;
-}
-
 /* 3D Floating Stage & Parallax */
 .vibe-3d-stage {
     transform-style: preserve-3d;
@@ -254,189 +229,6 @@ code {
     cursor: pointer;
 }
 
-/* ── Radzen Terminal Aesthetic Theme Overrides ─────────────────── */
-.rz-dropdown,
-.rz-textbox,
-.rz-numeric {
-    background: var(--term-surface) !important;
-    border: 1px solid var(--term-border-strong) !important;
-    color: var(--term-text) !important;
-    font-family: var(--font-ui) !important;
-    border-radius: 4px !important;
-    font-size: 0.85rem !important;
-}
-
-.rz-dropdown:focus-within,
-.rz-textbox:focus,
-.rz-numeric:focus-within {
-    border-color: var(--term-primary) !important;
-    box-shadow: var(--term-glow-soft) !important;
-}
-
-.rz-dropdown-items-wrapper {
-    background: var(--term-surface) !important;
-    border: 1px solid var(--term-border-strong) !important;
-    color: var(--term-text) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9) !important;
-}
-
-.rz-dropdown-item {
-    color: var(--term-text) !important;
-    font-family: var(--font-ui) !important;
-    font-size: 0.82rem !important;
-    padding: 0.4rem 0.6rem !important;
-}
-
-.rz-dropdown-item:hover,
-.rz-state-highlight {
-    background: rgba(0, 255, 102, 0.18) !important;
-    color: var(--term-primary) !important;
-}
-
-.rz-slider .rz-slider-range {
-    background: var(--term-primary) !important;
-}
-
-.rz-slider .rz-slider-handle {
-    background: var(--term-bg) !important;
-    border: 2px solid var(--term-primary) !important;
-    box-shadow: var(--term-glow-soft) !important;
-}
-
-.rz-data-grid {
-    background: var(--term-surface) !important;
-    border: 1px solid var(--term-border-strong) !important;
-    font-family: var(--font-ui) !important;
-    border-radius: 4px !important;
-    overflow: hidden !important;
-}
-
-.rz-grid-table thead th {
-    background: #091a13 !important;
-    color: var(--term-primary) !important;
-    border-bottom: 2px solid var(--term-border-strong) !important;
-    font-size: 0.78rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    padding: 0.45rem 0.6rem !important;
-}
-
-.rz-grid-table tbody td {
-    background: transparent !important;
-    color: var(--term-text) !important;
-    border-bottom: 1px solid rgba(0, 255, 102, 0.12) !important;
-    font-size: 0.82rem !important;
-    padding: 0.4rem 0.6rem !important;
-}
-
-.rz-grid-table tr:hover td {
-    background: rgba(0, 255, 102, 0.08) !important;
-}
-
-.rz-paginator {
-    background: #06110c !important;
-    border-top: 1px solid var(--term-border) !important;
-    color: var(--term-muted) !important;
-    font-size: 0.75rem !important;
-    padding: 0.3rem 0.5rem !important;
-}
-
-.rz-tabview-nav {
-    background: rgba(3, 7, 6, 0.85) !important;
-    border-bottom: 1px solid var(--term-border) !important;
-    gap: 0.4rem !important;
-    padding: 0.25rem 0.5rem 0 !important;
-}
-
-.rz-tabview-title {
-    font-family: var(--font-ui) !important;
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    color: var(--term-muted) !important;
-    padding: 0.35rem 0.75rem !important;
-    border: 1px solid transparent !important;
-    border-bottom: none !important;
-    border-radius: 4px 4px 0 0 !important;
-}
-
-.rz-tabview-selected .rz-tabview-title {
-    color: var(--term-primary) !important;
-    background: var(--term-surface) !important;
-    border-color: var(--term-border-strong) !important;
-    box-shadow: 0 -2px 8px rgba(0, 255, 102, 0.2) !important;
-}
-
-.rz-tabview-panels {
-    background: var(--term-surface) !important;
-    border: 1px solid var(--term-border-strong) !important;
-    border-top: none !important;
-    padding: 0.75rem !important;
-}
-
-.rz-dialog {
-    background: #07130e !important;
-    border: 2px solid var(--term-border-strong) !important;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), var(--term-glow-strong) !important;
-    color: var(--term-text) !important;
-    border-radius: 6px !important;
-}
-
-.rz-dialog-title {
-    color: var(--term-primary) !important;
-    font-family: var(--font-ui) !important;
-    font-weight: 700 !important;
-    font-size: 1rem !important;
-}
-
-.rz-notification-message {
-    background: #0b1c15 !important;
-    border: 1px solid var(--term-border-strong) !important;
-    color: var(--term-text) !important;
-    box-shadow: var(--term-glow-soft) !important;
-    font-family: var(--font-ui) !important;
-}
-
-.rz-badge {
-    font-family: var(--font-mono) !important;
-    font-size: 0.7rem !important;
-    padding: 0.2rem 0.45rem !important;
-    border-radius: 3px !important;
-    letter-spacing: 0.05em !important;
-}
-
-.rz-badge-success {
-    background: rgba(0, 255, 102, 0.15) !important;
-    color: var(--term-primary) !important;
-    border: 1px solid var(--term-primary) !important;
-}
-
-.rz-badge-info {
-    background: rgba(0, 240, 255, 0.15) !important;
-    color: var(--term-cyan) !important;
-    border: 1px solid var(--term-cyan) !important;
-}
-
-.rz-badge-warning {
-    background: rgba(255, 214, 0, 0.15) !important;
-    color: var(--term-warning) !important;
-    border: 1px solid var(--term-warning) !important;
-}
-
-.rz-badge-danger {
-    background: rgba(255, 51, 102, 0.15) !important;
-    color: var(--term-danger) !important;
-    border: 1px solid var(--term-danger) !important;
-}
-
-.rz-splitter-pane {
-    overflow: hidden !important;
-}
-
-.rz-splitter-bar {
-    background: var(--term-surface-2) !important;
-    border: 1px solid var(--term-border) !important;
-}
-
 .results-toolbar {
     display: flex;
     justify-content: space-between;
@@ -445,19 +237,6 @@ code {
     margin-bottom: 1.2rem;
     flex-wrap: wrap;
     gap: 0.8rem;
-}
-
-.toolbar-left, .toolbar-right {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
-
-.card-select-header {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 0.4rem;
 }
 
 .is-selected {
@@ -510,38 +289,12 @@ code {
     box-shadow: 0 0 8px rgba(0, 255, 220, 0.4);
 }
 
-/* 2. Neural Core 3D Telemetry (Engine Page) */
-.neural-core-stage {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 1.2rem;
-    padding: 0.5rem;
-    background: radial-gradient(circle at center, rgba(0, 255, 220, 0.06) 0%, rgba(3, 7, 6, 0.85) 75%);
-    border-radius: 6px;
-}
-
-.neural-core-canvas {
-    width: 100%;
-    max-width: 600px;
-    height: 180px;
-    display: block;
-}
-
 /* 3. Holographic Cue Scrubber (Reveal Cue Studio) */
 .cue-scrubber-stage {
     margin-bottom: 1rem;
     padding: 0.6rem;
     background: rgba(4, 10, 8, 0.9);
     border-radius: 4px;
-}
-
-.cue-scrubber-title {
-    font-size: 0.75rem;
-    color: #00ffdc;
-    margin-bottom: 0.4rem;
-    font-weight: bold;
-    text-shadow: 0 0 6px rgba(0, 255, 220, 0.5);
 }
 
 .cue-scrubber-canvas {
@@ -551,84 +304,11 @@ code {
     cursor: pointer;
 }
 
-/* 4. Laser Wipe Split Player (Reveal Page) */
-.laser-wipe-stage {
-    position: relative;
-    width: 100%;
-    background: #000;
-    overflow: hidden;
-    margin-bottom: 1rem;
-    border-radius: 6px;
-}
-
-.laser-wipe-canvas-wrap {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    max-height: 520px;
-    position: relative;
-    cursor: ew-resize;
-}
-
-.laser-wipe-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-/* 5. Meme DSP Soundboard Rack (MemeLibrary) */
-.soundboard-rack-panel {
-    margin-bottom: 1.2rem;
-    padding: 0.8rem 1rem;
-    background: linear-gradient(180deg, rgba(8, 18, 14, 0.8) 0%, rgba(3, 7, 6, 0.92) 100%);
-}
-
-.soundboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.8rem;
-    margin-bottom: 0.6rem;
-}
-
-.soundboard-title {
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: #00ffdc;
-    text-shadow: 0 0 8px rgba(0, 255, 220, 0.4);
-}
-
-.soundboard-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-}
-
 .soundboard-controls .ascii-btn.active {
     border-color: #00ffdc;
     color: #00ffdc;
     box-shadow: 0 0 10px rgba(0, 255, 220, 0.5);
     background: rgba(0, 255, 220, 0.12);
-}
-
-.soundboard-speed-label {
-    font-size: 0.75rem;
-    color: #ffe600;
-    font-weight: bold;
-}
-
-.soundboard-slider {
-    accent-color: #00ffdc;
-    cursor: pointer;
-    width: 90px;
-}
-
-.soundboard-spectrum-canvas {
-    width: 100%;
-    height: 70px;
-    display: block;
-    border-radius: 4px;
 }
 
 /* 6. Camera Shake Impulse for Celebration */
@@ -641,10 +321,6 @@ code {
     75% { transform: translate(-3px, 2px) rotate(-0.3deg); }
     90% { transform: translate(2px, -1px) rotate(0.2deg); }
     100% { transform: translate(0, 0) rotate(0deg); }
-}
-
-.camera-shake-impulse {
-    animation: cameraShakeAnim 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 /* 7. Hidden elements */

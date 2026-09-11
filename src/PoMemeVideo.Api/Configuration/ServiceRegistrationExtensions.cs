@@ -83,14 +83,7 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddSoundAssetTableRepository();
         builder.Services.AddDirectorScriptTableRepository();
 
-        builder.Services.AddSingleton(new RuntimeAiSettings
-        {
-            // BrowserLLM requires ONNX weights under MODEL/ (python scripts/download-models.py).
-            // Without them the director stalls on an inference request that can never complete,
-            // so default Dev and Prod alike to the cloud director. Users can opt into the
-            // browser-side model from the Source page dropdown if the weights are present.
-            Provider = "AiFoundry",
-        });
+        builder.Services.AddSingleton(new RuntimeAiSettings());
 
         // Typed/named HttpClients backed by a standard resilience pipeline
         // (retry + timeout + circuit breaker) per the .NET 10 resilience mandate.
@@ -100,18 +93,21 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddHttpClient("AiFoundry")
             .AddHttpMessageHandler<CorrelationPropagationHandler>()
             .AddStandardResilienceHandler();
-        builder.Services.AddSingleton<IAiVisionService, AzureOpenAiVisionService>();
-        builder.Services.AddSingleton<AzureOpenAiDirectorService>();
-        builder.Services.AddSingleton<AiFoundryDirectorService>();
-        builder.Services.AddSingleton<BrowserLLMDirectorService>();
-        builder.Services.AddSingleton<IDirectorService, SwitchingDirectorService>();
+        builder.Services.AddSingleton<IAiVisionService, AiFoundryVisionService>();
+
+        // One cloud director. This used to be a SwitchingDirectorService dispatching at call time
+        // across AzureOpenAI / AiFoundry / BrowserLLM on a runtime-mutable provider string.
+        // AiFoundry was the default in every environment and the fallback for anything
+        // unrecognised, so the other two branches carried a model-download UI, a SignalR
+        // round-trip and an ARM deployment lister to serve a path nothing selected.
+        // Tests substitute MockDirectorService over this registration.
+        builder.Services.AddSingleton<IDirectorService, AiFoundryDirectorService>();
 
         builder.Services.AddScoped<SemanticMatchingService>();
         builder.Services.AddScoped<ISemanticMatchingService>(sp => sp.GetRequiredService<SemanticMatchingService>());
         builder.Services.AddScoped<RunEngineCommand>();
         builder.Services.AddScoped<RenderVideoCommand>();
         builder.Services.AddScoped<IRenderVideoCommand>(sp => sp.GetRequiredService<RenderVideoCommand>());
-        builder.Services.AddSingleton<FoundryDeploymentLister>();
         builder.Services.AddSingleton<EngineRunDispatcher>();
         builder.Services.AddSingleton<IEngineRunDispatcher>(sp => sp.GetRequiredService<EngineRunDispatcher>());
         builder.Services.AddHostedService(sp => sp.GetRequiredService<EngineRunDispatcher>());
@@ -205,7 +201,6 @@ internal static class ServiceRegistrationExtensions
         builder.Services.AddSingleton<IEngineNotifier, EngineHubNotifier>();
 
         builder.Services.AddOpenApi();
-        builder.Services.AddRazorPages();
 
         // Single-origin: the WASM client is served same-origin by this API, so no CORS.
 

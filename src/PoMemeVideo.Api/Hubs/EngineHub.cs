@@ -42,7 +42,6 @@ public class EngineHubNotifier : IEngineNotifier
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("DirectorScriptEntry", entry, cancellationToken);
 
-
     public Task CompleteAsync(SessionId sessionId, string outputBlobPath, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("ProcessingComplete", outputBlobPath, cancellationToken);
@@ -50,8 +49,4 @@ public class EngineHubNotifier : IEngineNotifier
     public Task ErrorAsync(SessionId sessionId, string errorMessage, CancellationToken cancellationToken = default)
         => _hubContext.Clients.Group($"session-{sessionId}")
             .SendAsync("ProcessingError", errorMessage, cancellationToken);
-
-    public Task BrowserLLMInferenceRequestAsync(SessionId sessionId, string payloadJson, CancellationToken cancellationToken = default)
-        => _hubContext.Clients.Group($"session-{sessionId}")
-            .SendAsync("BrowserLLMInferenceRequest", payloadJson, cancellationToken);
 }

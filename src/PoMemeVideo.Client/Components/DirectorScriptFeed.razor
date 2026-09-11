@@ -21,11 +21,11 @@
                     <span class="cue-time">@((entry.TimestampMs / 1000.0).ToString("F1"))s</span>
                     @if (entry.IsIronic)
                     {
-                        <span class="rz-badge rz-badge-warning">IRONIC</span>
+                        <span class="status-badge status-badge-warning">IRONIC</span>
                     }
                     @if (entry.VisualEffect.HasValue)
                     {
-                        <span class="rz-badge rz-badge-info">@entry.VisualEffect</span>
+                        <span class="status-badge status-badge-info">@entry.VisualEffect</span>
                     }
                 </div>
 

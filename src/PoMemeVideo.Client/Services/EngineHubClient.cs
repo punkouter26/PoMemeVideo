@@ -27,7 +27,6 @@ public sealed class EngineHubClient : IAsyncDisposable
         _connection.On<ScriptEntryDto>("DirectorScriptEntry", entry => DirectorScriptEntry?.Invoke(entry));
         _connection.On<string>("ProcessingComplete", path => ProcessingComplete?.Invoke(path));
         _connection.On<string>("ProcessingError", err => ProcessingError?.Invoke(err));
-        _connection.On<string>("BrowserLLMInferenceRequest", payload => BrowserLLMInferenceRequest?.Invoke(payload));
     }
 
     // ── Server → Client Events ────────────────────────────────────────────────
@@ -48,7 +47,6 @@ public sealed class EngineHubClient : IAsyncDisposable
     /// Fired when the server requests in-browser Transformers.js inference.
     /// The string argument is the JSON payload for window.browserLLM.generate().
     /// </summary>
-    public event Action<string>? BrowserLLMInferenceRequest;
 
     // ── Client → Server ───────────────────────────────────────────────────────
 
