@@ -3,7 +3,11 @@ services:
     image: mcr.microsoft.com/azure-storage/azurite:latest
     container_name: pomemevideo-azurite
     hostname: azurite
-    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --loose --skipApiVersionCheck"
+    # --location /data is load-bearing: without it Azurite writes its state to /opt/azurite inside
+    # the container, so the azurite-data volume below stays empty and every session, script and
+    # rendered video is destroyed whenever the container is recreated (down/up, prune, or a
+    # recreate by another compose command).
+    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --loose --skipApiVersionCheck"
     ports:
       - "10000:10000"   # Blob Storage
       - "10001:10001"   # Queue Storage
