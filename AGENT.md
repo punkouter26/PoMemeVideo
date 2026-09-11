@@ -48,11 +48,11 @@ tests/
                                 Infrastructure/ — `[Collection("Integration")]`
                                 with a `TestcontainersCleanupFixture` so any
                                 leaked Testcontainer is reaped at collection
-                                teardown (see scripts/cleanup-testcontainers.ps1)
+                                teardown
   PoMemeVideo.E2EAPI/             ← C# pure-API emulation (Test env, GUEST bypass)
   PoMemeVideo.E2EUI/              ← C# Playwright browser tests (E2E_BASE_URL-driven)
 
-scripts/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool clones), seed/model helpers
+scripts/                    ← setup.ps1 (winget/Docker/Azurite/az login + tool clones), Azurite + test-budget checks
 ```
 
 **Vertical Slice Architecture:** the layer projects (Domain/Application/Infrastructure)
@@ -285,13 +285,19 @@ Local dev uses `dev` environment (real AI calls).
 
 ## 13. Scripts & Tooling (`scripts/`)
 
-| Script | Purpose |
+| File | Purpose |
 |---|---|
-| `setup.ps1` | The one bootstrap: Winget, Docker/Azurite, sounds, tooling, `az login` check |
-| `download-meme-sounds.py` | Fetch the curated meme audio clips into `scripts/meme-sounds/` |
-| `seed-meme-sounds.py` | Populate Azurite/Azure with sound assets |
-| `check-azurite.py` | Verify local Azurite connectivity |
-| `cleanup-testcontainers.ps1` | Idempotent — removes any Docker container matching `*-test-*-{16-32hex}` (Testcontainers' default name pattern). Preserves `pomemevideo-azurite` (dev compose). Wire into `dotnet test` pre/post or let `TestcontainersCleanupFixture` invoke it at collection teardown. |
+| `setup.ps1` | The one bootstrap: winget, Docker/Azurite, sound seeding, tooling, `az login` check |
+| `check-azurite.py` | Verify local Azurite connectivity (Blob/Queue/Table) |
+| `check-test-budgets.ps1` | Enforce per-suite test quotas; `ci.yml` fails the build on a violation |
+| `requirements.txt` | Python deps for `check-azurite.py` |
+| `meme-sounds/sounds-metadata.json` | Sound library manifest; the `.mp3`s beside it are gitignored |
+
+Sound seeding is **not** a script — it is `dotnet run --project src/PoMemeVideo.Api -- seed-sounds`.
+`SeedSoundsCommand` downloads any clip missing from disk from its `sourceUrl` straight into blob
+storage, so one call bootstraps the library from a bare clone. That fallback is what let the
+`download-meme-sounds.py` + `seed-meme-sounds.py` pair be deleted; `cleanup-testcontainers.ps1`
+went the same way, its logic inlined into `TestcontainersCleanupFixture`.
 
 ---
 

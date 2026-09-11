@@ -270,40 +270,22 @@ internal static class EndpointMappingExtensions
             var hasEntries = soundsTable.Query<Azure.Data.Tables.TableEntity>(maxPerPage: 1).Any();
             if (!hasEntries && app.Environment.IsDevelopment() && !app.Configuration.GetValue<bool>("SkipAutoSeed"))
             {
-                Log.Warning("[DEV] Sound library is empty — run: python scripts/seed-meme-sounds.py  (or: dotnet run -- seed-sounds)");
+                Log.Warning("[DEV] Sound library is empty — run: dotnet run --project src/PoMemeVideo.Api -- seed-sounds");
                 // Attempt auto-seed in Development so the app is immediately usable.
+                //
+                // This used to spawn `python scripts/seed-meme-sounds.py` and give it five seconds
+                // to finish — which was never enough to download thirty clips, so the timeout was
+                // the normal outcome. The seeder is the same code the CLI verb runs, so call it
+                // directly: no Python on PATH, no process, no timeout.
                 try
                 {
-                    var seedScript = new[]
-                    {
-                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "scripts", "seed-meme-sounds.py"),
-                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "SCRIPTS", "seed-meme-sounds.py"),
-                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "scripts", "seed-meme-sounds.py"),
-                        Path.Combine(app.Environment.ContentRootPath, "..", "..", "..", "SCRIPTS", "seed-meme-sounds.py"),
-                    }.FirstOrDefault(File.Exists);
-                    if (seedScript is not null)
-                    {
-                        Log.Information("[DEV] Auto-seeding sound library from {Script}...", seedScript);
-                        var psi = new System.Diagnostics.ProcessStartInfo("python", $"\"{seedScript}\"")
-                        {
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            CreateNoWindow = true,
-                        };
-                        using var proc = System.Diagnostics.Process.Start(psi);
-                        if (proc is not null)
-                        {
-                            var stdout = await proc.StandardOutput.ReadToEndAsync();
-                            var stderr = await proc.StandardError.ReadToEndAsync();
-                            using var procCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                            await proc.WaitForExitAsync(procCts.Token);
-                            if (proc.ExitCode == 0)
-                                Log.Information("[DEV] Sound library seeded successfully.");
-                            else
-                                Log.Warning("[DEV] Sound library seeding failed (exit {Code}): {Stderr}", proc.ExitCode, stderr);
-                        }
-                    }
+                    var seedsDir = SeedSoundsCommand.ResolveSeedsDir([], Directory.GetCurrentDirectory());
+                    Log.Information("[DEV] Auto-seeding sound library from {SeedsDir}...", seedsDir);
+                    var exitCode = await SeedSoundsCommand.RunForDirAsync(seedsDir, app.Configuration, verbose: false);
+                    if (exitCode == 0)
+                        Log.Information("[DEV] Sound library seeded successfully.");
+                    else
+                        Log.Warning("[DEV] Sound library seeding reported failures (exit {Code}).", exitCode);
                 }
                 catch (Exception ex)
                 {

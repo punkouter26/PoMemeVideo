@@ -1,0 +1,65 @@
+name: CI (full suite)
+
+# On-demand only, never on push.
+#
+# Both suites need an Azurite service container, cost a runner each and fail for environmental
+# reasons about as often as for real ones — which is why they are not on the push path. Run this
+# manually (Actions -> CI (full suite) -> Run workflow) before a release, or after touching
+# storage, auth or the render pipeline.
+#
+# The Playwright UI suite used to be a third job here. It published the app, booted it, installed
+# a browser and drove it, and it is the one suite that reports a pass when it has done nothing:
+# every test returns early if E2E_BASE_URL is unset. It is now run locally against a live instance
+# instead -- see CLAUDE.md.
+on:
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  suites:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Integration Tests
+            project: tests/PoMemeVideo.IntegrationTests
+          - name: API E2E Tests
+            project: tests/PoMemeVideo.E2EAPI
+
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:latest
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+        options: >-
+          --health-cmd "nc -z localhost 10000"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore PoMemeVideo.slnx
+
+      - name: Build
+        run: dotnet build PoMemeVideo.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test ${{ matrix.project }} --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__AzureStorage: "UseDevelopmentStorage=true"

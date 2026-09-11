@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$SkipWinget,
-    [switch]$SkipPythonBootstrap,
+    [switch]$SkipSeed,
     [switch]$SkipAzurite,
     [switch]$SkipKeys,
     [switch]$SkipTools
@@ -98,20 +98,17 @@ try {
         }
     }
 
-    if (-not $SkipPythonBootstrap) {
-        if (-not (Test-Command -Name 'python')) {
-            throw 'Python is required for the sound-library bootstrap.'
-        }
-
-        # These two steps used to sit behind setup-new-machine.py, a second bootstrap that
-        # duplicated the winget/Docker/Azurite work above and additionally pulled ONNX weights
-        # for the retired in-browser LLM provider. Calling the surviving scripts directly
-        # leaves one bootstrap entry point instead of two that had drifted apart.
-        Write-Host 'Downloading meme sounds...'
-        python scripts/download-meme-sounds.py
-
+    if (-not $SkipSeed) {
+        # Seeding is the app's own CLI verb, not a script. SeedSoundsCommand reads
+        # scripts/meme-sounds/sounds-metadata.json and, for any clip whose .mp3 is not on disk
+        # (the audio is gitignored), fetches it from that entry's sourceUrl straight into blob
+        # storage. So this one call bootstraps the library from a bare clone -- which is why the
+        # download-then-seed pair of Python scripts it replaced are gone. Idempotent.
         Write-Host 'Seeding the sound library into Azurite...'
-        python scripts/seed-meme-sounds.py
+        dotnet run --project src/PoMemeVideo.Api -- seed-sounds
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Sound seeding reported failures (exit $LASTEXITCODE). Re-run: dotnet run --project src/PoMemeVideo.Api -- seed-sounds"
+        }
     }
 
     if (-not $SkipTools) {

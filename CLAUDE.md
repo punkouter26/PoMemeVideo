@@ -27,7 +27,7 @@ dotnet run --project src/PoMemeVideo.Api --launch-profile https   # → https://
 
 # Local storage + seeding (Development points at Azurite)
 docker compose up -d   # Azurite on 10000/10001/10002
-python scripts/seed-meme-sounds.py                 # or: dotnet run --project src/PoMemeVideo.Api -- seed-sounds
+dotnet run --project src/PoMemeVideo.Api -- seed-sounds   # fetches missing clips from sourceUrl
 python scripts/check-azurite.py
 
 # New machine bootstrap
@@ -165,10 +165,15 @@ The one permitted `style` attribute is a **CSS custom property carrying a per-re
 - Show the GUEST login button when `ASPNETCORE_ENVIRONMENT == Production`.
 - Reintroduce technical-layer projects/folders — keep code in feature slices.
 - Add test steps to `deploy-pomemevideo.yml` — the deploy workflow builds and deploys only, by
-  rule. Tests belong in `ci.yml`, which gates pushes and PRs against `master` — but only with
-  build + test budgets + **unit tests**. The integration and E2E jobs in that file are
-  `workflow_dispatch`-only; adding one to the push path puts an Azurite service container back on
-  every commit. Run CI manually when you need the full suite.
+  rule. Tests belong in `ci.yml`, which gates pushes and PRs against `master` with build + test
+  budgets + **unit tests, and nothing else**. The heavier suites live in `ci-full.yml`
+  (`workflow_dispatch` only, one matrix job over integration + API E2E, each with an Azurite
+  service container). Adding either to the push path puts a service container back on every
+  commit — run `ci-full.yml` manually instead, before a release or after touching storage, auth
+  or the render pipeline.
+- Add the Playwright UI suite to any workflow. `PoMemeVideo.E2EUI` is run locally against a
+  live instance (`E2E_BASE_URL=…`), never in CI: every test self-skips when that variable is
+  unset, so a CI job that misconfigures it reports a green pass having tested nothing.
 
 ## Agent Operating & Workflow Rules
 

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace PoMemeVideo.IntegrationTests.Infrastructure;
 
@@ -14,16 +15,28 @@ namespace PoMemeVideo.IntegrationTests.Infrastructure;
 ///      a graveyard of <c>pomemevideo-test-azurite-…</c> hulks.
 ///   2. <strong>Multi-project safety.</strong> Docker is shared with
 ///      other Po* worktrees. We only delete names matching the
-///      Testcontainers convention (see <c>scripts/cleanup-testcontainers.ps1</c>
-///      for the exact pattern), so the dev compose service
+///      Testcontainers convention, so the dev compose service
 ///      <c>pomemevideo-azurite</c> is never at risk.
-///   3. <strong>Zero deps.</strong> The fixture shells out to <c>docker rm</c>
+///   3. <strong>Zero deps.</strong> The fixture shells out to <c>docker</c>
 ///      — no Testcontainers reference needed in the consuming test classes.
+///
+/// This used to shell out to a PowerShell script, resolved by walking up for
+/// <c>SCRIPTS/cleanup-testcontainers.ps1</c>. That lookup was case-sensitive against a
+/// lowercase <c>scripts/</c>, so on Linux it found nothing and the fixture silently reaped
+/// nothing at all. The logic is inlined here instead: one less script, and it runs everywhere.
 ///
 /// The fixture is wired via <see cref="IntegrationCollection"/>.
 /// </summary>
 public sealed class TestcontainersCleanupFixture : IAsyncLifetime
 {
+    // Testcontainers default name pattern (verified against 4.5.0):
+    //   {WithName-or-assembly-name}-test-{image-name}-{16-32-char-hex-checksum}
+    private static readonly Regex TestContainerName =
+        new(@"^.+-test-[^-]+-[0-9a-f]{16,32}$", RegexOptions.Compiled);
+
+    // Managed elsewhere (docker-compose.yml dev stack) — never touched.
+    private static readonly string[] ProtectedNames = ["pomemevideo-azurite"];
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
@@ -33,49 +46,45 @@ public sealed class TestcontainersCleanupFixture : IAsyncLifetime
         {
             try
             {
-                var script = ResolveCleanupScript();
-                if (script is null)
+                foreach (var name in ListContainerNames())
                 {
-                    // docker CLI missing — nothing to do (other tests may also
-                    // depend on Docker being present, so this is informational).
-                    return;
+                    if (!TestContainerName.IsMatch(name) || ProtectedNames.Contains(name))
+                        continue;
+
+                    RunDocker($"container rm -f {name}");
                 }
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "pwsh",
-                    ArgumentList = { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script },
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-
-                using var p = Process.Start(psi)!;
-                p.WaitForExit(TimeSpan.FromSeconds(30).Milliseconds);
-                // stdout/stderr are intentionally swallowed: the script already logs to console
-                // during interactive runs; during CI the runner shows its own line.
             }
             catch (Exception)
             {
                 // Best-effort cleanup — never fail the test run because of it.
+                // A missing docker CLI lands here too, which is fine: nothing to reap.
             }
         });
     }
 
-    /// <summary>
-    /// Walks up from the test assembly's location to find <c>SCRIPTS/cleanup-testcontainers.ps1</c>.
-    /// Tests run from <c>{repo}/tests/PoMemeVideo.IntegrationTests/bin/...</c>, so two levels up is the repo.
-    /// </summary>
-    private static string? ResolveCleanupScript()
+    private static IEnumerable<string> ListContainerNames()
     {
-        var dir = AppContext.BaseDirectory;
-        for (var i = 0; i < 6 && dir is not null; i++)
+        var output = RunDocker("ps -a --format {{.Names}}");
+        return output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static string RunDocker(string arguments)
+    {
+        var psi = new ProcessStartInfo
         {
-            var candidate = Path.Combine(dir, "SCRIPTS", "cleanup-testcontainers.ps1");
-            if (File.Exists(candidate)) return candidate;
-            dir = Path.GetDirectoryName(dir);
-        }
-        return null;
+            FileName = "docker",
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var p = Process.Start(psi)!;
+        var stdout = p.StandardOutput.ReadToEnd();
+        // The previous code passed TimeSpan.FromSeconds(30).Milliseconds — which is 0, not 30000,
+        // so it never actually waited. Pass the TimeSpan itself.
+        p.WaitForExit(TimeSpan.FromSeconds(30));
+        return stdout;
     }
 }

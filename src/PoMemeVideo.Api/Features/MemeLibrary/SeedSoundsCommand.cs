@@ -9,8 +9,9 @@ namespace PoMemeVideo.Api.Features.MemeLibrary;
 
 /// <summary>
 /// CLI seeder: dotnet run -- seed-sounds [--seeds-dir &lt;path&gt;]
-/// Reads tools/meme-sounds/sounds-metadata.json and uploads MP3s to Azurite Blob Storage,
-/// then writes SoundAsset rows to Azurite Table Storage. Idempotent — skips existing rows.
+/// Reads scripts/meme-sounds/sounds-metadata.json and uploads MP3s to Blob Storage, then writes
+/// SoundAsset rows to Table Storage. Any clip missing from disk is fetched from its sourceUrl, so
+/// this bootstraps the library from a bare clone. Idempotent — skips rows already seeded locally.
 /// </summary>
 public static class SeedSoundsCommand
 {
@@ -46,7 +47,7 @@ public static class SeedSoundsCommand
             if (verbose)
             {
                 Console.Error.WriteLine($"✗ Metadata file not found: {metaFile}");
-                Console.Error.WriteLine("  Run tools/download-meme-sounds.py first, or pass --seeds-dir <path>.");
+                Console.Error.WriteLine("  Pass --seeds-dir <path>, or run from the repository root.");
             }
             return 1;
         }
